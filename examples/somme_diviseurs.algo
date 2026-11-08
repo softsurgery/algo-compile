@@ -1,0 +1,23 @@
+ALGORITHME SommeDiviseurs
+DEBUT
+  Ecrire("Entrez un entier positif n : ")
+  Lire(n)
+  
+  som <- 0
+  Pour i de 1 à n Div 2 Faire
+    Si n Mod i = 0 Alors
+      som <- som + i
+    FinSi
+  Fin Pour
+  
+  Ecrire_nl("La somme des diviseurs stricts est : ", som)
+  
+  Si som = n Alors
+    Ecrire_nl(n, " est un nombre PARFAIT !")
+  Sinon
+    Ecrire_nl(n, " n'est pas un nombre parfait.")
+  FinSi
+FIN
+Déclaration des objets
+Objet       Type / Nature
+n, som, i   Entier

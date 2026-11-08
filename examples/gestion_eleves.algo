@@ -1,0 +1,24 @@
+ALGORITHME MentionEleve
+DEBUT
+  Ecrire("Nom de l'élève : ")
+  Lire(E.nom)
+  
+  Ecrire("Moyenne obtenue (sur 20) : ")
+  Lire(E.moyenne)
+  
+  Selon E.moyenne
+    16 .. 20 : E.mention <- "Très Bien"
+    14 .. 15.99 : E.mention <- "Bien"
+    12 .. 13.99 : E.mention <- "Assez Bien"
+    10 .. 11.99 : E.mention <- "Passable"
+    Sinon E.mention <- "Ajourné"
+  Fin Selon
+  
+  Ecrire_nl("--- Résultat ---")
+  Ecrire_nl("Élève : ", E.nom)
+  Ecrire_nl("Moyenne : ", E.moyenne)
+  Ecrire_nl("Mention : ", E.mention)
+FIN
+Déclaration des objets
+Objet       Type / Nature
+E           Enregistrement

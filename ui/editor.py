@@ -1,0 +1,336 @@
+"""
+Algorithm Code Editor with Syntax Highlighting, Line Numbers,
+Auto-Indentation, and Error/Step Line Highlighting.
+Designed specifically for Tunisian Algorithm Convention (2024/2025).
+"""
+
+import re
+from PyQt5.QtWidgets import QWidget, QPlainTextEdit, QTextEdit
+from PyQt5.QtGui import (
+    QColor, QTextFormat, QPainter, QFont, QSyntaxHighlighter,
+    QTextCharFormat, QTextCursor
+)
+from PyQt5.QtCore import Qt, QRect, QSize
+
+
+class AlgoHighlighter(QSyntaxHighlighter):
+    """Syntax Highlighter for the Tunisian Algorithmic Convention."""
+
+    def __init__(self, parent=None, is_dark=False):
+        super().__init__(parent)
+        self.is_dark = is_dark
+        self.highlighting_rules = []
+        self._setup_formats()
+        self._build_rules()
+
+    def set_dark_mode(self, is_dark: bool):
+        self.is_dark = is_dark
+        self._setup_formats()
+        self._build_rules()
+        self.rehighlight()
+
+    def _setup_formats(self):
+        self.fmt_keyword = QTextCharFormat()
+        self.fmt_keyword.setFontWeight(QFont.Bold)
+        self.fmt_keyword.setForeground(QColor("#89b4fa" if self.is_dark else "#0969da"))
+
+        self.fmt_control = QTextCharFormat()
+        self.fmt_control.setFontWeight(QFont.Bold)
+        self.fmt_control.setForeground(QColor("#cba6f7" if self.is_dark else "#8250df"))
+
+        self.fmt_type = QTextCharFormat()
+        self.fmt_type.setFontWeight(QFont.DemiBold)
+        self.fmt_type.setForeground(QColor("#fab387" if self.is_dark else "#953800"))
+
+        self.fmt_builtin = QTextCharFormat()
+        self.fmt_builtin.setForeground(QColor("#94e2d5" if self.is_dark else "#0550ae"))
+
+        self.fmt_operator = QTextCharFormat()
+        self.fmt_operator.setFontWeight(QFont.Bold)
+        self.fmt_operator.setForeground(QColor("#f38ba8" if self.is_dark else "#cf222e"))
+
+        self.fmt_literal = QTextCharFormat()
+        self.fmt_literal.setForeground(QColor("#a6e3a1" if self.is_dark else "#1a7f37"))
+
+        self.fmt_string = QTextCharFormat()
+        self.fmt_string.setForeground(QColor("#a6e3a1" if self.is_dark else "#0a7029"))
+
+        self.fmt_comment = QTextCharFormat()
+        self.fmt_comment.setFontItalic(True)
+        self.fmt_comment.setForeground(QColor("#6c7086" if self.is_dark else "#6e7781"))
+
+    def _build_rules(self):
+        self.highlighting_rules = []
+
+        # Block & structure keywords
+        keywords = [
+            r'\bALGORITHME\b', r'\bDEBUT\b', r'\bDÉBUT\b', r'\bFIN\b',
+            r'\bFonction\b', r'\bProcédure\b', r'\bProcedure\b', r'\bRetourner\b',
+            r'\bDéclaration\s+des\s+objets\b', r'\bDéclaration\s+des\s+nouveaux\s+types\b',
+            r'\bTDO\b', r'\bTDNT\b'
+        ]
+        for pattern in keywords:
+            rule = (re.compile(pattern, re.IGNORECASE), self.fmt_keyword)
+            self.highlighting_rules.append(rule)
+
+        # Control keywords
+        control_keywords = [
+            r'\bSi\b', r'\bAlors\b', r'\bSinon\b', r'\bSinon\s*Si\b', r'\bFinSi\b', r'\bFin\s*Si\b',
+            r'\bSelon\b', r'\bFin\s*Selon\b', r'\bFinSelon\b',
+            r'\bPour\b', r'\bde\b', r'\bà\b', r'\ba\b', r'\bPas\b', r'\bFaire\b', r'\bFin\s*Pour\b', r'\bFinPour\b',
+            r'\bTant\s*que\b', r'\bFin\s*Tant\s*que\b', r'\bFinTantQue\b',
+            r'\bRépéter\b', r'\bRepeter\b', r'\bJusqu[\'’]à\b', r'\bJusqu[\'’]a\b'
+        ]
+        for pattern in control_keywords:
+            rule = (re.compile(pattern, re.IGNORECASE), self.fmt_control)
+            self.highlighting_rules.append(rule)
+
+        # Types
+        types = [
+            r'\bEntier\b', r'\bRéel\b', r'\bReel\b', r'\bBooléen\b', r'\bBooleen\b',
+            r'\bCaractère\b', r'\bCaractere\b', r'\bChaîne\s+de\s+caractères\b',
+            r'\bChaîne\b', r'\bChaine\b', r'\bTableau\b', r'\bEnregistrement\b',
+            r'\bFichier\s+Texte\b', r'\bFichier\b'
+        ]
+        for pattern in types:
+            rule = (re.compile(pattern, re.IGNORECASE), self.fmt_type)
+            self.highlighting_rules.append(rule)
+
+        # Predefined functions and I/O
+        builtins = [
+            r'\bLire\b', r'\bLire_ligne\b', r'\bEcrire\b', r'\bÉcrire\b',
+            r'\bEcrire_nl\b', r'\bÉcrire_nl\b',
+            r'\bArrondi\b', r'\bRacineCarré\b', r'\bRacineCarre\b', r'\bAléa\b', r'\bAlea\b',
+            r'\bEnt\b', r'\bAbs\b', r'\bOrd\b', r'\bChr\b', r'\bLong\b', r'\bPos\b',
+            r'\bConvch\b', r'\bEstnum\b', r'\bValeur\b', r'\bSous_chaine\b',
+            r'\bEffacer\b', r'\bMajus\b', r'\bOuvrir\b', r'\bFermer\b', r'\bFin_fichier\b'
+        ]
+        for pattern in builtins:
+            rule = (re.compile(pattern, re.IGNORECASE), self.fmt_builtin)
+            self.highlighting_rules.append(rule)
+
+        # Algorithmic Operators
+        operators = [
+            r'<-', r'←', r'\uf0e7', r'', r':=',
+            r'\bDiv\b', r'\bMod\b', r'\bEt\b', r'\bOu\b', r'\bNon\b', r'\bdans\b',
+            r'≠', r'<>', r'≤', r'<=', r'≥', r'>=', r'', r'∈'
+        ]
+        for pattern in operators:
+            rule = (re.compile(pattern, re.IGNORECASE), self.fmt_operator)
+            self.highlighting_rules.append(rule)
+
+        # Literals (Vrai, Faux, numbers)
+        literals = [
+            r'\bVrai\b', r'\bFaux\b',
+            r'\b[0-9]+(?:\.[0-9]+)?\b'
+        ]
+        for pattern in literals:
+            rule = (re.compile(pattern, re.IGNORECASE), self.fmt_literal)
+            self.highlighting_rules.append(rule)
+
+    def highlightBlock(self, text: str):
+        # Apply standard rules
+        for pattern, fmt in self.highlighting_rules:
+            for match in pattern.finditer(text):
+                start = match.start()
+                length = match.end() - start
+                self.setFormat(start, length, fmt)
+
+        # Strings ("..." or '...')
+        string_pattern = re.compile(r'("[^"\\]*(?:\\.[^"\\]*)*"|\'[^\'\\]*(?:\\.[^\'\\]*)*\')')
+        for match in string_pattern.finditer(text):
+            self.setFormat(match.start(), match.end() - match.start(), self.fmt_string)
+
+        # Comments (// ... or # ...)
+        comment_pattern = re.compile(r'(//.*|#.*)')
+        for match in comment_pattern.finditer(text):
+            self.setFormat(match.start(), match.end() - match.start(), self.fmt_comment)
+
+
+class LineNumberArea(QWidget):
+    def __init__(self, editor):
+        super().__init__(editor)
+        self.editor = editor
+
+    def sizeHint(self):
+        return QSize(self.editor.line_number_area_width(), 0)
+
+    def paintEvent(self, event):
+        self.editor.line_number_area_paint_event(event)
+
+
+class AlgoCodeEditor(QPlainTextEdit):
+    def __init__(self, parent=None, is_dark=False):
+        super().__init__(parent)
+        self.is_dark = is_dark
+        self.line_number_area = LineNumberArea(self)
+        self.highlighter = AlgoHighlighter(self.document(), is_dark=is_dark)
+
+        # Font configuration - Crisp modern monospace
+        font = QFont("JetBrains Mono", 11)
+        font.setStyleHint(QFont.Monospace)
+        if not font.exactMatch():
+            font = QFont("Consolas", 11)
+            if not font.exactMatch():
+                font = QFont("Courier New", 11)
+        self.setFont(font)
+        self.setTabStopDistance(self.fontMetrics().horizontalAdvance(' ') * 4)
+
+        self.current_error_line = None
+        self.current_exec_line = None
+
+        self.blockCountChanged.connect(self.update_line_number_area_width)
+        self.updateRequest.connect(self.update_line_number_area)
+        self.cursorPositionChanged.connect(self.highlight_current_line)
+
+        self.update_line_number_area_width(0)
+        self.highlight_current_line()
+
+    def set_dark_mode(self, is_dark: bool):
+        self.is_dark = is_dark
+        self.highlighter.set_dark_mode(is_dark)
+        self.highlight_current_line()
+        self.line_number_area.update()
+
+    def line_number_area_width(self):
+        digits = 1
+        m = max(1, self.blockCount())
+        while m >= 10:
+            m //= 10
+            digits += 1
+        space = 15 + self.fontMetrics().horizontalAdvance('9') * digits
+        return space
+
+    def update_line_number_area_width(self, _):
+        self.setViewportMargins(self.line_number_area_width(), 0, 0, 0)
+
+    def update_line_number_area(self, rect, dy):
+        if dy:
+            self.line_number_area.scroll(0, dy)
+        else:
+            self.line_number_area.update(0, rect.y(), self.line_number_area.width(), rect.height())
+        if rect.contains(self.viewport().rect()):
+            self.update_line_number_area_width(0)
+
+    def resizeEvent(self, event):
+        super().resizeEvent(event)
+        cr = self.contentsRect()
+        self.line_number_area.setGeometry(
+            QRect(cr.left(), cr.top(), self.line_number_area_width(), cr.height())
+        )
+
+    def highlight_current_line(self):
+        extra_selections = []
+
+        if not self.isReadOnly():
+            selection = QTextEdit.ExtraSelection()
+            line_color = QColor("#313244") if self.is_dark else QColor("#f1f5f9")
+            selection.format.setBackground(line_color)
+            selection.format.setProperty(QTextFormat.FullWidthSelection, True)
+            selection.cursor = self.textCursor()
+            selection.cursor.clearSelection()
+            extra_selections.append(selection)
+
+        # Highlight error line if any
+        if self.current_error_line is not None:
+            err_sel = QTextEdit.ExtraSelection()
+            err_color = QColor("#552732") if self.is_dark else QColor("#ffe3e3")
+            err_sel.format.setBackground(err_color)
+            err_sel.format.setProperty(QTextFormat.FullWidthSelection, True)
+            cursor = QTextCursor(self.document().findBlockByNumber(self.current_error_line - 1))
+            err_sel.cursor = cursor
+            extra_selections.append(err_sel)
+
+        # Highlight step line if any
+        if self.current_exec_line is not None:
+            exec_sel = QTextEdit.ExtraSelection()
+            exec_color = QColor("#1a3328") if self.is_dark else QColor("#d3f9d8")
+            exec_sel.format.setBackground(exec_color)
+            exec_sel.format.setProperty(QTextFormat.FullWidthSelection, True)
+            cursor = QTextCursor(self.document().findBlockByNumber(self.current_exec_line - 1))
+            exec_sel.cursor = cursor
+            extra_selections.append(exec_sel)
+
+        self.setExtraSelections(extra_selections)
+
+    def set_error_line(self, line_num):
+        self.current_error_line = line_num
+        self.highlight_current_line()
+        if line_num is not None:
+            self.goto_line(line_num)
+
+    def set_exec_line(self, line_num):
+        self.current_exec_line = line_num
+        self.highlight_current_line()
+        if line_num is not None:
+            self.goto_line(line_num)
+
+    def goto_line(self, line_num):
+        block = self.document().findBlockByNumber(line_num - 1)
+        if block.isValid():
+            cursor = self.textCursor()
+            cursor.setPosition(block.position())
+            self.setTextCursor(cursor)
+            self.ensureCursorVisible()
+
+    def line_number_area_paint_event(self, event):
+        painter = QPainter(self.line_number_area)
+        bg_color = QColor("#181825") if self.is_dark else QColor("#f8fafc")
+        fg_color = QColor("#6c7086") if self.is_dark else QColor("#94a3b8")
+        current_line_fg = QColor("#89b4fa") if self.is_dark else QColor("#2563eb")
+
+        painter.fillRect(event.rect(), bg_color)
+
+        block = self.firstVisibleBlock()
+        block_number = block.blockNumber()
+        top = int(self.blockBoundingGeometry(block).translated(self.contentOffset()).top())
+        bottom = top + int(self.blockBoundingRect(block).height())
+
+        current_block_num = self.textCursor().blockNumber()
+
+        while block.isValid() and top <= event.rect().bottom():
+            if block.isVisible() and bottom >= event.rect().top():
+                number = str(block_number + 1)
+                if block_number == current_block_num:
+                    painter.setPen(current_line_fg)
+                    f = painter.font()
+                    f.setBold(True)
+                    painter.setFont(f)
+                else:
+                    painter.setPen(fg_color)
+                    f = painter.font()
+                    f.setBold(False)
+                    painter.setFont(f)
+
+                painter.drawText(
+                    0, top, self.line_number_area.width() - 6,
+                    self.fontMetrics().height(), Qt.AlignRight, number
+                )
+
+            block = block.next()
+            top = bottom
+            bottom = top + int(self.blockBoundingRect(block).height())
+            block_number += 1
+
+    def keyPressEvent(self, event):
+        """Auto-indent on Enter."""
+        if event.key() == Qt.Key_Return or event.key() == Qt.Key_Enter:
+            cursor = self.textCursor()
+            block_text = cursor.block().text()
+            
+            # Find current indentation
+            indent_match = re.match(r'^(\s*)', block_text)
+            current_indent = indent_match.group(1) if indent_match else ""
+
+            # Check if block ended with an indent-trigger keyword
+            stripped = block_text.strip().lower()
+            triggers = ['alors', 'faire', 'debut', 'début', 'selon', 'répéter', 'repeter', 'sinon']
+            increase = any(stripped.endswith(t) for t in triggers)
+
+            super().keyPressEvent(event)
+
+            new_indent = current_indent + ("  " if increase else "")
+            if new_indent:
+                self.insertPlainText(new_indent)
+        else:
+            super().keyPressEvent(event)

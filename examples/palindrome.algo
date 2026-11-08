@@ -1,0 +1,33 @@
+Fonction EstPalindrome(ch: Chaîne) : Booléen
+DEBUT
+  test <- Vrai
+  i <- 0
+  j <- Long(ch) - 1
+  
+  Tant que (i < j) Et test Faire
+    Si ch[i] ≠ ch[j] Alors
+      test <- Faux
+    FinSi
+    i <- i + 1
+    j <- j - 1
+  Fin Tant que
+  
+  Retourner test
+FIN
+
+ALGORITHME TestPalindrome
+DEBUT
+  Ecrire("Donner un mot : ")
+  Lire(mot)
+  
+  mot_maj <- Majus(mot)
+  
+  Si EstPalindrome(mot_maj) Alors
+    Ecrire_nl("'", mot, "' est un PALINDROME !")
+  Sinon
+    Ecrire_nl("'", mot, "' N'est PAS un palindrome.")
+  FinSi
+FIN
+Déclaration des objets
+Objet          Type / Nature
+mot, mot_maj   Chaîne
