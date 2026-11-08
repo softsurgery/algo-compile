@@ -108,6 +108,27 @@ def create_icon(name: str, color_hex: str = "#2c3e50", size: int = 24) -> QIcon:
         painter.drawLine(QPointF(margin + 3, margin + 3), QPointF(s - margin - 3, s - margin - 3))
         painter.drawLine(QPointF(s - margin - 3, margin + 3), QPointF(margin + 3, s - margin - 3))
 
+    elif name == "zoom_in":
+        # Magnifying glass with +
+        r = s * 0.30
+        cx, cy = margin + r, margin + r
+        painter.drawEllipse(QPointF(cx, cy), r, r)
+        hx1 = cx + r * 0.707
+        hy1 = cy + r * 0.707
+        painter.drawLine(QPointF(hx1, hy1), QPointF(s - margin, s - margin))
+        painter.drawLine(QPointF(cx - 3, cy), QPointF(cx + 3, cy))
+        painter.drawLine(QPointF(cx, cy - 3), QPointF(cx, cy + 3))
+
+    elif name == "zoom_out":
+        # Magnifying glass with -
+        r = s * 0.30
+        cx, cy = margin + r, margin + r
+        painter.drawEllipse(QPointF(cx, cy), r, r)
+        hx1 = cx + r * 0.707
+        hy1 = cy + r * 0.707
+        painter.drawLine(QPointF(hx1, hy1), QPointF(s - margin, s - margin))
+        painter.drawLine(QPointF(cx - 3, cy), QPointF(cx + 3, cy))
+
     elif name == "theme":
         # Sun / Moon half
         painter.setBrush(QBrush(color))

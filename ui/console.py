@@ -16,6 +16,75 @@ from PyQt5.QtGui import QColor, QTextCursor, QFont
 from PyQt5.QtCore import Qt, QProcess, pyqtSignal
 
 
+from ui.icons import create_icon
+
+
+class ConsoleOutputEdit(QTextEdit):
+    def __init__(self, console, parent=None):
+        super().__init__(parent)
+        self.console = console
+
+    def wheelEvent(self, event):
+        if event.modifiers() & Qt.ControlModifier:
+            delta = event.angleDelta().y()
+            if delta > 0:
+                self.console.zoom_in()
+            elif delta < 0:
+                self.console.zoom_out()
+            event.accept()
+        else:
+            super().wheelEvent(event)
+
+    def keyPressEvent(self, event):
+        if event.modifiers() & Qt.ControlModifier:
+            if event.key() in (Qt.Key_Plus, Qt.Key_Equal):
+                self.console.zoom_in()
+                event.accept()
+                return
+            elif event.key() == Qt.Key_Minus:
+                self.console.zoom_out()
+                event.accept()
+                return
+            elif event.key() == Qt.Key_0:
+                self.console.reset_zoom()
+                event.accept()
+                return
+        super().keyPressEvent(event)
+
+
+class ConsoleInputEdit(QLineEdit):
+    def __init__(self, console, parent=None):
+        super().__init__(parent)
+        self.console = console
+
+    def wheelEvent(self, event):
+        if event.modifiers() & Qt.ControlModifier:
+            delta = event.angleDelta().y()
+            if delta > 0:
+                self.console.zoom_in()
+            elif delta < 0:
+                self.console.zoom_out()
+            event.accept()
+        else:
+            super().wheelEvent(event)
+
+    def keyPressEvent(self, event):
+        if event.modifiers() & Qt.ControlModifier:
+            if event.key() in (Qt.Key_Plus, Qt.Key_Equal):
+                self.console.zoom_in()
+                event.accept()
+                return
+            elif event.key() == Qt.Key_Minus:
+                self.console.zoom_out()
+                event.accept()
+                return
+            elif event.key() == Qt.Key_0:
+                self.console.reset_zoom()
+                event.accept()
+                return
+        super().keyPressEvent(event)
+
+
 class AlgoConsole(QWidget):
     # Signals
     execution_started = pyqtSignal()
@@ -28,6 +97,7 @@ class AlgoConsole(QWidget):
         self.is_dark = is_dark
         self.process = None
         self.temp_script_path = None
+        self.current_font_size = 10
 
         self._setup_ui()
         self.set_dark_mode(is_dark)
@@ -51,6 +121,21 @@ class AlgoConsole(QWidget):
 
         header_layout.addStretch()
 
+        # Zoom buttons in console header
+        self.btn_zoom_out = QPushButton()
+        self.btn_zoom_out.setIcon(create_icon("zoom_out", "#64748b", 16))
+        self.btn_zoom_out.setToolTip("Zoom arrière (Ctrl -)")
+        self.btn_zoom_out.setFixedSize(26, 24)
+        self.btn_zoom_out.clicked.connect(self.zoom_out)
+        header_layout.addWidget(self.btn_zoom_out)
+
+        self.btn_zoom_in = QPushButton()
+        self.btn_zoom_in.setIcon(create_icon("zoom_in", "#64748b", 16))
+        self.btn_zoom_in.setToolTip("Zoom avant (Ctrl +)")
+        self.btn_zoom_in.setFixedSize(26, 24)
+        self.btn_zoom_in.clicked.connect(self.zoom_in)
+        header_layout.addWidget(self.btn_zoom_in)
+
         self.btn_clear = QPushButton("Effacer")
         self.btn_clear.setFixedHeight(24)
         self.btn_clear.clicked.connect(self.clear_console)
@@ -65,9 +150,9 @@ class AlgoConsole(QWidget):
         layout.addLayout(header_layout)
 
         # Output text area
-        self.output_text = QTextEdit()
+        self.output_text = ConsoleOutputEdit(self)
         self.output_text.setReadOnly(True)
-        font = QFont("JetBrains Mono", 10)
+        font = QFont("JetBrains Mono", self.current_font_size)
         font.setStyleHint(QFont.Monospace)
         self.output_text.setFont(font)
         layout.addWidget(self.output_text, 1)
@@ -82,7 +167,7 @@ class AlgoConsole(QWidget):
         self.prompt_label.setStyleSheet("color: #3182ce; font-weight: bold;")
         input_layout.addWidget(self.prompt_label)
 
-        self.input_line = QLineEdit()
+        self.input_line = ConsoleInputEdit(self)
         self.input_line.setFont(font)
         self.input_line.setPlaceholderText("Entrez une valeur pour Lire() et appuyez sur Entrée...")
         self.input_line.returnPressed.connect(self._handle_input_submit)
@@ -120,6 +205,44 @@ class AlgoConsole(QWidget):
     def clear_console(self):
         self.output_text.clear()
         self._print_banner()
+
+    def zoom_in(self, delta=1):
+        cur = self.output_text.font().pointSize()
+        if cur <= 0:
+            cur = self.current_font_size
+        if cur < 36:
+            step = min(delta, 36 - cur)
+            self.current_font_size = cur + step
+            self.output_text.zoomIn(step)
+            f = self.output_text.font()
+            self.prompt_label.setFont(f)
+            self.input_line.setFont(f)
+
+    def zoom_out(self, delta=1):
+        cur = self.output_text.font().pointSize()
+        if cur <= 0:
+            cur = self.current_font_size
+        if cur > 6:
+            step = min(delta, cur - 6)
+            self.current_font_size = cur - step
+            self.output_text.zoomOut(step)
+            f = self.output_text.font()
+            self.prompt_label.setFont(f)
+            self.input_line.setFont(f)
+
+    def reset_zoom(self):
+        cur = self.output_text.font().pointSize()
+        if cur <= 0:
+            cur = self.current_font_size
+        diff = 10 - cur
+        if diff > 0:
+            self.output_text.zoomIn(diff)
+        elif diff < 0:
+            self.output_text.zoomOut(-diff)
+        self.current_font_size = 10
+        f = self.output_text.font()
+        self.prompt_label.setFont(f)
+        self.input_line.setFont(f)
 
     def run_python_code(self, py_code: str):
         """Executes Python code asynchronously via QProcess."""

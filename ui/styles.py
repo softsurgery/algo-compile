@@ -4,11 +4,13 @@ Modern stylesheets for the IDE: Light (Thonny style) and Modern Dark themes.
 
 LIGHT_THEME = """
 /* Global Window and Base Controls */
-QMainWindow, QWidget {
+QMainWindow {
     background-color: #f7f9fa;
     color: #2c3e50;
-    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
-    font-size: 13px;
+}
+
+QWidget {
+    color: #2c3e50;
 }
 
 /* ToolBar - Thonny style */
@@ -125,7 +127,8 @@ QTabWidget::pane {
 QTabBar::tab {
     background-color: #edf2f7;
     color: #4a5568;
-    padding-left: 20px;
+    margin-left: 6px;
+    padding-left: 14px;
     padding-right: 25px;
     padding-top: 6px;
     padding-bottom: 6px;
@@ -234,11 +237,13 @@ QPushButton:pressed {
 
 DARK_THEME = """
 /* Global Window and Base Controls */
-QMainWindow, QWidget {
+QMainWindow {
     background-color: #1e1e2e;
     color: #cdd6f4;
-    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
-    font-size: 13px;
+}
+
+QWidget {
+    color: #cdd6f4;
 }
 
 /* ToolBar */
@@ -352,7 +357,8 @@ QTabWidget::pane {
 QTabBar::tab {
     background-color: #1e1e2e;
     color: #a6adc8;
-    padding-left: 20px;
+    margin-left: 6px;
+    padding-left: 14px;
     padding-right: 25px;
     padding-top: 6px;
     padding-bottom: 6px;

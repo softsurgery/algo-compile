@@ -73,6 +73,39 @@ class PythonHighlighter(QSyntaxHighlighter):
             self.setFormat(match.start(), match.end() - match.start(), self.comment_fmt)
 
 
+class PythonCodeEditor(QPlainTextEdit):
+    def __init__(self, view, parent=None):
+        super().__init__(parent)
+        self.view = view
+
+    def wheelEvent(self, event):
+        if event.modifiers() & Qt.ControlModifier:
+            delta = event.angleDelta().y()
+            if delta > 0:
+                self.view.zoom_in()
+            elif delta < 0:
+                self.view.zoom_out()
+            event.accept()
+        else:
+            super().wheelEvent(event)
+
+    def keyPressEvent(self, event):
+        if event.modifiers() & Qt.ControlModifier:
+            if event.key() in (Qt.Key_Plus, Qt.Key_Equal):
+                self.view.zoom_in()
+                event.accept()
+                return
+            elif event.key() == Qt.Key_Minus:
+                self.view.zoom_out()
+                event.accept()
+                return
+            elif event.key() == Qt.Key_0:
+                self.view.reset_zoom()
+                event.accept()
+                return
+        super().keyPressEvent(event)
+
+
 class PythonView(QWidget):
     def __init__(self, parent=None, is_dark=False):
         super().__init__(parent)
@@ -107,13 +140,50 @@ class PythonView(QWidget):
         layout.addLayout(header)
 
         # Code display
-        self.editor = QPlainTextEdit()
+        self.editor = PythonCodeEditor(self)
         self.editor.setReadOnly(True)
         font = QFont("JetBrains Mono", 10)
         font.setStyleHint(QFont.Monospace)
         self.editor.setFont(font)
         self.highlighter = PythonHighlighter(self.editor.document(), is_dark=self.is_dark)
         layout.addWidget(self.editor, 1)
+
+    def wheelEvent(self, event):
+        if event.modifiers() & Qt.ControlModifier:
+            delta = event.angleDelta().y()
+            if delta > 0:
+                self.zoom_in()
+            elif delta < 0:
+                self.zoom_out()
+            event.accept()
+        else:
+            super().wheelEvent(event)
+
+    def zoom_in(self, delta=1):
+        cur = self.editor.font().pointSize()
+        if cur <= 0:
+            cur = 10
+        if cur < 36:
+            step = min(delta, 36 - cur)
+            self.editor.zoomIn(step)
+
+    def zoom_out(self, delta=1):
+        cur = self.editor.font().pointSize()
+        if cur <= 0:
+            cur = 10
+        if cur > 6:
+            step = min(delta, cur - 6)
+            self.editor.zoomOut(step)
+
+    def reset_zoom(self):
+        cur = self.editor.font().pointSize()
+        if cur <= 0:
+            cur = 10
+        diff = 10 - cur
+        if diff > 0:
+            self.editor.zoomIn(diff)
+        elif diff < 0:
+            self.editor.zoomOut(-diff)
 
     def set_dark_mode(self, is_dark: bool):
         self.is_dark = is_dark

@@ -291,16 +291,14 @@ class AlgoCodeEditor(QPlainTextEdit):
         while block.isValid() and top <= event.rect().bottom():
             if block.isVisible() and bottom >= event.rect().top():
                 number = str(block_number + 1)
+                f = QFont(self.font())
                 if block_number == current_block_num:
                     painter.setPen(current_line_fg)
-                    f = painter.font()
                     f.setBold(True)
-                    painter.setFont(f)
                 else:
                     painter.setPen(fg_color)
-                    f = painter.font()
                     f.setBold(False)
-                    painter.setFont(f)
+                painter.setFont(f)
 
                 painter.drawText(
                     0, top, self.line_number_area.width() - 6,
@@ -313,7 +311,21 @@ class AlgoCodeEditor(QPlainTextEdit):
             block_number += 1
 
     def keyPressEvent(self, event):
-        """Auto-indent on Enter."""
+        """Auto-indent on Enter and Ctrl +/- zoom."""
+        if event.modifiers() & Qt.ControlModifier:
+            if event.key() in (Qt.Key_Plus, Qt.Key_Equal):
+                self.zoom_in()
+                event.accept()
+                return
+            elif event.key() == Qt.Key_Minus:
+                self.zoom_out()
+                event.accept()
+                return
+            elif event.key() == Qt.Key_0:
+                self.reset_zoom()
+                event.accept()
+                return
+
         if event.key() == Qt.Key_Return or event.key() == Qt.Key_Enter:
             cursor = self.textCursor()
             block_text = cursor.block().text()
@@ -334,3 +346,50 @@ class AlgoCodeEditor(QPlainTextEdit):
                 self.insertPlainText(new_indent)
         else:
             super().keyPressEvent(event)
+
+    def wheelEvent(self, event):
+        """Ctrl + Mouse Wheel zoom feature."""
+        if event.modifiers() & Qt.ControlModifier:
+            delta = event.angleDelta().y()
+            if delta > 0:
+                self.zoom_in()
+            elif delta < 0:
+                self.zoom_out()
+            event.accept()
+        else:
+            super().wheelEvent(event)
+
+    def zoom_in(self, delta=1):
+        cur = self.font().pointSize()
+        if cur <= 0:
+            cur = 11
+        if cur < 36:
+            step = min(delta, 36 - cur)
+            self.zoomIn(step)
+            self.setTabStopDistance(self.fontMetrics().horizontalAdvance(' ') * 4)
+            self.update_line_number_area_width(0)
+            self.line_number_area.update()
+
+    def zoom_out(self, delta=1):
+        cur = self.font().pointSize()
+        if cur <= 0:
+            cur = 11
+        if cur > 6:
+            step = min(delta, cur - 6)
+            self.zoomOut(step)
+            self.setTabStopDistance(self.fontMetrics().horizontalAdvance(' ') * 4)
+            self.update_line_number_area_width(0)
+            self.line_number_area.update()
+
+    def reset_zoom(self):
+        cur = self.font().pointSize()
+        if cur <= 0:
+            cur = 11
+        diff = 11 - cur
+        if diff > 0:
+            self.zoomIn(diff)
+        elif diff < 0:
+            self.zoomOut(-diff)
+        self.setTabStopDistance(self.fontMetrics().horizontalAdvance(' ') * 4)
+        self.update_line_number_area_width(0)
+        self.line_number_area.update()

@@ -8,7 +8,7 @@ import sys
 from PyQt5.QtWidgets import (
     QMainWindow, QWidget, QVBoxLayout, QHBoxLayout, QSplitter,
     QTabWidget, QToolBar, QAction, QFileDialog, QMessageBox,
-    QStatusBar, QLabel, QMenu, QToolButton
+    QStatusBar, QLabel, QMenu, QToolButton, QApplication
 )
 from PyQt5.QtGui import QIcon, QFont, QKeySequence
 from PyQt5.QtCore import Qt, QFileInfo
@@ -175,6 +175,21 @@ class MainWindow(QMainWindow):
 
         self.toolbar.addSeparator()
 
+        # Zoom in/out for Editor & Console
+        self.act_zoom_out = QAction(create_icon("zoom_out"), "Zoom -", self)
+        self.act_zoom_out.setShortcuts([QKeySequence.ZoomOut, QKeySequence("Ctrl+-")])
+        self.act_zoom_out.setToolTip("Zoom arrière (Ctrl - ou Ctrl + Molette bas)")
+        self.act_zoom_out.triggered.connect(self.zoom_out)
+        self.toolbar.addAction(self.act_zoom_out)
+
+        self.act_zoom_in = QAction(create_icon("zoom_in"), "Zoom +", self)
+        self.act_zoom_in.setShortcuts([QKeySequence.ZoomIn, QKeySequence("Ctrl+="), QKeySequence("Ctrl++")])
+        self.act_zoom_in.setToolTip("Zoom avant (Ctrl + ou Ctrl + Molette haut)")
+        self.act_zoom_in.triggered.connect(self.zoom_in)
+        self.toolbar.addAction(self.act_zoom_in)
+
+        self.toolbar.addSeparator()
+
         # Examples menu in toolbar
         self.btn_examples = QToolButton(self)
         self.btn_examples.setText("Exemples Bac")
@@ -277,6 +292,15 @@ class MainWindow(QMainWindow):
         act_show_guide.triggered.connect(lambda: self.side_tabs.setCurrentWidget(self.assistant_view))
         menu_view.addAction(act_show_guide)
         menu_view.addSeparator()
+
+        menu_view.addAction(self.act_zoom_in)
+        menu_view.addAction(self.act_zoom_out)
+        act_zoom_reset = QAction("Réinitialiser le zoom", self)
+        act_zoom_reset.setShortcut(QKeySequence("Ctrl+0"))
+        act_zoom_reset.triggered.connect(self.reset_zoom)
+        menu_view.addAction(act_zoom_reset)
+        menu_view.addSeparator()
+
         menu_view.addAction(self.act_theme)
 
         # Aide
@@ -309,6 +333,44 @@ class MainWindow(QMainWindow):
                     act.triggered.connect(lambda _, p=filepath: self.load_file(p))
                     menu.addAction(act)
 
+    def _is_console_focused(self) -> bool:
+        focus_w = self.focusWidget() or QApplication.focusWidget()
+        if not focus_w:
+            return False
+        w = focus_w
+        while w:
+            if w is self.console:
+                return True
+            w = w.parentWidget()
+        return False
+
+    def zoom_in(self):
+        if self._is_console_focused():
+            self.console.zoom_in()
+        else:
+            editor = self.current_editor()
+            if editor:
+                editor.zoom_in()
+            self.python_view.zoom_in()
+
+    def zoom_out(self):
+        if self._is_console_focused():
+            self.console.zoom_out()
+        else:
+            editor = self.current_editor()
+            if editor:
+                editor.zoom_out()
+            self.python_view.zoom_out()
+
+    def reset_zoom(self):
+        if self._is_console_focused():
+            self.console.reset_zoom()
+        else:
+            editor = self.current_editor()
+            if editor:
+                editor.reset_zoom()
+            self.python_view.reset_zoom()
+
     def apply_theme(self):
         if self.is_dark_mode:
             self.setStyleSheet(DARK_THEME)
@@ -321,6 +383,8 @@ class MainWindow(QMainWindow):
         self.act_new.setIcon(create_icon("new", color_hex))
         self.act_open.setIcon(create_icon("open", color_hex))
         self.act_save.setIcon(create_icon("save", color_hex))
+        self.act_zoom_in.setIcon(create_icon("zoom_in", color_hex))
+        self.act_zoom_out.setIcon(create_icon("zoom_out", color_hex))
         self.act_theme.setIcon(create_icon("theme", color_hex))
 
         # Propagate to sub-widgets
@@ -366,7 +430,7 @@ class MainWindow(QMainWindow):
         editor.cursorPositionChanged.connect(self._on_cursor_position_changed)
         editor.textChanged.connect(self._on_editor_text_changed)
 
-        idx = self.tab_widget.addTab(editor, title)
+        idx = self.tab_widget.addTab(editor, f" {title} ")
         self.tab_widget.setCurrentIndex(idx)
         editor.setProperty("file_path", None)
         editor.setProperty("is_dirty", False)
@@ -415,7 +479,7 @@ class MainWindow(QMainWindow):
                 f.write(editor.toPlainText())
             editor.setProperty("is_dirty", False)
             idx = self.tab_widget.currentIndex()
-            self.tab_widget.setTabText(idx, os.path.basename(path))
+            self.tab_widget.setTabText(idx, f" {os.path.basename(path)} ")
             self.lbl_status.setText(f"Enregistré : {os.path.basename(path)}")
             return True
         except Exception as e:
