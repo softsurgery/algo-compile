@@ -115,10 +115,16 @@ class Enregistrement(dict):
     def __getattr__(self, key):
         if key in self:
             return self[key]
-        raise AttributeError(f"Enregistrement has no field '{key}'")
+        if key.startswith('_'):
+            raise AttributeError(key)
+        return self.get(key, 0)
     
     def __setattr__(self, key, value):
         self[key] = value
+
+    def __getitem__(self, key):
+        val = super().get(key, None)
+        return val if val is not None else 0
 
     def __repr__(self):
         fields = ", ".join(f"{k}={v!r}" for k, v in self.items())

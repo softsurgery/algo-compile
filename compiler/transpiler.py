@@ -28,6 +28,7 @@ class AlgoTranspiler:
     def __init__(self):
         self.declared_objects = {}  # var_name -> type_desc
         self.custom_types = {}      # type_name -> type_def
+        self.subprogram_meta = {}   # name -> {'kind': kind, 'ref_params': [...], 'all_params': [...]}
         self.program_name = "Algorithme"
         self.subprograms = []
         self.main_code_lines = []
@@ -41,6 +42,7 @@ class AlgoTranspiler:
         """
         self.declared_objects = {}
         self.custom_types = {}
+        self.subprogram_meta = {}
         self.program_name = "Algorithme"
         self.subprograms = []
         self.main_code_lines = []
@@ -48,25 +50,19 @@ class AlgoTranspiler:
         self.warnings = []
 
         code = normalize_accents(algo_code)
-        
-        # 1. Parse comments and isolate declaration sections vs code blocks
         raw_lines = code.splitlines()
 
-        # Split into sections:
-        # We may have:
-        # - Header: ALGORITHME Nom
-        # - Functions / Procedures
-        # - Main block: DEBUT ... FIN
-        # - Object declarations (TDO): Déclaration des objets ...
-        # - Type declarations: Déclaration des nouveaux types ...
-        
         blocks = self._extract_sections(raw_lines)
         
         # Parse type definitions first
         self._parse_type_declarations(blocks.get('types', []))
         
-        # Parse object declarations (TDO)
+        # Parse object declarations (TDO / TDOG)
         self._parse_object_declarations(blocks.get('objects', []))
+
+        # Pre-scan subprograms headers to know signatures & ref params beforehand
+        for subprog in blocks.get('subprograms', []):
+            self._register_subprogram_signature(subprog)
 
         # Generate Python code header
         py_lines = [
@@ -87,13 +83,19 @@ class AlgoTranspiler:
             "",
         ]
 
-        # Process custom record type definitions into generator functions/classes
+        # Process custom record type definitions into generator functions
         for t_name, t_def in self.custom_types.items():
             if t_def['kind'] == 'enregistrement':
-                fields = ", ".join(f"{f}=None" for f in t_def['fields'])
-                fields_dict = ", ".join(f"'{f}': {f}" for f in t_def['fields'])
-                py_lines.append(f"def _creer_{t_name}({fields}):")
-                py_lines.append(f"    return Enregistrement({{{fields_dict}}})")
+                param_defs = []
+                dict_entries = []
+                for f, ftype in t_def['fields'].items():
+                    def_val = self._default_value_for_type(ftype)
+                    param_defs.append(f"{f}={def_val}")
+                    dict_entries.append(f"'{f}': {f}")
+                params_str = ", ".join(param_defs)
+                entries_str = ", ".join(dict_entries)
+                py_lines.append(f"def _creer_{t_name}({params_str}):")
+                py_lines.append(f"    return Enregistrement({{{entries_str}}})")
                 py_lines.append("")
 
         # Process Subprograms (Fonction & Procédure)
@@ -141,15 +143,15 @@ class AlgoTranspiler:
             'subprograms': [],
             'main': [],
             'objects': [],
-            'types': []
+            'types': [],
+            'tdol': []
         }
 
-        # Normalize line tags
-        current_section = 'header'
         current_subprog = None
         in_main = False
         in_tdo = False
         in_types = False
+        in_tdol = False
 
         i = 0
         while i < len(lines):
@@ -157,58 +159,62 @@ class AlgoTranspiler:
             stripped = line.strip()
             line_no = i + 1
 
-            # Strip full-line comments or empty lines for classification
-            if not stripped or stripped.startswith(("//", "#", "/*")):
-                if in_main:
-                    sections['main'].append((line_no, line))
-                elif current_subprog is not None:
-                    current_subprog['lines'].append((line_no, line))
-                elif in_tdo:
-                    sections['objects'].append((line_no, line))
-                elif in_types:
-                    sections['types'].append((line_no, line))
+            if not stripped:
                 i += 1
                 continue
 
-            # Check for section headers
+            # Strip comments
+            if stripped.startswith(("//", "#", "/*")):
+                i += 1
+                continue
+
+            # Decorative border lines like *******, -------, ======, //////
+            if re.match(r'^[\*\-=\/ ]{3,}$', stripped):
+                i += 1
+                continue
+
             lower = stripped.lower()
-            
-            # Header: ALGORITHME Nom
-            m_algo = re.match(r'^algorithme\s+([a-zA-Z0-9_]+)', stripped, re.IGNORECASE)
-            if m_algo:
-                self.program_name = m_algo.group(1)
-                sections['header'].append((line_no, stripped))
-                i += 1
-                continue
 
-            # Declarations section
-            if re.match(r'^(déclaration|declaration)\s+des\s+objets', stripped, re.IGNORECASE) or \
-               stripped.upper() == "T.D.O" or stripped.upper() == "TDO":
-                in_tdo = True
+            # Check for TDOL / TDOL- (Local TDO) -> ignore so it does not spill into main
+            if re.match(r'^t\.?d\.?o\.?l(?:-|\s|$)', stripped, re.IGNORECASE):
+                in_tdol = True
+                in_tdo = False
                 in_types = False
                 in_main = False
                 current_subprog = None
                 i += 1
                 continue
 
-            if re.match(r'^(déclaration|declaration)\s+des\s+nouveaux\s+types', stripped, re.IGNORECASE) or \
-               re.match(r'^(déclaration|declaration)\s+des\s+types', stripped, re.IGNORECASE) or \
-               stripped.upper() == "T.D.N.T" or stripped.upper() == "TDNT":
-                in_types = True
-                in_tdo = False
+            # Check for TDOG / TDO (Global or standard TDO)
+            if re.match(r'^(?:t\.?d\.?o\.?g|t\.?d\.?o)\b', stripped, re.IGNORECASE) or \
+               re.match(r'^(?:déclaration|declaration)\s+des\s+objets', stripped, re.IGNORECASE):
+                in_tdo = True
+                in_tdol = False
+                in_types = False
                 in_main = False
                 current_subprog = None
                 i += 1
                 continue
 
-            # Subprogram declaration: Fonction / Procédure
+            # Check for TDNT / Declarations des types
+            if re.match(r'^t\.?d\.?n\.?t\b', stripped, re.IGNORECASE) or \
+               re.match(r'^(?:déclaration|declaration)\s+des\s+(?:nouveaux\s+)?types', stripped, re.IGNORECASE):
+                in_types = True
+                in_tdo = False
+                in_tdol = False
+                in_main = False
+                current_subprog = None
+                i += 1
+                continue
+
+            # Check for Subprogram declaration: Fonction / Procédure
             m_fn = re.match(r'^(fonction|procédure|procedure)\s+([a-zA-Z0-9_]+)', stripped, re.IGNORECASE)
-            if m_fn and not in_tdo and not in_types:
-                kind = m_fn.group(1).lower()
-                if 'proc' in kind:
-                    kind = 'procedure'
-                else:
-                    kind = 'fonction'
+            if m_fn:
+                in_tdo = False
+                in_types = False
+                in_tdol = False
+                in_main = False
+                kind = 'procedure' if 'proc' in m_fn.group(1).lower() else 'fonction'
                 current_subprog = {
                     'kind': kind,
                     'header': stripped,
@@ -217,23 +223,51 @@ class AlgoTranspiler:
                     'tdo': []
                 }
                 sections['subprograms'].append(current_subprog)
+                i += 1
+                continue
+
+            # Header: ALGORITHME Nom
+            m_algo = re.match(r'^algorithme\s+([a-zA-Z0-9_]+)', stripped, re.IGNORECASE)
+            if m_algo:
+                self.program_name = m_algo.group(1)
+                sections['header'].append((line_no, stripped))
+                in_tdo = False
+                in_types = False
+                in_tdol = False
                 in_main = False
+                current_subprog = None
+                i += 1
+                continue
+
+            # If inside TDNT (types), accumulate all lines including Fin Enregistrement
+            if in_types:
+                sections['types'].append((line_no, line))
+                i += 1
+                continue
+
+            # If inside TDOL (local declarations), accumulate and skip
+            if in_tdol:
+                sections['tdol'].append((line_no, line))
+                i += 1
+                continue
+
+            # If inside TDOG / TDO, accumulate
+            if in_tdo:
+                sections['objects'].append((line_no, line))
                 i += 1
                 continue
 
             # Check for DEBUT
-            if stripped.upper() == "DEBUT" or stripped.upper() == "DÉBUT":
+            if stripped.upper() in ("DEBUT", "DÉBUT"):
                 if current_subprog is not None:
                     current_subprog['lines'].append((line_no, line))
                 else:
                     in_main = True
-                    in_tdo = False
-                    in_types = False
                 i += 1
                 continue
 
             # Check for FIN
-            if stripped.upper() == "FIN":
+            if stripped.upper() == "FIN" or re.match(r'^fin\s+(?:procedure|procédure|fonction|[a-zA-Z0-9_]+)$', stripped, re.IGNORECASE):
                 if current_subprog is not None:
                     current_subprog['lines'].append((line_no, line))
                     current_subprog = None
@@ -241,28 +275,44 @@ class AlgoTranspiler:
                     in_main = False
                 i += 1
                 continue
-
-            # Otherwise accumulate based on state
-            if in_types:
-                sections['types'].append((line_no, line))
-            elif in_tdo:
-                sections['objects'].append((line_no, line))
             elif current_subprog is not None:
                 sections['subprograms'][-1]['lines'].append((line_no, line))
             elif in_main:
                 sections['main'].append((line_no, line))
             else:
-                # If neither main nor subprog has been explicitly triggered,
-                # but statements exist outside (common when student omits ALGORITHME ... DEBUT)
-                sections['main'].append((line_no, line))
+                # If outside of marked sections, check if it looks like code or declarations
+                if not re.match(r'^objet\b', lower):
+                    sections['main'].append((line_no, line))
 
             i += 1
 
         return sections
 
-    # -------------------------------------------------------------------------
-    # Parsing Declarations (TDO & Types)
-    # -------------------------------------------------------------------------
+    def _register_subprogram_signature(self, subprog):
+        header = subprog['header']
+        m = re.match(r'^(?:fonction|procédure|procedure)\s+([a-zA-Z0-9_]+)\s*(?:\((.*?)\))?', header, re.IGNORECASE)
+        if m:
+            sub_name = m.group(1)
+            params_str = m.group(2) or ""
+            py_params = []
+            ref_params = []
+            if params_str.strip():
+                for p in params_str.split(','):
+                    p = p.strip()
+                    if not p:
+                        continue
+                    pname = p.split(':', 1)[0].strip() if ':' in p else p
+                    if pname.startswith('@'):
+                        clean_name = pname[1:].strip()
+                        ref_params.append(clean_name)
+                        py_params.append(clean_name)
+                    else:
+                        py_params.append(pname)
+            self.subprogram_meta[sub_name] = {
+                'kind': subprog['kind'],
+                'ref_params': ref_params,
+                'all_params': py_params
+            }
     def _parse_type_declarations(self, lines):
         """Parse custom types (records, arrays, files)."""
         idx = 0
@@ -277,19 +327,19 @@ class AlgoTranspiler:
             m_rec = re.match(r'^([a-zA-Z0-9_]+)\s*=\s*enregistrement', s, re.IGNORECASE)
             if m_rec:
                 type_name = m_rec.group(1)
-                fields = []
+                fields = {}
                 while idx < len(lines):
                     l_no, l_text = lines[idx]
                     idx += 1
                     t_str = l_text.strip()
-                    if t_str.upper() in ('FIN', 'FIN ENREGISTREMENT'):
+                    if t_str.upper() in ('FIN', 'FIN ENREGISTREMENT') or re.match(r'^fin\s*(?:enregistrement)?$', t_str, re.IGNORECASE):
                         break
                     if ':' in t_str:
                         fname, ftype = t_str.split(':', 1)
                         for f in fname.split(','):
                             f_clean = f.strip()
                             if f_clean:
-                                fields.append(f_clean)
+                                fields[f_clean] = ftype.strip()
                 self.custom_types[type_name] = {'kind': 'enregistrement', 'fields': fields}
                 continue
 
@@ -311,7 +361,7 @@ class AlgoTranspiler:
         """Parse TDO lines (e.g. x, y, z : Entier or x, y | Entier or columns)."""
         for line_no, line in lines:
             s = line.strip()
-            if not s:
+            if not s or re.match(r'^[\*\-=\/ ]+$', s):
                 continue
             lower = s.lower()
             if lower.startswith(('objet', 'type', 'nom_objet', '---', '===')):
@@ -335,14 +385,17 @@ class AlgoTranspiler:
 
             if parts and len(parts) == 2:
                 names_part, type_part = parts[0].strip(), parts[1].strip()
+                t_low = type_part.lower()
+                if t_low in ('procedure', 'procédure', 'fonction', 'module', '/'):
+                    continue
                 names = [n.strip() for n in names_part.split(',') if n.strip()]
                 for name in names:
                     clean_name = re.sub(r'[^a-zA-Z0-9_]', '', name)
-                    if clean_name:
+                    if clean_name and clean_name != '/':
                         self.declared_objects[clean_name] = type_part
 
     def _generate_object_initializations(self, objects_dict):
-        """Generates Python initialization code for declared objects (numpy arrays, dicts)."""
+        """Generates Python initialization code for declared objects (numpy arrays, dicts, scalars)."""
         lines = []
         for var_name, type_str in objects_dict.items():
             t_lower = type_str.lower()
@@ -354,8 +407,12 @@ class AlgoTranspiler:
                     lines.append(f"{var_name} = _creer_{type_str}()")
                     continue
                 elif t_def['kind'] == 'tableau_1d':
-                    init_val = self._default_value_for_type(t_def['elem_type'])
-                    lines.append(f"{var_name} = array([{init_val}] * ({t_def['size']}))")
+                    elem_t = t_def['elem_type']
+                    if elem_t in self.custom_types and self.custom_types[elem_t]['kind'] == 'enregistrement':
+                        lines.append(f"{var_name} = array([_creer_{elem_t}() for _ in range({t_def['size']})], dtype=object)")
+                    else:
+                        init_val = self._default_value_for_type(elem_t)
+                        lines.append(f"{var_name} = array([{init_val}] * ({t_def['size']}))")
                     continue
                 elif t_def['kind'] == 'tableau_2d':
                     init_val = self._default_value_for_type(t_def['elem_type'])
@@ -374,14 +431,21 @@ class AlgoTranspiler:
             m_arr1 = re.match(r'tableau\s+de\s+(.+?)\s+([a-zA-Z0-9_éèêà]+.*)', t_lower)
             if m_arr1:
                 size, elem_type = m_arr1.group(1).strip(), m_arr1.group(2).strip()
-                init_val = self._default_value_for_type(elem_type)
-                lines.append(f"{var_name} = array([{init_val}] * ({size}))")
+                if elem_type in self.custom_types and self.custom_types[elem_type]['kind'] == 'enregistrement':
+                    lines.append(f"{var_name} = array([_creer_{elem_type}() for _ in range({size})], dtype=object)")
+                else:
+                    init_val = self._default_value_for_type(elem_type)
+                    lines.append(f"{var_name} = array([{init_val}] * ({size}))")
                 continue
 
             # Enregistrement
             if 'enregistrement' in t_lower:
                 lines.append(f"{var_name} = Enregistrement()")
                 continue
+
+            # Simple scalar types (Entier, Réel, Booléen, Chaîne)
+            init_val = self._default_value_for_type(type_str)
+            lines.append(f"{var_name} = {init_val}")
 
         return lines
 
@@ -452,6 +516,14 @@ class AlgoTranspiler:
         sub_body = self._translate_statements(body_lines, indent_level=1)
         if not sub_body:
             sub_body = ["    pass"]
+
+        # If procedure has pass-by-reference params and doesn't explicitly return
+        if kind == 'procedure' and param_ref:
+            has_return = any('return' in l for l in sub_body)
+            if not has_return:
+                refs_ordered = [p for p in py_params if p in param_ref]
+                sub_body.append(f"    return {', '.join(refs_ordered)}")
+
         py_lines.extend(sub_body)
 
         return py_lines
@@ -529,7 +601,7 @@ class AlgoTranspiler:
                 result.append(f"{base_indent}for {counter} in {range_expr}:")
                 
                 # Collect loop body until Fin Pour
-                body_lines, next_i = self._collect_block_until(line_tuples, i + 1, [r'^fin\s*pour$'])
+                body_lines, next_i = self._collect_block_until(line_tuples, i + 1, [r'^(?:fin\s*pour|finpour)$'])
                 translated_body = self._translate_statements(body_lines, indent_level + 1)
                 if not translated_body:
                     translated_body = [f"{base_indent}    pass"]
@@ -542,7 +614,7 @@ class AlgoTranspiler:
             if m_tq:
                 cond = self._translate_expression(m_tq.group(1))
                 result.append(f"{base_indent}while {cond}:")
-                body_lines, next_i = self._collect_block_until(line_tuples, i + 1, [r'^fin\s*tant\s*que$', r'^fintantque$'])
+                body_lines, next_i = self._collect_block_until(line_tuples, i + 1, [r'^(?:fin\s*tan.*|fintan.*)$'])
                 translated_body = self._translate_statements(body_lines, indent_level + 1)
                 if not translated_body:
                     translated_body = [f"{base_indent}    pass"]
@@ -739,7 +811,7 @@ class AlgoTranspiler:
                     return body, idx + 1
 
             # Check generic ends for nested constructs
-            if re.match(r'^(?:fin\s*si|finsi|fin\s*pour|fin\s*tant\s*que|fintantque|fin\s*selon|jusqu[\'’]à|jusqu[\'’]a)', s, re.IGNORECASE):
+            if re.match(r'^(?:fin\s*si|finsi|fin\s*pour|finpour|fin\s*tant\s*que|fintantque|fintanqtue|fin\s*selon|jusqu[\'’]?(?:à|a))', s, re.IGNORECASE):
                 if nesting > 0:
                     nesting -= 1
 
@@ -764,7 +836,7 @@ class AlgoTranspiler:
                 idx += 1
                 continue
 
-            m_until = re.match(r'^jusqu[\'’]?(?:à|a)\s+(.+)$', s, re.IGNORECASE)
+            m_until = re.match(r'^jusqu[\'’\s]?(?:à|a|e)?\s*(.+)$', s, re.IGNORECASE)
             if m_until:
                 if nesting > 0:
                     nesting -= 1
@@ -886,15 +958,44 @@ class AlgoTranspiler:
                 target_py = self._translate_target(target)
                 return f"{target_py} = {expr}"
 
-        # 6. Procedure call or expression statement
+        # 6. Procedure call with @ parameters or general expression statement
+        m_call = re.match(r'^([a-zA-Z0-9_]+)\s*\((.*)\)$', s)
+        if m_call:
+            callee = m_call.group(1)
+            args_str = m_call.group(2)
+            if callee in self.subprogram_meta:
+                meta = self.subprogram_meta[callee]
+                ref_p = meta.get('ref_params', [])
+                all_p = meta.get('all_params', [])
+                if ref_p:
+                    args = self._split_arguments(args_str)
+                    assigned_targets = []
+                    for ref_name in ref_p:
+                        if ref_name in all_p:
+                            idx = all_p.index(ref_name)
+                            if idx < len(args):
+                                arg_target = args[idx].strip()
+                                if re.match(r'^[a-zA-Z_][a-zA-Z0-9_]*(\[.*\]|\.[a-zA-Z0-9_]+)?$', arg_target):
+                                    assigned_targets.append(arg_target)
+                    if assigned_targets:
+                        trans_args = [self._translate_expression(a) for a in args]
+                        targets_str = ", ".join(assigned_targets)
+                        return f"{targets_str} = {callee}({', '.join(trans_args)})"
+
         return self._translate_expression(s)
 
     # -------------------------------------------------------------------------
     # Target (LHS of assignment) Translation
     # -------------------------------------------------------------------------
     def _translate_target(self, target_str):
-        """Translates target expression (e.g. M[i, j] or E.champ)."""
+        """Translates target expression (e.g. M[i, j] or E.champ or T[i].champ)."""
         target = target_str.strip()
+        # Handle indexed record field: T[i].field -> T[i]['field']
+        m_idx_dot = re.match(r'^([a-zA-Z0-9_]+\[.+?\])\.([a-zA-Z0-9_]+)$', target)
+        if m_idx_dot:
+            base = self._translate_target(m_idx_dot.group(1))
+            return f"{base}['{m_idx_dot.group(2)}']"
+
         # Handle 2D index: M[i, j] -> M[i, j] (numpy) or M[i][j]
         m_2d = re.match(r'^([a-zA-Z0-9_]+)\s*\[\s*(.+?)\s*,\s*(.+?)\s*\]$', target)
         if m_2d:
