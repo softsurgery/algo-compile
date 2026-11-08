@@ -86,5 +86,43 @@ class TestAlgoTranspiler(unittest.TestCase):
         ns = {'__name__': '__main__'}
         exec(py, ns)
 
+    def test_procedure_saisir_jusqua(self):
+        algo = """
+        Procedure saisir(@n:entier)
+        Debut
+          Repeter
+          ecrire("N =")
+          n <- 10
+          jusqu'a(2 <= n <= 30)
+        Fin
+
+        ALGORITHME SommeDiviseurs
+        DEBUT
+          saisir(n)
+          ecrire(n)
+        FIN
+        Déclaration des objets
+        Objet  Type / Nature
+        n      Entier
+        """
+        py = self.transpiler.compile(algo)
+        self.assertIn("while True:", py)
+        self.assertIn("if (2 <= n <= 30):", py)
+        self.assertIn("break", py)
+        self.assertIn("n = saisir(n)", py)
+        ns = {'__name__': '__main__'}
+        exec(py, ns)
+
+    def test_players_ranking_compilation(self):
+        with open("examples/players_ranking.algo", "r", encoding="utf-8") as f:
+            algo = f.read()
+        py = self.transpiler.compile(algo)
+        self.assertIn("def _creer_Player", py)
+        self.assertIn("def saisir(n):", py)
+        self.assertIn("def registerPlayers(T, n):", py)
+        self.assertIn("def playRounds(T, n, p):", py)
+        self.assertIn("def determineRanking(T, n):", py)
+        self.assertIn("T = array([_creer_Player() for _ in range(30)], dtype=object)", py)
+
 if __name__ == '__main__':
     unittest.main()
