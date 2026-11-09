@@ -12,7 +12,7 @@ from PyQt5.QtWidgets import (
     QStatusBar, QLabel, QMenu, QToolButton, QApplication, QDialog
 )
 from PyQt5.QtGui import QIcon, QFont, QKeySequence, QDesktopServices
-from PyQt5.QtCore import Qt, QFileInfo, QUrl
+from PyQt5.QtCore import Qt, QFileInfo, QUrl, QSettings
 
 from compiler.transpiler import AlgoTranspiler, CompileError
 from ui.editor import AlgoCodeEditor
@@ -23,7 +23,10 @@ from ui.tdo_view import TDOView
 from ui.assistant_view import AssistantView
 from ui.symbols_bar import SymbolsBar
 from ui.icons import create_icon
-from ui.styles import LIGHT_THEME, DARK_THEME
+from ui.styles import (
+    LIGHT_THEME, DARK_THEME,
+    detect_system_dark_mode, apply_os_window_theme
+)
 from ui.insert_code_dialog import InsertCodeDialog
 
 
@@ -33,14 +36,20 @@ class MainWindow(QMainWindow):
         self.setWindowTitle("Algoo - Conventions Algorithmiques 2024/2025")
         self.resize(1200, 800)
 
-        self.is_dark_mode = False
+        # Check saved setting or detect system preference
+        self.settings = QSettings("softsurgery", "Algoo")
+        if self.settings.contains("dark_mode"):
+            self.is_dark_mode = self.settings.value("dark_mode", type=bool)
+        else:
+            self.is_dark_mode = detect_system_dark_mode()
+
         self.transpiler = AlgoTranspiler()
 
         self._setup_ui()
         self._setup_toolbar()
         self._setup_menus()
         self._setup_statusbar()
-        self.apply_theme()
+        self.apply_theme(recreate_native=False)
 
         # Open initial starter tab
         self._open_default_example()
@@ -54,6 +63,7 @@ class MainWindow(QMainWindow):
 
         # 1. Quick algorithmic symbols bar
         self.symbols_bar = SymbolsBar(self, is_dark=self.is_dark_mode)
+        self.symbols_bar.setObjectName("symbols_bar")
         self.symbols_bar.insert_requested.connect(self._on_insert_symbol)
         main_layout.addWidget(self.symbols_bar)
 
@@ -403,13 +413,21 @@ class MainWindow(QMainWindow):
                 editor.reset_zoom()
             self.python_view.reset_zoom()
 
-    def apply_theme(self):
+    def apply_theme(self, recreate_native: bool = False):
         if self.is_dark_mode:
-            self.setStyleSheet(DARK_THEME)
+            theme_qss = DARK_THEME
             color_hex = "#cdd6f4"
         else:
-            self.setStyleSheet(LIGHT_THEME)
+            theme_qss = LIGHT_THEME
             color_hex = "#2c3e50"
+
+        app = QApplication.instance()
+        if app:
+            app.setStyleSheet(theme_qss)
+        self.setStyleSheet(theme_qss)
+
+        # Apply dark/light colors to OS window frame and title bar
+        apply_os_window_theme(self, self.is_dark_mode)
 
         # Update icons
         self.act_new.setIcon(create_icon("new", color_hex))
@@ -420,21 +438,45 @@ class MainWindow(QMainWindow):
         self.act_theme.setIcon(create_icon("theme", color_hex))
 
         # Propagate to sub-widgets
-        self.console.set_dark_mode(self.is_dark_mode)
-        self.python_view.set_dark_mode(self.is_dark_mode)
-        self.variables_view.set_dark_mode(self.is_dark_mode)
-        self.tdo_view.set_dark_mode(self.is_dark_mode)
-        self.assistant_view.set_dark_mode(self.is_dark_mode)
+        if hasattr(self, "symbols_bar"):
+            self.symbols_bar.set_dark_mode(self.is_dark_mode)
+        if hasattr(self, "console"):
+            self.console.set_dark_mode(self.is_dark_mode)
+        if hasattr(self, "python_view"):
+            self.python_view.set_dark_mode(self.is_dark_mode)
+        if hasattr(self, "variables_view"):
+            self.variables_view.set_dark_mode(self.is_dark_mode)
+        if hasattr(self, "tdo_view"):
+            self.tdo_view.set_dark_mode(self.is_dark_mode)
+        if hasattr(self, "assistant_view"):
+            self.assistant_view.set_dark_mode(self.is_dark_mode)
 
         # Propagate to all open editors
-        for i in range(self.tab_widget.count()):
-            editor = self.tab_widget.widget(i)
-            if isinstance(editor, AlgoCodeEditor):
-                editor.set_dark_mode(self.is_dark_mode)
+        if hasattr(self, "tab_widget"):
+            for i in range(self.tab_widget.count()):
+                editor = self.tab_widget.widget(i)
+                if isinstance(editor, AlgoCodeEditor):
+                    editor.set_dark_mode(self.is_dark_mode)
+
+        # On Wayland (e.g. GNOME Wayland), client-side decorations (Bradient/QtWayland)
+        # determine their colors upon window handle instantiation. Recreating the native
+        # window handle on runtime toggle immediately applies the new palette to the title bar.
+        if recreate_native and self.isVisible():
+            app = QApplication.instance()
+            if app and app.platformName().startswith("wayland"):
+                save_geom = self.saveGeometry()
+                state = self.windowState()
+                self.destroy()
+                self.create()
+                self.restoreGeometry(save_geom)
+                self.setWindowState(state)
+                self.show()
 
     def toggle_theme(self):
         self.is_dark_mode = not self.is_dark_mode
-        self.apply_theme()
+        if hasattr(self, "settings"):
+            self.settings.setValue("dark_mode", self.is_dark_mode)
+        self.apply_theme(recreate_native=True)
         mode_str = "sombre" if self.is_dark_mode else "clair"
         self.lbl_status.setText(f"Thème {mode_str} activé")
 

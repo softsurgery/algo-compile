@@ -14,8 +14,13 @@ if BASE_DIR not in sys.path:
     sys.path.insert(0, BASE_DIR)
 
 from PyQt5.QtWidgets import QApplication
-from PyQt5.QtCore import Qt
+from PyQt5.QtCore import Qt, QSettings
 from PyQt5.QtGui import QFont
+from ui.theme_utils import (
+    detect_system_dark_mode,
+    create_dark_palette,
+    create_light_palette
+)
 from ui.main_window import MainWindow
 
 def main():
@@ -27,6 +32,15 @@ def main():
     app.setApplicationName("Algoo")
     app.setApplicationDisplayName("Algoo")
     app.setOrganizationName("softsurgery")
+
+    # Determine theme preference and pre-configure application palette
+    settings = QSettings("softsurgery", "Algoo")
+    if settings.contains("dark_mode"):
+        is_dark = settings.value("dark_mode", type=bool)
+    else:
+        is_dark = detect_system_dark_mode()
+
+    app.setPalette(create_dark_palette() if is_dark else create_light_palette())
 
     # Set default app font
     font = QFont("-apple-system, BlinkMacSystemFont, Segoe UI, Roboto, Ubuntu, sans-serif", 10)

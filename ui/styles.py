@@ -21,6 +21,11 @@ QToolBar {
     spacing: 6px;
 }
 
+#symbols_bar {
+    background-color: #ffffff;
+    border-bottom: 1px solid #e1e8ed;
+}
+
 QToolButton {
     background-color: transparent;
     color: #2c3e50;
@@ -222,6 +227,79 @@ QListWidget::item:selected {
     background-color: #e2e8f0;
     color: #0f172a;
 }
+
+/* Scrollbars - Light Theme */
+QScrollBar:vertical {
+    border: none;
+    background-color: transparent;
+    width: 10px;
+    margin: 0px;
+}
+
+QScrollBar::handle:vertical {
+    background-color: #cbd5e1;
+    min-height: 24px;
+    border-radius: 5px;
+}
+
+QScrollBar::handle:vertical:hover {
+    background-color: #94a3b8;
+}
+
+QScrollBar::handle:vertical:pressed {
+    background-color: #64748b;
+}
+
+QScrollBar::sub-line:vertical, QScrollBar::add-line:vertical {
+    border: none;
+    background: none;
+    height: 0px;
+    width: 0px;
+}
+
+QScrollBar::up-arrow:vertical, QScrollBar::down-arrow:vertical {
+    background: none;
+}
+
+QScrollBar::add-page:vertical, QScrollBar::sub-page:vertical {
+    background: none;
+}
+
+QScrollBar:horizontal {
+    border: none;
+    background-color: transparent;
+    height: 10px;
+    margin: 0px;
+}
+
+QScrollBar::handle:horizontal {
+    background-color: #cbd5e1;
+    min-width: 24px;
+    border-radius: 5px;
+}
+
+QScrollBar::handle:horizontal:hover {
+    background-color: #94a3b8;
+}
+
+QScrollBar::handle:horizontal:pressed {
+    background-color: #64748b;
+}
+
+QScrollBar::sub-line:horizontal, QScrollBar::add-line:horizontal {
+    border: none;
+    background: none;
+    height: 0px;
+    width: 0px;
+}
+
+QScrollBar::left-arrow:horizontal, QScrollBar::right-arrow:horizontal {
+    background: none;
+}
+
+QScrollBar::add-page:horizontal, QScrollBar::sub-page:horizontal {
+    background: none;
+}
 """
 
 DARK_THEME = """
@@ -241,6 +319,11 @@ QToolBar {
     border-bottom: 1px solid #313244;
     padding: 4px 8px;
     spacing: 6px;
+}
+
+#symbols_bar {
+    background-color: #181825;
+    border-bottom: 1px solid #313244;
 }
 
 QToolButton {
@@ -453,4 +536,84 @@ QLineEdit {
     border-radius: 4px;
     padding: 4px 6px;
 }
+
+/* Scrollbars - Dark Theme (Catppuccin Mocha) */
+QScrollBar:vertical {
+    border: none;
+    background-color: transparent;
+    width: 10px;
+    margin: 0px;
+}
+
+QScrollBar::handle:vertical {
+    background-color: #45475a;
+    min-height: 24px;
+    border-radius: 5px;
+}
+
+QScrollBar::handle:vertical:hover {
+    background-color: #585b70;
+}
+
+QScrollBar::handle:vertical:pressed {
+    background-color: #6c7086;
+}
+
+QScrollBar::sub-line:vertical, QScrollBar::add-line:vertical {
+    border: none;
+    background: none;
+    height: 0px;
+    width: 0px;
+}
+
+QScrollBar::up-arrow:vertical, QScrollBar::down-arrow:vertical {
+    background: none;
+}
+
+QScrollBar::add-page:vertical, QScrollBar::sub-page:vertical {
+    background: none;
+}
+
+QScrollBar:horizontal {
+    border: none;
+    background-color: transparent;
+    height: 10px;
+    margin: 0px;
+}
+
+QScrollBar::handle:horizontal {
+    background-color: #45475a;
+    min-width: 24px;
+    border-radius: 5px;
+}
+
+QScrollBar::handle:horizontal:hover {
+    background-color: #585b70;
+}
+
+QScrollBar::handle:horizontal:pressed {
+    background-color: #6c7086;
+}
+
+QScrollBar::sub-line:horizontal, QScrollBar::add-line:horizontal {
+    border: none;
+    background: none;
+    height: 0px;
+    width: 0px;
+}
+
+QScrollBar::left-arrow:horizontal, QScrollBar::right-arrow:horizontal {
+    background: none;
+}
+
+QScrollBar::add-page:horizontal, QScrollBar::sub-page:horizontal {
+    background: none;
+}
 """
+
+from ui.theme_utils import (
+    detect_system_dark_mode,
+    create_dark_palette,
+    create_light_palette,
+    apply_os_window_theme
+)

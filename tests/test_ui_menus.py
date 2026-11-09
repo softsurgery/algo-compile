@@ -17,6 +17,11 @@ class TestUIMenusAndDialogs(unittest.TestCase):
 
     def tearDown(self):
         self.win.close()
+        # Ensure tests do not overwrite the user's persisted preferences
+        from PyQt5.QtCore import QSettings
+        settings = QSettings("softsurgery", "Algoo")
+        settings.remove("dark_mode")
+        settings.sync()
 
     def test_toolbar_buttons_and_no_examples_button(self):
         # btn_examples must not be on the window or toolbar
@@ -99,6 +104,75 @@ class TestUIMenusAndDialogs(unittest.TestCase):
 
         # Check console banner
         self.assertIn("Algoo", self.win.console.output_text.toPlainText())
+
+    def test_window_bar_dark_mode_palette_and_themes(self):
+        from ui.theme_utils import (
+            create_dark_palette,
+            create_light_palette,
+            detect_system_dark_mode,
+            apply_os_window_theme
+        )
+        from PyQt5.QtGui import QPalette
+
+        # 1. Palette colors validation
+        dark_pal = create_dark_palette()
+        self.assertEqual(dark_pal.color(QPalette.Active, QPalette.Window).name(), "#181825")
+        self.assertEqual(dark_pal.color(QPalette.Active, QPalette.WindowText).name(), "#cdd6f4")
+
+        light_pal = create_light_palette()
+        self.assertEqual(light_pal.color(QPalette.Active, QPalette.Window).name(), "#f7f9fa")
+
+        # 2. System dark mode detection returns boolean
+        is_dark_sys = detect_system_dark_mode()
+        self.assertIsInstance(is_dark_sys, bool)
+
+        # 3. Apply dark theme to window
+        self.win.is_dark_mode = True
+        self.win.apply_theme(recreate_native=False)
+        self.assertEqual(app.palette().color(QPalette.Active, QPalette.Window).name(), "#181825")
+        self.assertEqual(self.win.palette().color(QPalette.Active, QPalette.Window).name(), "#181825")
+        self.assertIn("#a6adc8", self.win.symbols_bar.lbl_sym.styleSheet())
+
+        # 4. Toggle theme back to light
+        self.win.toggle_theme()
+        self.assertFalse(self.win.is_dark_mode)
+        self.assertEqual(app.palette().color(QPalette.Active, QPalette.Window).name(), "#f7f9fa")
+        self.assertEqual(self.win.palette().color(QPalette.Active, QPalette.Window).name(), "#f7f9fa")
+        self.assertIn("#64748b", self.win.symbols_bar.lbl_sym.styleSheet())
+
+    def test_scrollbar_theme_colors(self):
+        from ui.styles import LIGHT_THEME, DARK_THEME
+        from PyQt5.QtGui import QPainter, QImage
+
+        # Verify styles define QScrollBar rules
+        self.assertIn("QScrollBar:vertical", LIGHT_THEME)
+        self.assertIn("#cbd5e1", LIGHT_THEME)  # Light scrollbar handle
+        self.assertIn("QScrollBar:vertical", DARK_THEME)
+        self.assertIn("#45475a", DARK_THEME)  # Dark scrollbar handle
+
+        editor = self.win.current_editor()
+        editor.setPlainText("\n".join(["Ligne " + str(i) for i in range(100)]))
+        vsb = editor.verticalScrollBar()
+
+        # In light mode
+        self.win.is_dark_mode = False
+        self.win.apply_theme()
+        img_light = QImage(vsb.size(), QImage.Format_ARGB32)
+        p = QPainter(img_light)
+        vsb.render(p)
+        p.end()
+        colors_light = {img_light.pixelColor(vsb.width() // 2, y).name() for y in range(img_light.height())}
+        self.assertIn("#cbd5e1", colors_light, "Light mode scrollbar should contain #cbd5e1 handle")
+
+        # In dark mode
+        self.win.is_dark_mode = True
+        self.win.apply_theme()
+        img_dark = QImage(vsb.size(), QImage.Format_ARGB32)
+        p = QPainter(img_dark)
+        vsb.render(p)
+        p.end()
+        colors_dark = {img_dark.pixelColor(vsb.width() // 2, y).name() for y in range(img_dark.height())}
+        self.assertIn("#45475a", colors_dark, "Dark mode scrollbar should contain #45475a handle")
 
 
 if __name__ == '__main__':

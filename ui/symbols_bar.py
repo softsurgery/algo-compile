@@ -21,9 +21,8 @@ class SymbolsBar(QWidget):
         layout.setContentsMargins(4, 2, 4, 2)
         layout.setSpacing(4)
 
-        lbl = QLabel("Symboles :")
-        lbl.setStyleSheet("font-weight: bold; color: #64748b; font-size: 11px;")
-        layout.addWidget(lbl)
+        self.lbl_sym = QLabel("Symboles :")
+        layout.addWidget(self.lbl_sym)
 
         # Essential mathematical & algorithmic symbols
         symbols = [
@@ -50,13 +49,11 @@ class SymbolsBar(QWidget):
             layout.addWidget(btn)
 
         # Snippet separator
-        sep = QLabel("|")
-        sep.setStyleSheet("color: #cbd5e1; margin: 0 4px;")
-        layout.addWidget(sep)
+        self.sep = QLabel("|")
+        layout.addWidget(self.sep)
 
-        lbl_snip = QLabel("Structures :")
-        lbl_snip.setStyleSheet("font-weight: bold; color: #64748b; font-size: 11px;")
-        layout.addWidget(lbl_snip)
+        self.lbl_snip = QLabel("Structures :")
+        layout.addWidget(self.lbl_snip)
 
         snippets = [
             ("Si..Alors", "Si condition Alors\n    \nFinSi", "Insérer Si ... FinSi"),
@@ -78,3 +75,15 @@ class SymbolsBar(QWidget):
             layout.addWidget(btn)
 
         layout.addStretch()
+        self.set_dark_mode(self.is_dark)
+
+    def set_dark_mode(self, is_dark: bool):
+        self.is_dark = is_dark
+        if is_dark:
+            self.lbl_sym.setStyleSheet("font-weight: bold; color: #a6adc8; font-size: 11px;")
+            self.sep.setStyleSheet("color: #45475a; margin: 0 4px;")
+            self.lbl_snip.setStyleSheet("font-weight: bold; color: #a6adc8; font-size: 11px;")
+        else:
+            self.lbl_sym.setStyleSheet("font-weight: bold; color: #64748b; font-size: 11px;")
+            self.sep.setStyleSheet("color: #cbd5e1; margin: 0 4px;")
+            self.lbl_snip.setStyleSheet("font-weight: bold; color: #64748b; font-size: 11px;")
