@@ -141,6 +141,12 @@ def create_icon(name: str, color_hex: str = "#2c3e50", size: int = 24) -> QIcon:
         painter.setFont(font)
         painter.drawText(QRectF(0, 0, s, s), Qt.AlignCenter, "?")
 
+    elif name == "close":
+        cx, cy = s / 2, s / 2
+        d = s * 0.22
+        painter.drawLine(QPointF(cx - d, cy - d), QPointF(cx + d, cy + d))
+        painter.drawLine(QPointF(cx + d, cy - d), QPointF(cx - d, cy + d))
+
     else:
         # Default dot
         painter.drawEllipse(QPointF(s / 2, s / 2), 3, 3)

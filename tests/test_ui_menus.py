@@ -174,6 +174,28 @@ class TestUIMenusAndDialogs(unittest.TestCase):
         colors_dark = {img_dark.pixelColor(vsb.width() // 2, y).name() for y in range(img_dark.height())}
         self.assertIn("#45475a", colors_dark, "Dark mode scrollbar should contain #45475a handle")
 
+    def test_tab_border_radius_and_close_button(self):
+        from ui.styles import LIGHT_THEME, DARK_THEME
+
+        # Verify border-radius is reduced to 3px on tabs and pane
+        self.assertIn("border-top-left-radius: 3px;", LIGHT_THEME)
+        self.assertIn("border-top-right-radius: 3px;", LIGHT_THEME)
+        self.assertIn("border-top-left-radius: 3px;", DARK_THEME)
+        self.assertIn("border-top-right-radius: 3px;", DARK_THEME)
+
+        # Verify close button has image rules configured in both themes
+        self.assertIn("QTabBar::close-button", LIGHT_THEME)
+        self.assertIn("QTabBar::close-button", DARK_THEME)
+        self.assertIn("image: url(", LIGHT_THEME)
+        self.assertIn("image: url(", DARK_THEME)
+
+        # Verify close button hover in dark theme does NOT turn white (#fee2e2)
+        close_dark_hover_start = DARK_THEME.find("QTabBar::close-button:hover")
+        self.assertNotEqual(close_dark_hover_start, -1)
+        close_dark_hover_block = DARK_THEME[close_dark_hover_start:close_dark_hover_start + 200]
+        self.assertNotIn("#fee2e2", close_dark_hover_block, "Dark mode close button hover must not be white/fee2e2")
+        self.assertIn("#313244", close_dark_hover_block, "Dark mode close button hover should use #313244")
+
 
 if __name__ == '__main__':
     unittest.main()
