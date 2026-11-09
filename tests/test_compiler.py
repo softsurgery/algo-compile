@@ -124,5 +124,26 @@ class TestAlgoTranspiler(unittest.TestCase):
         self.assertIn("def determineRanking(T, n):", py)
         self.assertIn("T = array([_creer_Player() for _ in range(30)], dtype=object)", py)
 
+    def test_string_array_preserves_full_strings(self):
+        algo = """
+        Procedure remplir(@T: Tableau de 5 Chaine)
+        Debut
+          T[0] <- "Hello World"
+          T[1] <- "12345678"
+        Fin
+
+        ALGORITHME TestStringArray
+        DEBUT
+          remplir(T)
+        FIN
+        Déclaration des objets
+        Objet  Type / Nature
+        T      Tableau de 5 Chaine
+        """
+        py = self.transpiler.compile(algo)
+        self.assertIn("T = array([''] * (5), dtype=object)", py)
+        ns = {'__name__': '__main__'}
+        exec(py, ns)
+
 if __name__ == '__main__':
     unittest.main()

@@ -134,7 +134,11 @@ def _lire_valeur(prompt="", var_type=None):
     val = input(prompt)
     if var_type is not None:
         t = var_type.lower()
-        if 'entier' in t or 'int' in t:
+        if 'chaine' in t or 'chaîne' in t or 'str' in t:
+            return val
+        elif 'caractere' in t or 'caractère' in t or 'char' in t:
+            return val[0] if len(val) > 0 else ''
+        elif 'entier' in t or 'int' in t:
             try:
                 return int(val.strip())
             except ValueError:
@@ -147,8 +151,6 @@ def _lire_valeur(prompt="", var_type=None):
         elif 'bool' in t:
             v = val.strip().lower()
             return v in ('vrai', 'true', '1', 't', 'o', 'oui')
-        elif 'caractere' in t or 'caractère' in t or 'char' in t:
-            return val[0] if len(val) > 0 else ''
         else:
             return val
     # Smart auto-detection if no explicit type

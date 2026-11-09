@@ -109,6 +109,11 @@ class TypeHandler:
             return "''"
         return "0"
 
+    def is_string_type(self, elem_type: str) -> bool:
+        """Returns True if the type represents a string (Chaine)."""
+        t = elem_type.lower()
+        return 'chaine' in t or 'chaîne' in t or 'str' in t
+
     def generate_object_initializations(self, objects_dict: dict = None) -> list:
         """Generates Python initialization code for declared objects (NumPy arrays, dicts, scalars)."""
         if objects_dict is None:
@@ -129,11 +134,17 @@ class TypeHandler:
                         lines.append(f"{var_name} = array([_creer_{elem_t}() for _ in range({t_def['size']})], dtype=object)")
                     else:
                         init_val = self.default_value_for_type(elem_t)
-                        lines.append(f"{var_name} = array([{init_val}] * ({t_def['size']}))")
+                        if self.is_string_type(elem_t):
+                            lines.append(f"{var_name} = array([{init_val}] * ({t_def['size']}), dtype=object)")
+                        else:
+                            lines.append(f"{var_name} = array([{init_val}] * ({t_def['size']}))")
                     continue
                 elif t_def['kind'] == 'tableau_2d':
                     init_val = self.default_value_for_type(t_def['elem_type'])
-                    lines.append(f"{var_name} = array([[{init_val}] * ({t_def['cols']})] * ({t_def['rows']}))")
+                    if self.is_string_type(t_def['elem_type']):
+                        lines.append(f"{var_name} = array([[{init_val}] * ({t_def['cols']})] * ({t_def['rows']}), dtype=object)")
+                    else:
+                        lines.append(f"{var_name} = array([[{init_val}] * ({t_def['cols']})] * ({t_def['rows']}))")
                     continue
 
             # Tableau 2D inline: Tableau de N lignes * M colonnes Type
@@ -141,7 +152,10 @@ class TypeHandler:
             if m_arr2:
                 rows, cols, elem_type = m_arr2.group(1).strip(), m_arr2.group(2).strip(), m_arr2.group(3).strip()
                 init_val = self.default_value_for_type(elem_type)
-                lines.append(f"{var_name} = array([[{init_val}] * ({cols})] * ({rows}))")
+                if self.is_string_type(elem_type):
+                    lines.append(f"{var_name} = array([[{init_val}] * ({cols})] * ({rows}), dtype=object)")
+                else:
+                    lines.append(f"{var_name} = array([[{init_val}] * ({cols})] * ({rows}))")
                 continue
 
             # Tableau 1D inline: Tableau de N Type
@@ -152,7 +166,10 @@ class TypeHandler:
                     lines.append(f"{var_name} = array([_creer_{elem_type}() for _ in range({size})], dtype=object)")
                 else:
                     init_val = self.default_value_for_type(elem_type)
-                    lines.append(f"{var_name} = array([{init_val}] * ({size}))")
+                    if self.is_string_type(elem_type):
+                        lines.append(f"{var_name} = array([{init_val}] * ({size}), dtype=object)")
+                    else:
+                        lines.append(f"{var_name} = array([{init_val}] * ({size}))")
                 continue
 
             # Enregistrement inline

@@ -31,6 +31,7 @@ class SubprogramTranslator:
         # Parse parameters and track @ pass-by-reference
         py_params = []
         param_ref = set()
+        local_types = {}
         if params_str.strip():
             raw_params = params_str.split(',')
             for p in raw_params:
@@ -40,6 +41,8 @@ class SubprogramTranslator:
                 if ':' in p:
                     pname, ptype = p.split(':', 1)
                     pname = pname.strip()
+                    clean_p = pname.lstrip('@').strip()
+                    local_types[clean_p] = ptype.strip()
                 else:
                     pname = p
                 
@@ -62,7 +65,12 @@ class SubprogramTranslator:
                 continue
             body_lines.append((line_no, line))
 
-        sub_body = self.stmt_trans.translate_statements(body_lines, indent_level=1)
+        prev_local = getattr(self.stmt_trans, 'local_objects', {})
+        self.stmt_trans.local_objects = dict(local_types)
+        try:
+            sub_body = self.stmt_trans.translate_statements(body_lines, indent_level=1)
+        finally:
+            self.stmt_trans.local_objects = prev_local
         if not sub_body:
             sub_body = ["    pass"]
 

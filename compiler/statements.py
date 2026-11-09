@@ -12,10 +12,14 @@ class StatementTranslator:
         self.expr_trans = expression_translator
         self.type_handler = type_handler
         self.subprogram_meta = subprogram_meta
+        self.local_objects = {}
 
     @property
     def declared_objects(self):
-        return self.type_handler.declared_objects
+        combined = dict(self.type_handler.declared_objects)
+        if hasattr(self, 'local_objects') and self.local_objects:
+            combined.update(self.local_objects)
+        return combined
 
     def translate_statements(self, line_tuples: list, indent_level: int = 1) -> list:
         """Translates a sequence of algorithmic lines to Python statements."""
@@ -377,9 +381,27 @@ class StatementTranslator:
             for arg in args:
                 target_var = self.expr_trans.translate_target(arg.strip())
                 clean_id = re.sub(r'\[.*\]', '', arg.strip())
+                clean_id = clean_id.split('.')[0].strip()
                 vtype = self.declared_objects.get(clean_id, None)
                 if vtype:
-                    assignments.append(f"{target_var} = _lire_valeur('', {vtype!r})")
+                    target_type = vtype
+                    # If reading an array element (e.g. IDENT[i]), get the element type
+                    if '[' in arg:
+                        if vtype in self.type_handler.custom_types:
+                            c_def = self.type_handler.custom_types[vtype]
+                            if c_def.get('kind') in ('tableau_1d', 'tableau_2d'):
+                                target_type = c_def.get('elem_type', vtype)
+                        else:
+                            m_arr = re.match(r'tableau\s+de\s+(?:.+?\s*lignes?\s*\*\s*.+?\s*colonnes?\s+|.+?\s+)(.+)', vtype, re.IGNORECASE)
+                            if m_arr:
+                                target_type = m_arr.group(1).strip()
+                    # If reading a record field (e.g. E.nom or T[i].nom)
+                    if '.' in arg:
+                        field_name = arg.split('.')[-1].strip()
+                        rec_type = target_type
+                        if rec_type in self.type_handler.custom_types and self.type_handler.custom_types[rec_type].get('kind') == 'enregistrement':
+                            target_type = self.type_handler.custom_types[rec_type].get('fields', {}).get(field_name, target_type)
+                    assignments.append(f"{target_var} = _lire_valeur('', {target_type!r})")
                 else:
                     assignments.append(f"{target_var} = _lire_valeur('')")
             return "; ".join(assignments)
