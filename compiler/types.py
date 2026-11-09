@@ -1,6 +1,5 @@
 """
-Type and Object Declarations Handler for the Tunisian Algorithmic Convention.
-Complies with 'Convention Algorithmique 2024.pdf' and 'Implémention 2024-2025.pdf'.
+Type and Object Declarations Handler.
 """
 
 import re

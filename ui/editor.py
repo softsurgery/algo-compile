@@ -1,7 +1,6 @@
 """
 Algorithm Code Editor with Syntax Highlighting, Line Numbers,
 Auto-Indentation, and Error/Step Line Highlighting.
-Designed specifically for Tunisian Algorithm Convention (2024/2025).
 """
 
 import re
@@ -14,7 +13,7 @@ from PyQt5.QtCore import Qt, QRect, QSize
 
 
 class AlgoHighlighter(QSyntaxHighlighter):
-    """Syntax Highlighter for the Tunisian Algorithmic Convention."""
+    """Syntax Highlighter for Algorithmic Code."""
 
     def __init__(self, parent=None, is_dark=False):
         super().__init__(parent)

@@ -1,5 +1,5 @@
 """
-Compiler Exception Definitions for the Tunisian Algorithmic Convention.
+Compiler Exception Definitions.
 """
 
 class CompileError(Exception):

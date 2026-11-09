@@ -1,7 +1,6 @@
 """
-Assistant & Convention Guide View (Thonny style).
-Provides contextual error diagnostics and reference cards directly from
-'Convention Algorithmique 2024.pdf' and 'Implémention 2024-2025.pdf'.
+Assistant & Guide View.
+Provides contextual error diagnostics and reference cards.
 """
 
 from PyQt5.QtWidgets import (
@@ -13,7 +12,7 @@ from PyQt5.QtGui import QFont
 
 REFERENCE_TOPICS = {
     "1. Structure Générale & TDO": """
-<h3>Forme générale d'un algorithme (2024/2025)</h3>
+<h3>Forme générale d'un algorithme</h3>
 <pre>
 ALGORITHME Nom
 DEBUT
@@ -35,7 +34,7 @@ T              Tableau de 20 Entier
     "2. Opérations Élémentaires (I/O & Affectation)": """
 <h3>Opérations Élémentaires</h3>
 <table border="1" cellpadding="6" style="border-collapse: collapse; width: 100%;">
-  <tr style="background-color: #f1f5f9;"><th>Algorithmique</th><th>Python (2024/2025)</th><th>Description</th></tr>
+  <tr style="background-color: #f1f5f9;"><th>Algorithmique</th><th>Python</th><th>Description</th></tr>
   <tr><td><b>Lire(x)</b></td><td><code>x = input()</code> ou <code>int(input())</code></td><td>Saisie clavier</td></tr>
   <tr><td><b>Écrire("msg", x)</b></td><td><code>print("msg", x, end='')</code></td><td>Affichage sans saut de ligne</td></tr>
   <tr><td><b>Écrire_nl("msg", x)</b></td><td><code>print("msg", x)</code></td><td>Affichage avec saut de ligne</td></tr>
@@ -241,7 +240,7 @@ class AssistantView(QWidget):
             tips.append("Vérifiez la concordance des mots clés (ex: <code>Si ... FinSi</code>, <code>Pour ... Fin Pour</code>).")
             tips.append("Vérifiez que le symbole d'affectation est bien <code>&larr;</code> ou <code>&lt;-</code>.")
         if not tips:
-            tips.append("Consultez les fiches de référence ci-dessus pour la syntaxe exacte selon la Convention 2024.")
+            tips.append("Consultez les fiches de référence ci-dessus pour la syntaxe exacte.")
 
         tips_html = "".join(f"<li>{t}</li>" for t in tips)
         html = f"""

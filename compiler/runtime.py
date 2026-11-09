@@ -1,8 +1,6 @@
 """
-Runtime library for the Tunisian Algorithm Convention (2024/2025).
-Provides all standard predefined functions and helpers specified in:
-- Convention Algorithmique 2024
-- Implémentation 2024-2025
+Runtime library for the Algorithmic Language.
+Provides standard predefined functions and helpers.
 """
 
 import math

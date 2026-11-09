@@ -1,6 +1,5 @@
 """
 Tableau de Déclaration des Objets (T.D.O.) Inspector.
-Complies with 'Convention Algorithmique 2024' section A & B.4.
 """
 
 from PyQt5.QtWidgets import (
@@ -33,7 +32,7 @@ class TDOView(QWidget):
 
         # Table
         self.table = QTableWidget(0, 3)
-        self.table.setHorizontalHeaderLabels(["Objet", "Type / Nature", "Équivalent Python (2024/2025)"])
+        self.table.setHorizontalHeaderLabels(["Objet", "Type / Nature", "Équivalent Python"])
         self.table.horizontalHeader().setSectionResizeMode(0, QHeaderView.ResizeToContents)
         self.table.horizontalHeader().setSectionResizeMode(1, QHeaderView.ResizeToContents)
         self.table.horizontalHeader().setSectionResizeMode(2, QHeaderView.Stretch)

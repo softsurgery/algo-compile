@@ -1,6 +1,5 @@
 """
-Main Transpiler Pipeline for Tunisian Algorithm Convention (2024/2025) to Python 3.
-Complies with 'Convention Algorithmique 2024.pdf' and 'Implémention 2024-2025.pdf'.
+Main Transpiler Pipeline for Algorithm to Python 3.
 """
 
 from compiler.errors import CompileError
@@ -86,8 +85,7 @@ class AlgoTranspiler:
         # 5. Generate standard Python header & runtime imports
         py_lines = [
             "# -*- coding: utf-8 -*-",
-            "# Code généré conformément aux Conventions Algorithmiques 2024/2025",
-            "# Ministère de l'Éducation - République Tunisienne",
+            "# Code généré par Algoo",
             "",
             "from numpy import array",
             "from math import sqrt",

@@ -1,6 +1,5 @@
 """
 Structural Section Extractor and Header Parser for Algorithmic Code.
-Complies with 'Convention Algorithmique 2024.pdf' and 'Implémention 2024-2025.pdf'.
 """
 
 import re

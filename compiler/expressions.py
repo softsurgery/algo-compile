@@ -1,6 +1,5 @@
 """
-Algorithmic Expression and Target Translator for the Tunisian Algorithmic Convention.
-Complies with 'Convention Algorithmique 2024.pdf' and 'Implémention 2024-2025.pdf'.
+Algorithmic Expression and Target Translator.
 """
 
 import re

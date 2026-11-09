@@ -1,5 +1,5 @@
 """
-Tunisian Algorithmic Convention Compiler Package (2024/2025).
+Algorithmic Compiler Package.
 """
 
 from compiler.transpiler import AlgoTranspiler

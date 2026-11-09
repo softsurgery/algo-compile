@@ -1,5 +1,5 @@
 """
-Main Application Window (Algoo - Modern IDE for Algerian & Tunisian Algorithm Conventions).
+Main Application Window (Algoo - Modern IDE for Algorithmic Development).
 Developed by softsurgery (https://github.com/softsurgery/algoo).
 Built with PyQt5 and modern design standards.
 """
@@ -33,7 +33,7 @@ from ui.insert_code_dialog import InsertCodeDialog
 class MainWindow(QMainWindow):
     def __init__(self):
         super().__init__()
-        self.setWindowTitle("Algoo - Conventions Algorithmiques 2024/2025")
+        self.setWindowTitle("Algoo - IDE Algorithmique")
         self.resize(1200, 800)
 
         # Check saved setting or detect system preference
@@ -110,7 +110,7 @@ class MainWindow(QMainWindow):
         self.tdo_view = TDOView(self, is_dark=self.is_dark_mode)
         self.side_tabs.addTab(self.tdo_view, "Tableau T.D.O.")
 
-        # 4. Assistant & Conventions View
+        # 4. Guide & Assistant View
         self.assistant_view = AssistantView(self, is_dark=self.is_dark_mode)
         self.side_tabs.addTab(self.assistant_view, "Guide et Aide")
 
@@ -289,7 +289,7 @@ class MainWindow(QMainWindow):
         act_show_tdo.triggered.connect(lambda: self.side_tabs.setCurrentWidget(self.tdo_view))
         menu_view.addAction(act_show_tdo)
 
-        act_show_guide = QAction("Assistant & Conventions", self)
+        act_show_guide = QAction("Guide et Aide", self)
         act_show_guide.triggered.connect(lambda: self.side_tabs.setCurrentWidget(self.assistant_view))
         menu_view.addAction(act_show_guide)
         menu_view.addSeparator()
@@ -331,7 +331,7 @@ class MainWindow(QMainWindow):
 
         self.lbl_cursor = QLabel("Ligne: 1, Col: 1")
         self.lbl_status = QLabel("Prêt")
-        self.lbl_backend = QLabel("Conventions 2024/2025 | Python 3 + NumPy")
+        self.lbl_backend = QLabel("Algorithmique | Python 3 + NumPy")
 
         self.status_bar.addWidget(self.lbl_status, 1)
         self.status_bar.addPermanentWidget(self.lbl_cursor)
@@ -700,10 +700,5 @@ class MainWindow(QMainWindow):
             "<p>Environnement de développement moderne et pédagogique pour l'Algorithmique scolaire et universitaire.</p>"
             "<p><b>Développeur :</b> softsurgery</p>"
             "<p><b>Code source & GitHub :</b> <a href='https://github.com/softsurgery/algoo'>https://github.com/softsurgery/algoo</a></p>"
-            "<p><b>Conformité stricte :</b></p>"
-            "<ul>"
-            "  <li><i>Les Conventions Algorithmiques (Septembre 2024)</i></li>"
-            "  <li><i>Implémentation en Python des Conventions Algorithmiques (2024/2025)</i></li>"
-            "</ul>"
             "<p>Développé avec <b>PyQt5</b> et <b>NumPy</b> sous Linux.</p>"
         )

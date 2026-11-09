@@ -1,6 +1,5 @@
 """
-Statement and Control Flow Translator for the Tunisian Algorithmic Convention.
-Complies with 'Convention Algorithmique 2024.pdf' and 'Implémention 2024-2025.pdf'.
+Statement and Control Flow Translator.
 """
 
 import re

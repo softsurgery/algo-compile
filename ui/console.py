@@ -197,7 +197,7 @@ class AlgoConsole(QWidget):
         banner_color = "#3b82f6" if not self.is_dark else "#89b4fa"
         self.output_text.append(
             f"<span style='color: {banner_color}; font-weight: bold;'>"
-            f"=== Algoo (Conventions Algorithmiques 2024/2025) ===<br>"
+            f"=== Algoo ===<br>"
             f"Prêt pour la compilation et l'exécution interactive.<br>"
             f"</span><br>"
         )

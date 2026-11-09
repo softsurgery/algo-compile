@@ -1,8 +1,6 @@
 # Algoo
 
-Environnement de Développement Intégré (IDE) moderne développé par **[softsurgery](https://github.com/softsurgery)** avec **PyQt 5**, inspiré de l'ergonomie pédagogique de **Thonny**, spécialement conçu pour compiler et exécuter les algorithmes conformes aux directives officielles du Ministère de l'Éducation de la République Tunisienne :
-- **Les Conventions Algorithmiques (Septembre 2024)**
-- **Implémentation en Python des Conventions Algorithmiques (Année scolaire 2024/2025)**
+Environnement de Développement Intégré (IDE) moderne développé par **[softsurgery](https://github.com/softsurgery)** avec **PyQt 5**, inspiré de l'ergonomie pédagogique de **Thonny**, spécialement conçu pour compiler et exécuter les algorithmes éducatifs.
 
 🔗 **Dépôt GitHub :** [https://github.com/softsurgery/algoo](https://github.com/softsurgery/algoo)
 
@@ -12,10 +10,10 @@ Environnement de Développement Intégré (IDE) moderne développé par **[softs
 
 ### 1. Interface Moderne et Ergonomique (Inspirée de Thonny)
 - **Barre d'outils ergonomique :** Boutons iconographiques larges et modernes pour `Nouveau`, `Ouvrir`, `Enregistrer`, `Exécuter` (Vert F5), `Traduire en Python` (Bleu/Or F6), `Arrêter` (Rouge Échap), menu déroulant `Exemples Bac` et bascule `Thème Clair / Sombre`.
-- **Barre d'insertion rapide de symboles algorithmiques :** Insertion en un clic des symboles de la convention (`←`, `≠`, `≤`, `≥`, `∈`, `[vi .. vf]`, `{..}`, `Div`, `Mod`) ainsi que des blocs de structures conditionnelles et itératives.
+- **Barre d'insertion rapide de symboles algorithmiques :** Insertion en un clic des symboles algorithmiques usuels (`←`, `≠`, `≤`, `≥`, `∈`, `[vi .. vf]`, `{..}`, `Div`, `Mod`) ainsi que des blocs de structures conditionnelles et itératives.
 - **Éditeur d'algorithmes multi-onglets :**
   - Numérotation des lignes avec surbrillance de la ligne active.
-  - Coloration syntaxique complète pour la convention 2024 (mots-clés, types simples et structurés, fonctions prédéfinies, opérateurs, chaînes et commentaires).
+  - Coloration syntaxique complète pour les algorithmes (mots-clés, types simples et structurés, fonctions prédéfinies, opérateurs, chaînes et commentaires).
   - Indentation automatique intelligente après `DEBUT`, `Alors`, `Sinon`, `Faire`, `Selon`, `Répéter`.
   - Signalement visuel des erreurs à la ligne exacte.
 - **Console / Shell Interactive (Bas de page) :**
@@ -25,16 +23,16 @@ Environnement de Développement Intégré (IDE) moderne développé par **[softs
   - Arrêt forcé instantané en cas de boucle infinie.
 
 ### 2. Panneau Latéral Multifonctionnel
-- **Code Python généré :** Affichage en temps réel du code Python 3 traduit selon les règles d'implémentation 2024/2025 (utilisation de `numpy.array`, dictionnaires pour les enregistrements, `match/case` pour les Selon, imports modulaires, conversions automatiques). Possibilité de copier le code ou de l'exporter en `.py`.
+- **Code Python généré :** Affichage en temps réel du code Python 3 traduit selon les règles d'implémentation (utilisation de `numpy.array`, dictionnaires pour les enregistrements, `match/case` pour les Selon, imports modulaires, conversions automatiques). Possibilité de copier le code ou de l'exporter en `.py`.
 - **Inspecteur de Variables :** Affichage tabulaire des variables actives, leurs types algorithmiques et leurs valeurs.
 - **Tableau T.D.O. :** Visualisation et analyse automatique du Tableau de Déclaration des Objets (Objets, Types/Natures, et équivalences Python).
-- **Assistant & Guide :** Fiches de synthèse et aide-mémoire basés directement sur le document officiel de 2024, avec conseils pédagogiques automatiques lors d'erreurs de syntaxe ou d'exécution.
+- **Assistant & Guide :** Fiches de synthèse et aide-mémoire avec conseils pédagogiques automatiques lors d'erreurs de syntaxe ou d'exécution.
 
 ---
 
-## Conformité aux Conventions 2024/2025
+## Équivalences Algorithme et Python
 
-| Syntaxe Algorithmique 2024 | Implémentation Python 2024/2025 |
+| Syntaxe Algorithmique | Implémentation Python |
 |-----------------------------|---------------------------------|
 | `Lire(x)` | `x = input()` / conversion selon le type TDO |
 | `Écrire(...)` | `print(..., end='')` |

@@ -1,7 +1,6 @@
 #!/usr/bin/env python3
 """
 Algoo IDE Entry Point.
-Complies with 'Convention Algorithmique 2024' and 'Implémention 2024-2025'.
 Developed by softsurgery (https://github.com/softsurgery/algoo).
 """
 
