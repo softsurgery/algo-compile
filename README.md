@@ -1,15 +1,17 @@
-# Thonny Algo-IDE
+# Algoo
 
-Environnement de Développement Intégré (IDE) moderne développé avec **PyQt 5**, inspiré de l'ergonomie pédagogique de **Thonny**, spécialement conçu pour compiler et exécuter les algorithmes conformes aux directives officielles du Ministère de l'Éducation de la République Tunisienne :
+Environnement de Développement Intégré (IDE) moderne développé par **[softsurgery](https://github.com/softsurgery)** avec **PyQt 5**, inspiré de l'ergonomie pédagogique de **Thonny**, spécialement conçu pour compiler et exécuter les algorithmes conformes aux directives officielles du Ministère de l'Éducation de la République Tunisienne :
 - **Les Conventions Algorithmiques (Septembre 2024)**
 - **Implémentation en Python des Conventions Algorithmiques (Année scolaire 2024/2025)**
+
+🔗 **Dépôt GitHub :** [https://github.com/softsurgery/algoo](https://github.com/softsurgery/algoo)
 
 ---
 
 ## Fonctionnalités Clés
 
-### 1. Interface Inspirée de Thonny avec Design Moderne
-- **Barre d'outils Thonny :** Boutons iconographiques larges et modernes pour `Nouveau`, `Ouvrir`, `Enregistrer`, `Exécuter` (Vert F5), `Traduire en Python` (Bleu/Or F6), `Arrêter` (Rouge Échap), menu déroulant `Exemples Bac` et bascule `Thème Clair / Sombre`.
+### 1. Interface Moderne et Ergonomique (Inspirée de Thonny)
+- **Barre d'outils ergonomique :** Boutons iconographiques larges et modernes pour `Nouveau`, `Ouvrir`, `Enregistrer`, `Exécuter` (Vert F5), `Traduire en Python` (Bleu/Or F6), `Arrêter` (Rouge Échap), menu déroulant `Exemples Bac` et bascule `Thème Clair / Sombre`.
 - **Barre d'insertion rapide de symboles algorithmiques :** Insertion en un clic des symboles de la convention (`←`, `≠`, `≤`, `≥`, `∈`, `[vi .. vf]`, `{..}`, `Div`, `Mod`) ainsi que des blocs de structures conditionnelles et itératives.
 - **Éditeur d'algorithmes multi-onglets :**
   - Numérotation des lignes avec surbrillance de la ligne active.
@@ -79,3 +81,10 @@ Les exemples suivants sont intégrés dans le menu **Exemples Bac** :
 3. `palindrome.algo` : Sous-programme (Fonction), manipulation de chaînes (`Long`, `Majus`) et boucle `Tant que`.
 4. `matrice_alea.algo` : Tableaux NumPy 2D (lignes * colonnes) et parcours imbriqué.
 5. `gestion_eleves.algo` : Enregistrement (`dict`) et structure à choix multiples (`Selon`).
+
+---
+
+## Auteur & Contribution
+
+- **Développeur :** [softsurgery](https://github.com/softsurgery)
+- **Dépôt du projet :** [https://github.com/softsurgery/algoo](https://github.com/softsurgery/algoo)

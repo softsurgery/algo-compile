@@ -1,7 +1,8 @@
 #!/usr/bin/env python3
 """
-Thonny Algo-IDE Entry Point.
+Algoo IDE Entry Point.
 Complies with 'Convention Algorithmique 2024' and 'Implémention 2024-2025'.
+Developed by softsurgery (https://github.com/softsurgery/algoo).
 """
 
 import sys
@@ -23,9 +24,9 @@ def main():
     QApplication.setAttribute(Qt.AA_UseHighDpiPixmaps, True)
 
     app = QApplication(sys.argv)
-    app.setApplicationName("Thonny Algo-IDE")
-    app.setApplicationDisplayName("Thonny Algo-IDE")
-    app.setOrganizationName("Tunisian Educational Computing")
+    app.setApplicationName("Algoo")
+    app.setApplicationDisplayName("Algoo")
+    app.setOrganizationName("softsurgery")
 
     # Set default app font
     font = QFont("-apple-system, BlinkMacSystemFont, Segoe UI, Roboto, Ubuntu, sans-serif", 10)
