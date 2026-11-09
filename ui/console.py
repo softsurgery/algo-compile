@@ -37,15 +37,15 @@ class ConsoleOutputEdit(QTextEdit):
 
     def keyPressEvent(self, event):
         if event.modifiers() & Qt.ControlModifier:
-            if event.key() in (Qt.Key_Plus, Qt.Key_Equal):
+            if event.key() in (Qt.Key_Plus, Qt.Key_Equal) or event.text() in ('+', '='):
                 self.console.zoom_in()
                 event.accept()
                 return
-            elif event.key() == Qt.Key_Minus:
+            elif event.key() == Qt.Key_Minus or event.text() == '-':
                 self.console.zoom_out()
                 event.accept()
                 return
-            elif event.key() == Qt.Key_0:
+            elif event.key() == Qt.Key_0 or event.text() == '0':
                 self.console.reset_zoom()
                 event.accept()
                 return
@@ -70,15 +70,15 @@ class ConsoleInputEdit(QLineEdit):
 
     def keyPressEvent(self, event):
         if event.modifiers() & Qt.ControlModifier:
-            if event.key() in (Qt.Key_Plus, Qt.Key_Equal):
+            if event.key() in (Qt.Key_Plus, Qt.Key_Equal) or event.text() in ('+', '='):
                 self.console.zoom_in()
                 event.accept()
                 return
-            elif event.key() == Qt.Key_Minus:
+            elif event.key() == Qt.Key_Minus or event.text() == '-':
                 self.console.zoom_out()
                 event.accept()
                 return
-            elif event.key() == Qt.Key_0:
+            elif event.key() == Qt.Key_0 or event.text() == '0':
                 self.console.reset_zoom()
                 event.accept()
                 return

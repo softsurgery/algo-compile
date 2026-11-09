@@ -88,14 +88,32 @@ class TestZoomFeatures(unittest.TestCase):
         # Console output keys
         self.console.output_text.keyPressEvent(key_plus)
         self.assertEqual(self.console.output_text.font().pointSize(), 11)
+        self.console.output_text.keyPressEvent(key_minus)
+        self.assertEqual(self.console.output_text.font().pointSize(), 10)
+        self.console.output_text.keyPressEvent(key_plus)
         self.console.output_text.keyPressEvent(key_zero)
         self.assertEqual(self.console.output_text.font().pointSize(), 10)
 
         # Console input keys
         self.console.input_line.keyPressEvent(key_plus)
         self.assertEqual(self.console.output_text.font().pointSize(), 11)
+        self.console.input_line.keyPressEvent(key_minus)
+        self.assertEqual(self.console.output_text.font().pointSize(), 10)
+        self.console.input_line.keyPressEvent(key_plus)
         self.console.input_line.keyPressEvent(key_zero)
         self.assertEqual(self.console.output_text.font().pointSize(), 10)
+
+        # International / AZERTY keyboard simulation (key != Key_Minus, but text == '-')
+        key_azerty_minus = QKeyEvent(QKeyEvent.KeyPress, Qt.Key_6, Qt.ControlModifier, "-")
+        self.editor.zoom_in(2)
+        self.assertEqual(self.editor.font().pointSize(), 13)
+        self.editor.keyPressEvent(key_azerty_minus)
+        self.assertEqual(self.editor.font().pointSize(), 12)
+
+        self.console.output_text.keyPressEvent(key_azerty_minus)
+        self.assertEqual(self.console.output_text.font().pointSize(), 9)
+
+        self.win.reset_zoom()
 
     def test_toolbar_zoom_and_focus(self):
         self.editor.setFocus()
@@ -110,6 +128,28 @@ class TestZoomFeatures(unittest.TestCase):
 
         self.win.act_zoom_out.trigger()
         self.assertEqual(self.console.output_text.font().pointSize(), 10)
+
+    def test_zoom_actions_display_tab_shortcuts(self):
+        # Menu actions should use tab formatting to display clean 'Ctrl -' and 'Ctrl +'
+        # rather than Qt's raw 'Ctrl+-' and 'Ctrl++'
+        self.assertIn("\tCtrl -", self.win.act_zoom_out.text())
+        self.assertIn("\tCtrl +", self.win.act_zoom_in.text())
+        
+        # Tooltip should also clearly show 'Ctrl -'
+        self.assertIn("Ctrl -", self.win.act_zoom_out.toolTip())
+        self.assertIn("Ctrl +", self.win.act_zoom_in.toolTip())
+
+    def test_no_ambiguous_shortcuts(self):
+        from PyQt5.QtWidgets import QAction
+        all_actions = self.win.findChildren(QAction)
+        shortcuts = {}
+        for a in all_actions:
+            for sc in a.shortcuts():
+                s = sc.toString()
+                if s:
+                    shortcuts.setdefault(s, []).append((a.text(), a))
+        duplicates = {s: acts for s, acts in shortcuts.items() if len(acts) > 1}
+        self.assertEqual(duplicates, {}, f"Found duplicate shortcut registrations: {duplicates}")
 
 
 if __name__ == '__main__':

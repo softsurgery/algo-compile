@@ -91,15 +91,15 @@ class PythonCodeEditor(QPlainTextEdit):
 
     def keyPressEvent(self, event):
         if event.modifiers() & Qt.ControlModifier:
-            if event.key() in (Qt.Key_Plus, Qt.Key_Equal):
+            if event.key() in (Qt.Key_Plus, Qt.Key_Equal) or event.text() in ('+', '='):
                 self.view.zoom_in()
                 event.accept()
                 return
-            elif event.key() == Qt.Key_Minus:
+            elif event.key() == Qt.Key_Minus or event.text() == '-':
                 self.view.zoom_out()
                 event.accept()
                 return
-            elif event.key() == Qt.Key_0:
+            elif event.key() == Qt.Key_0 or event.text() == '0':
                 self.view.reset_zoom()
                 event.accept()
                 return

@@ -313,15 +313,15 @@ class AlgoCodeEditor(QPlainTextEdit):
     def keyPressEvent(self, event):
         """Auto-indent on Enter and Ctrl +/- zoom."""
         if event.modifiers() & Qt.ControlModifier:
-            if event.key() in (Qt.Key_Plus, Qt.Key_Equal):
+            if event.key() in (Qt.Key_Plus, Qt.Key_Equal) or event.text() in ('+', '='):
                 self.zoom_in()
                 event.accept()
                 return
-            elif event.key() == Qt.Key_Minus:
+            elif event.key() == Qt.Key_Minus or event.text() == '-':
                 self.zoom_out()
                 event.accept()
                 return
-            elif event.key() == Qt.Key_0:
+            elif event.key() == Qt.Key_0 or event.text() == '0':
                 self.reset_zoom()
                 event.accept()
                 return
