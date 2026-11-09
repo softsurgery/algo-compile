@@ -4,7 +4,7 @@ Modern stylesheets for the IDE: Light (Thonny style) and Modern Dark themes.
 
 LIGHT_THEME = """
 /* Global Window and Base Controls */
-QMainWindow {
+QMainWindow, QDialog {
     background-color: #f7f9fa;
     color: #2c3e50;
 }
@@ -37,40 +37,6 @@ QToolButton:hover {
 
 QToolButton:pressed {
     background-color: #e2e8f0;
-}
-
-/* Specific Accent Buttons */
-QToolButton#btn_run {
-    background-color: #ebfbee;
-    border: 1px solid #8ce99a;
-    color: #2b8a3e;
-    font-weight: bold;
-}
-QToolButton#btn_run:hover {
-    background-color: #d3f9d8;
-    border: 1px solid #69db7c;
-}
-
-QToolButton#btn_stop {
-    background-color: #fff5f5;
-    border: 1px solid #ffc9c9;
-    color: #c92a2a;
-    font-weight: bold;
-}
-QToolButton#btn_stop:hover {
-    background-color: #ffe3e3;
-    border: 1px solid #ffa8a8;
-}
-
-QToolButton#btn_python {
-    background-color: #e7f5ff;
-    border: 1px solid #a5d8ff;
-    color: #1971c2;
-    font-weight: bold;
-}
-QToolButton#btn_python:hover {
-    background-color: #d0ebff;
-    border: 1px solid #74c0fc;
 }
 
 /* MenuBar */
@@ -233,11 +199,34 @@ QPushButton:hover {
 QPushButton:pressed {
     background-color: #e2e8f0;
 }
+
+/* List Widgets */
+QListWidget {
+    background-color: #ffffff;
+    color: #1e293b;
+    border: 1px solid #e2e8f0;
+    border-radius: 6px;
+}
+
+QListWidget::item {
+    padding: 6px 8px;
+    border-radius: 4px;
+    color: #1e293b;
+}
+
+QListWidget::item:hover {
+    background-color: #f1f5f9;
+}
+
+QListWidget::item:selected {
+    background-color: #e2e8f0;
+    color: #0f172a;
+}
 """
 
 DARK_THEME = """
 /* Global Window and Base Controls */
-QMainWindow {
+QMainWindow, QDialog {
     background-color: #1e1e2e;
     color: #cdd6f4;
 }
@@ -270,37 +259,6 @@ QToolButton:hover {
 
 QToolButton:pressed {
     background-color: #45475a;
-}
-
-/* Specific Accent Buttons */
-QToolButton#btn_run {
-    background-color: #1a3328;
-    border: 1px solid #2ecc71;
-    color: #a6e3a1;
-    font-weight: bold;
-}
-QToolButton#btn_run:hover {
-    background-color: #234d38;
-}
-
-QToolButton#btn_stop {
-    background-color: #3e1f26;
-    border: 1px solid #e74c3c;
-    color: #f38ba8;
-    font-weight: bold;
-}
-QToolButton#btn_stop:hover {
-    background-color: #552732;
-}
-
-QToolButton#btn_python {
-    background-color: #1e2d42;
-    border: 1px solid #89b4fa;
-    color: #89dceb;
-    font-weight: bold;
-}
-QToolButton#btn_python:hover {
-    background-color: #283d5a;
 }
 
 /* MenuBar */
@@ -462,5 +420,37 @@ QPushButton:hover {
 
 QPushButton:pressed {
     background-color: #585b70;
+}
+
+/* List Widgets */
+QListWidget {
+    background-color: #181825;
+    color: #cdd6f4;
+    border: 1px solid #313244;
+    border-radius: 6px;
+}
+
+QListWidget::item {
+    padding: 6px 8px;
+    border-radius: 4px;
+    color: #cdd6f4;
+}
+
+QListWidget::item:hover {
+    background-color: #313244;
+}
+
+QListWidget::item:selected {
+    background-color: #45475a;
+    color: #ffffff;
+}
+
+/* Line Edits */
+QLineEdit {
+    background-color: #181825;
+    color: #cdd6f4;
+    border: 1px solid #313244;
+    border-radius: 4px;
+    padding: 4px 6px;
 }
 """

@@ -1,5 +1,6 @@
 """
-Main Application Window (Thonny-like IDE for Algerian & Tunisian Algorithm Conventions).
+Main Application Window (Algoo - Modern IDE for Algerian & Tunisian Algorithm Conventions).
+Developed by softsurgery (https://github.com/softsurgery/algoo).
 Built with PyQt5 and modern design standards.
 """
 
@@ -8,10 +9,10 @@ import sys
 from PyQt5.QtWidgets import (
     QMainWindow, QWidget, QVBoxLayout, QHBoxLayout, QSplitter,
     QTabWidget, QToolBar, QAction, QFileDialog, QMessageBox,
-    QStatusBar, QLabel, QMenu, QToolButton, QApplication
+    QStatusBar, QLabel, QMenu, QToolButton, QApplication, QDialog
 )
-from PyQt5.QtGui import QIcon, QFont, QKeySequence
-from PyQt5.QtCore import Qt, QFileInfo
+from PyQt5.QtGui import QIcon, QFont, QKeySequence, QDesktopServices
+from PyQt5.QtCore import Qt, QFileInfo, QUrl
 
 from compiler.transpiler import AlgoTranspiler, CompileError
 from ui.editor import AlgoCodeEditor
@@ -23,12 +24,13 @@ from ui.assistant_view import AssistantView
 from ui.symbols_bar import SymbolsBar
 from ui.icons import create_icon
 from ui.styles import LIGHT_THEME, DARK_THEME
+from ui.insert_code_dialog import InsertCodeDialog
 
 
 class MainWindow(QMainWindow):
     def __init__(self):
         super().__init__()
-        self.setWindowTitle("Thonny Algo-IDE - Conventions Algorithmiques 2024/2025")
+        self.setWindowTitle("Algoo - Conventions Algorithmiques 2024/2025")
         self.resize(1200, 800)
 
         self.is_dark_mode = False
@@ -176,28 +178,17 @@ class MainWindow(QMainWindow):
         self.toolbar.addSeparator()
 
         # Zoom in/out for Editor & Console
-        self.act_zoom_out = QAction(create_icon("zoom_out"), "Zoom -", self)
-        self.act_zoom_out.setShortcuts([QKeySequence.ZoomOut, QKeySequence("Ctrl+-")])
+        self.act_zoom_out = QAction(create_icon("zoom_out"), "Zoom arrière\tCtrl -", self)
+        self.act_zoom_out.setShortcut(QKeySequence.ZoomOut)
         self.act_zoom_out.setToolTip("Zoom arrière (Ctrl - ou Ctrl + Molette bas)")
         self.act_zoom_out.triggered.connect(self.zoom_out)
         self.toolbar.addAction(self.act_zoom_out)
 
-        self.act_zoom_in = QAction(create_icon("zoom_in"), "Zoom +", self)
-        self.act_zoom_in.setShortcuts([QKeySequence.ZoomIn, QKeySequence("Ctrl+="), QKeySequence("Ctrl++")])
+        self.act_zoom_in = QAction(create_icon("zoom_in"), "Zoom avant\tCtrl +", self)
+        self.act_zoom_in.setShortcuts([QKeySequence.ZoomIn, QKeySequence("Ctrl+=")])
         self.act_zoom_in.setToolTip("Zoom avant (Ctrl + ou Ctrl + Molette haut)")
         self.act_zoom_in.triggered.connect(self.zoom_in)
         self.toolbar.addAction(self.act_zoom_in)
-
-        self.toolbar.addSeparator()
-
-        # Examples menu in toolbar
-        self.btn_examples = QToolButton(self)
-        self.btn_examples.setText("Exemples Bac")
-        self.btn_examples.setPopupMode(QToolButton.InstantPopup)
-        self.examples_menu = QMenu(self)
-        self._populate_examples_menu(self.examples_menu)
-        self.btn_examples.setMenu(self.examples_menu)
-        self.toolbar.addWidget(self.btn_examples)
 
         # Spacer to push theme button to right
         spacer = QWidget()
@@ -295,7 +286,7 @@ class MainWindow(QMainWindow):
 
         menu_view.addAction(self.act_zoom_in)
         menu_view.addAction(self.act_zoom_out)
-        act_zoom_reset = QAction("Réinitialiser le zoom", self)
+        act_zoom_reset = QAction("Réinitialiser le zoom\tCtrl 0", self)
         act_zoom_reset.setShortcut(QKeySequence("Ctrl+0"))
         act_zoom_reset.triggered.connect(self.reset_zoom)
         menu_view.addAction(act_zoom_reset)
@@ -303,9 +294,24 @@ class MainWindow(QMainWindow):
 
         menu_view.addAction(self.act_theme)
 
+        # Tools
+        menu_tools = menubar.addMenu("&Tools")
+        act_insert_code = QAction("Insert Code...", self)
+        act_insert_code.setIcon(create_icon("open"))
+        act_insert_code.setShortcut(QKeySequence("Ctrl+I"))
+        act_insert_code.setToolTip("Ouvrir la boîte de dialogue pour choisir et insérer un code (Ctrl+I)")
+        act_insert_code.triggered.connect(self.show_insert_code_dialog)
+        menu_tools.addAction(act_insert_code)
+
         # Aide
         menu_help = menubar.addMenu("&Aide")
-        act_about = QAction("À propos de Thonny Algo-IDE", self)
+        act_github = QAction("Dépôt GitHub (softsurgery/algoo)", self)
+        act_github.setToolTip("Ouvrir la page GitHub du projet Algoo")
+        act_github.triggered.connect(lambda: QDesktopServices.openUrl(QUrl("https://github.com/softsurgery/algoo")))
+        menu_help.addAction(act_github)
+        menu_help.addSeparator()
+
+        act_about = QAction("À propos d'Algoo", self)
         act_about.triggered.connect(self._show_about_dialog)
         menu_help.addAction(act_about)
 
@@ -323,6 +329,12 @@ class MainWindow(QMainWindow):
 
     def _populate_examples_menu(self, menu: QMenu):
         menu.clear()
+        act_browse = QAction("Choisir dans la liste (Insert Code)...", self)
+        act_browse.setIcon(create_icon("open"))
+        act_browse.triggered.connect(self.show_insert_code_dialog)
+        menu.addAction(act_browse)
+        menu.addSeparator()
+
         examples_dir = os.path.join(os.path.dirname(os.path.dirname(__file__)), "examples")
         if os.path.exists(examples_dir):
             for fname in sorted(os.listdir(examples_dir)):
@@ -332,6 +344,26 @@ class MainWindow(QMainWindow):
                     act = QAction(label, self)
                     act.triggered.connect(lambda _, p=filepath: self.load_file(p))
                     menu.addAction(act)
+
+    def show_insert_code_dialog(self):
+        """Displays the code selection and insertion dialog."""
+        dlg = InsertCodeDialog(self, is_dark=self.is_dark_mode)
+        if dlg.exec_() == QDialog.Accepted and dlg.selected_code:
+            if dlg.action_mode == 'new_tab':
+                self.new_file(dlg.selected_title, dlg.selected_code)
+                self.lbl_status.setText(f"Exemple ouvert dans un nouvel onglet : {dlg.selected_title}")
+            else:
+                editor = self.current_editor()
+                if not editor:
+                    self.new_file(dlg.selected_title, dlg.selected_code)
+                else:
+                    if not editor.toPlainText().strip():
+                        editor.setPlainText(dlg.selected_code)
+                    else:
+                        cursor = editor.textCursor()
+                        cursor.insertText(dlg.selected_code)
+                        editor.setTextCursor(cursor)
+                self.lbl_status.setText(f"Code inséré : {dlg.selected_title}")
 
     def _is_console_focused(self) -> bool:
         focus_w = self.focusWidget() or QApplication.focusWidget()
@@ -621,9 +653,11 @@ class MainWindow(QMainWindow):
     def _show_about_dialog(self):
         QMessageBox.about(
             self,
-            "À propos de Thonny Algo-IDE",
-            "<h3>Thonny Algo-IDE</h3>"
+            "À propos d'Algoo",
+            "<h3>Algoo</h3>"
             "<p>Environnement de développement moderne et pédagogique pour l'Algorithmique scolaire et universitaire.</p>"
+            "<p><b>Développeur :</b> softsurgery</p>"
+            "<p><b>Code source & GitHub :</b> <a href='https://github.com/softsurgery/algoo'>https://github.com/softsurgery/algoo</a></p>"
             "<p><b>Conformité stricte :</b></p>"
             "<ul>"
             "  <li><i>Les Conventions Algorithmiques (Septembre 2024)</i></li>"
