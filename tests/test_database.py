@@ -5,7 +5,7 @@ Unit and integration tests for SQLite DatabaseManager and MainWindow session per
 import os
 import tempfile
 import unittest
-from PyQt5.QtWidgets import QApplication
+from PyQt5.QtWidgets import QApplication, QMessageBox
 from database import DatabaseManager, get_database, reset_database_instance
 from ui.main_window import MainWindow
 
@@ -105,6 +105,8 @@ class TestDatabaseManager(unittest.TestCase):
 
 class TestMainWindowDatabaseIntegration(unittest.TestCase):
     def setUp(self):
+        self._orig_msgbox = QMessageBox.question
+        QMessageBox.question = staticmethod(lambda *args, **kwargs: QMessageBox.Discard)
         self.temp_dir = tempfile.TemporaryDirectory()
         self.db_path = os.path.join(self.temp_dir.name, "session_test.db")
         self.db = DatabaseManager(self.db_path)
@@ -119,6 +121,7 @@ class TestMainWindowDatabaseIntegration(unittest.TestCase):
             f.write("ALGORITHME AlgoTwo\nDEBUT\n  Ecrire_nl(\"Deux\")\nFIN\nTableau de déclaration des objets globaux\nObjet Type\n")
 
     def tearDown(self):
+        QMessageBox.question = self._orig_msgbox
         self.db.close()
         self.temp_dir.cleanup()
         reset_database_instance()
@@ -191,6 +194,7 @@ class TestMainWindowDatabaseIntegration(unittest.TestCase):
         # sample1 is still open, but if we close the tab and clear history:
         for i in range(win.tab_widget.count()):
             if win.tab_widget.widget(i).property("file_path") == os.path.abspath(self.sample1):
+                win.tab_widget.widget(i).setProperty("is_dirty", False)
                 win._on_close_tab(i)
                 break
 
