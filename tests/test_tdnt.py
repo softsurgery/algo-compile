@@ -263,6 +263,56 @@ class TestTDNT(unittest.TestCase):
         self.assertIn("Enregistrement", received[0])
         self.assertIn("Tableau de 100 Entier", received[0])
 
+    def test_symbols_bar_symbols_and_separate_groups(self):
+        from PyQt5.QtWidgets import QApplication, QPushButton
+        from ui.symbols_bar import SymbolsBar
+        app = QApplication.instance() or QApplication([])
+        sb = SymbolsBar()
+        buttons = sb.findChildren(QPushButton)
+        btn_dict = {b.text(): b for b in buttons}
+
+        # Check all required symbol shortcuts exist
+        for sym_name in ["LT", "LTE", "GT", "GTE", "NEQ", "MOD", "DIV", "IN", "ASSIGN"]:
+            self.assertIn(sym_name, btn_dict)
+
+        # Check all required structure shortcuts exist
+        for struct_name in ["SI", "POUR", "TANTQUE", "REPETER", "SELON"]:
+            self.assertIn(struct_name, btn_dict)
+
+        # Check all shortcut buttons have bold text
+        for b in buttons:
+            self.assertIn("font-weight: bold", b.styleSheet())
+
+        # Check emission for each symbol
+        expected_inserts = {
+            "LT": "<",
+            "LTE": "≤",
+            "GT": ">",
+            "GTE": "≥",
+            "NEQ": "≠",
+            "MOD": " Mod ",
+            "DIV": " Div ",
+            "IN": " ∈ ",
+            "ASSIGN": "←",
+        }
+        for sym_name, expected_text in expected_inserts.items():
+            received = []
+            sb.insert_requested.connect(lambda t: received.append(t))
+            btn_dict[sym_name].click()
+            self.assertEqual(received[-1], expected_text)
+
+        # Check separate group label and separator exist
+        self.assertEqual(sb.lbl_tables.text(), "Tableaux :")
+        self.assertIsNotNone(sb.sep2)
+
+        # Check theme styling on the new group elements
+        sb.set_dark_mode(True)
+        self.assertIn("#a6adc8", sb.lbl_tables.styleSheet())
+        self.assertIn("#45475a", sb.sep2.styleSheet())
+        sb.set_dark_mode(False)
+        self.assertIn("#64748b", sb.lbl_tables.styleSheet())
+        self.assertIn("#cbd5e1", sb.sep2.styleSheet())
+
     def test_all_examples_compile_cleanly(self):
         import os
         examples_dir = os.path.join(os.path.dirname(os.path.dirname(__file__)), "examples")
