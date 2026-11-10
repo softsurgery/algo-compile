@@ -35,5 +35,6 @@ DEBUT
 FIN
 
 Tableau de déclaration des objets globaux
-Objet          Type / Nature
-mot, mot_maj   Chaîne
+Objet              Type / Nature
+EstPalindrome      Fonction
+mot, mot_maj       Chaîne

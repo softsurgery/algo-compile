@@ -5,12 +5,16 @@ Isolates and enforces algorithmic compilation requirements:
    - The main algorithm MUST end with 'FIN' or 'END'.
    - All subprograms (Fonctions & Procédures) MUST end with 'FIN' or 'END'.
    - Block structures (Si, Pour, Tant que, Selon, Répéter, Enregistrement) must be closed.
-2. Types are mandatory:
-   - All variables used in the main algorithm must be declared with a type in TDO/TDOG.
-   - All variables used in subprograms must be declared with a type (parameters, TDOL, or global TDO).
+2. Tables are mandatory:
+   - Every subprogram MUST have a Tableau de déclaration des objets locaux (TDOL) after it.
+   - The main algorithm MUST have a Tableau de déclaration des objets globaux (TDOG) under it.
+3. Types are mandatory:
+   - All variables used in the main algorithm must be declared with a type in TDOG.
+   - All variables used in subprograms must be declared with a type (parameters, TDOL, or TDOG).
+   - Any function or procedure used in another function/procedure or the main algorithm must be declared.
    - Subprogram parameters must have explicit types (e.g., param: Type).
    - Functions must have an explicit return type (e.g., Fonction Nom(...) : Type).
-   - Declared objects in TDO/TDOG/TDOL cannot be left without a type.
+   - Declared objects in TDOG/TDOL cannot be left without a type.
 """
 
 import re
@@ -51,7 +55,8 @@ STANDARD_TYPES = {
 class AlgoValidator:
     """
     Validator component that isolates algorithmic validation rules.
-    Verifies mandatory 'FIN' (END) presence and mandatory type declarations.
+    Verifies mandatory 'FIN' (END) presence, mandatory tables (TDOL/TDOG),
+    and mandatory type declarations for variables and subprograms.
     """
 
     def __init__(self, strict_types: bool = True):
@@ -82,7 +87,11 @@ class AlgoValidator:
         # 4. TDO/TDOG/TDOL syntax: objects cannot be declared without a type
         self.validate_tdo_syntax(sections.get('objects', []))
 
-        # 5. Mandatory types verification (Variables used must have declared types)
+        # 5. Subprogram declarations validation (functions/procedures called must be declared)
+        if self.strict_types:
+            self.validate_subprogram_declarations(sections, subprogram_meta)
+
+        # 6. Mandatory types verification (Variables used must have declared types)
         if self.strict_types:
             self.validate_mandatory_types(
                 sections,
@@ -326,6 +335,98 @@ class AlgoValidator:
                             line_num=line_no
                         )
 
+    def validate_subprogram_declarations(
+        self,
+        sections: dict,
+        subprogram_meta: dict
+    ):
+        """
+        Validates that:
+        1. Any subprogram called by the main program is declared in TDOG (as Fonction or Procédure).
+        2. Any subprogram called by another subprogram is declared in that subprogram's TDOL (or TDOG).
+        """
+        known_subprograms = {sp['name'].lower(): sp for sp in sections.get('subprograms', [])}
+        for name, meta in subprogram_meta.items():
+            if name.lower() not in known_subprograms:
+                known_subprograms[name.lower()] = {'name': name, 'kind': meta.get('kind', 'procedure')}
+
+        # Parse TDOG declarations
+        _, tdog_subprogs = self.extract_table_declarations(sections.get('objects', []))
+
+        # 1. Main algorithm subprogram calls
+        main_calls = self.extract_called_subprograms(sections.get('main', []), set(known_subprograms.keys()))
+        for called_name, line_no in main_calls:
+            called_low = called_name.lower()
+            if called_low not in tdog_subprogs:
+                sub_info = known_subprograms.get(called_low, {})
+                kind = sub_info.get('kind', 'procedure')
+                nature = "Procédure" if 'proc' in kind.lower() else "Fonction"
+                raise MissingTypeError(
+                    f"Le sous-programme '{called_name}' appelé à la ligne {line_no} doit être déclaré dans le Tableau de déclaration des objets globaux (TDOG) avec la nature '{nature}'",
+                    line_num=line_no
+                )
+
+        # 2. Subprogram calls inside other subprograms
+        for subprog in sections.get('subprograms', []):
+            caller_name = subprog['name']
+            caller_low = caller_name.lower()
+
+            # Parse TDOL for this caller subprogram
+            _, tdol_subprogs = self.extract_table_declarations(subprog.get('tdo', []))
+            allowed_subprogs = set(tdol_subprogs.keys()) | set(tdog_subprogs.keys()) | {caller_low}
+
+            sub_calls = self.extract_called_subprograms(subprog.get('lines', []), set(known_subprograms.keys()))
+            for called_name, line_no in sub_calls:
+                called_low = called_name.lower()
+                if called_low not in allowed_subprogs:
+                    sub_info = known_subprograms.get(called_low, {})
+                    kind = sub_info.get('kind', 'procedure')
+                    nature = "Procédure" if 'proc' in kind.lower() else "Fonction"
+                    raise MissingTypeError(
+                        f"Le sous-programme '{called_name}' appelé dans '{caller_name}' à la ligne {line_no} doit être déclaré dans son TDOL (nature: '{nature}')",
+                        line_num=line_no
+                    )
+
+    def extract_called_subprograms(
+        self,
+        line_tuples: list,
+        known_subprograms: set
+    ) -> list:
+        """
+        Extracts subprogram invocations as list of (called_name, line_no).
+        """
+        calls = []
+        for line_no, raw_line in line_tuples:
+            s = raw_line.strip()
+            if not s or s.startswith(("//", "#", "/*")):
+                continue
+            if re.match(r'^[\*\-=\/ ]{3,}$', s):
+                continue
+            if re.match(r'^(?:fonction|procédure|procedure)\b', s, re.IGNORECASE):
+                continue
+
+            # Remove string literals
+            clean = re.sub(r'("[^"\\]*(?:\\.[^"\\]*)*"|\'[^\'\\]*(?:\\.[^\'\\]*)*\')', ' ', s)
+
+            # Check: identifier followed by (
+            for m in re.finditer(r'\b([a-zA-Z_\u00C0-\u017F][a-zA-Z0-9_\u00C0-\u017F]*)\s*\(', clean):
+                ident = m.group(1)
+                low = ident.lower()
+                if low in KEYWORDS or low in BUILTIN_FUNCTIONS:
+                    continue
+                if low in known_subprograms:
+                    calls.append((ident, line_no))
+
+            # Check: standalone procedure call statement e.g. "proc_name"
+            m_single = re.match(r'^([a-zA-Z_\u00C0-\u017F][a-zA-Z0-9_\u00C0-\u017F]*)$', clean.strip())
+            if m_single:
+                ident = m_single.group(1)
+                low = ident.lower()
+                if low in known_subprograms and (ident, line_no) not in calls:
+                    calls.append((ident, line_no))
+
+        return calls
+
     def validate_mandatory_types(
         self,
         sections: dict,
@@ -354,9 +455,11 @@ class AlgoValidator:
             custom_type_names
         )
 
+        tdog_vars, _ = self.extract_table_declarations(sections.get('objects', []))
         declared_lower = {k.lower(): k for k in declared_objects.keys()}
+        declared_lower.update(tdog_vars)
 
-        if main_vars and not declared_objects and not sections.get('objects'):
+        if main_vars and not declared_lower:
             first_var, first_line = main_vars[0]
             raise MissingTypeError(
                 f"Objet '{first_var}' non déclaré : les types sont obligatoires (section 'Déclaration des objets' manquante)",
@@ -366,7 +469,7 @@ class AlgoValidator:
         for var_name, line_no in main_vars:
             if var_name.lower() not in declared_lower:
                 raise MissingTypeError(
-                    f"Objet '{var_name}' non déclaré : la déclaration de type est obligatoire dans le TDO",
+                    f"Objet '{var_name}' non déclaré : la déclaration de type est obligatoire dans le TDOG",
                     line_num=line_no
                 )
 
@@ -377,12 +480,12 @@ class AlgoValidator:
             sub_params = {p.lower() for p in sub_meta.get('all_params', [])}
 
             # Parse TDOL attached to this subprogram
-            tdol_dict = self.extract_objects_from_lines(subprog.get('tdo', []))
-            tdol_lower = {k.lower(): k for k in tdol_dict.keys()}
+            tdol_vars, tdol_subprogs = self.extract_table_declarations(subprog.get('tdo', []))
+            tdol_lower = set(tdol_vars.keys())
 
             # Allowed identifiers for this subprogram:
             # parameters, local TDOL objects, global declared objects, and function's own name
-            allowed_vars = sub_params | set(tdol_lower.keys()) | set(declared_lower.keys()) | {sub_name.lower()}
+            allowed_vars = sub_params | tdol_lower | set(declared_lower.keys()) | {sub_name.lower()}
 
             sub_vars = self.extract_variables_from_lines(
                 subprog.get('lines', []),
@@ -452,7 +555,6 @@ class AlgoValidator:
         clean_text = re.sub(r'\.\s+([a-zA-Z0-9_\u00C0-\u017F])', r'.\1', clean_text)
 
         # Find all identifiers NOT preceded by a dot
-        # This correctly extracts 'T' and 'i' from 'T[i].nom' while skipping field 'nom'
         pattern = r'(?<!\.)\b([a-zA-Z_\u00C0-\u017F][a-zA-Z0-9_\u00C0-\u017F]*)\b'
 
         results = []
@@ -476,11 +578,17 @@ class AlgoValidator:
         return results
 
     @staticmethod
-    def extract_objects_from_lines(lines: list) -> dict:
+    def extract_table_declarations(lines: list) -> tuple:
         """
-        Parses object declaration lines (e.g. from TDOL) and returns a dict {var_name: type_str}.
+        Parses declaration lines from TDOG or TDOL.
+        Returns:
+            (variables_dict, subprograms_dict)
+            where variables_dict maps name.lower() -> type_part
+            and subprograms_dict maps name.lower() -> 'procedure' | 'fonction'
         """
-        declared = {}
+        variables = {}
+        subprograms = {}
+
         for line_no, line in lines:
             s = line.strip()
             if not s or re.match(r'^[\*\-=\/ ]+$', s):
@@ -496,7 +604,7 @@ class AlgoValidator:
                 parts = s.split('|', 1)
             else:
                 m = re.match(
-                    r'^([a-zA-Z0-9_,\s\u00C0-\u017F]+?)\s+(Tableau\b.*|Enregistrement\b.*|Fichier\b.*|Entier\b.*|Réel\b.*|Reel\b.*|Booléen\b.*|Booleen\b.*|Caractère\b.*|Caractere\b.*|Chaîne\b.*|Chaine\b.*|[a-zA-Z0-9_\u00C0-\u017F]+)$',
+                    r'^([a-zA-Z0-9_,\s\u00C0-\u017F]+?)\s+(Tableau\b.*|Enregistrement\b.*|Fichier\b.*|Entier\b.*|Réel\b.*|Reel\b.*|Booléen\b.*|Booleen\b.*|Caractère\b.*|Caractere\b.*|Chaîne\b.*|Chaine\b.*|Procédure\b.*|Procedure\b.*|Fonction\b.*|[a-zA-Z0-9_\u00C0-\u017F]+)$',
                     s,
                     re.IGNORECASE
                 )
@@ -508,12 +616,21 @@ class AlgoValidator:
             if parts and len(parts) == 2:
                 names_part, type_part = parts[0].strip(), parts[1].strip()
                 t_low = type_part.lower()
-                if t_low in ('procedure', 'procédure', 'fonction', 'module', '/'):
+                if t_low in ('/', 'module'):
                     continue
                 names = [n.strip() for n in names_part.split(',') if n.strip()]
                 for name in names:
                     clean_name = re.sub(r'[^a-zA-Z0-9_\u00C0-\u017F]', '', name)
                     if clean_name and clean_name != '/':
-                        declared[clean_name] = type_part
+                        if t_low.startswith(('procedure', 'procédure', 'fonction')):
+                            subprograms[clean_name.lower()] = t_low
+                        else:
+                            variables[clean_name.lower()] = type_part
 
-        return declared
+        return variables, subprograms
+
+    @staticmethod
+    def extract_objects_from_lines(lines: list) -> dict:
+        """Backward-compatible helper returning variables dict."""
+        variables, _ = AlgoValidator.extract_table_declarations(lines)
+        return variables

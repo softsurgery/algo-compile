@@ -5,6 +5,7 @@ Verifies that:
 - Types are mandatory (variables, parameters, return types, TDO entries).
 - Every subprogram must have a Tableau de déclaration des objets locaux (TDOL) after it.
 - The main algorithm must have a Tableau de déclaration des objets globaux (TDOG) under it.
+- Functions and procedures called in main or other subprograms must be declared.
 """
 
 import unittest
@@ -63,6 +64,7 @@ class TestAlgoValidator(unittest.TestCase):
           y <- Carre(5)
         FIN
         Tableau de déclaration des objets globaux
+        Carre : Fonction
         y : Entier
         """
         with self.assertRaises(MissingEndError) as cm:
@@ -167,7 +169,7 @@ class TestAlgoValidator(unittest.TestCase):
           Saluer("Ali")
         FIN
         Tableau de déclaration des objets globaux
-        /
+        Saluer : Procédure
         """
         with self.assertRaises(MissingTypeError) as cm:
             self.transpiler.compile(code)
@@ -199,6 +201,110 @@ class TestAlgoValidator(unittest.TestCase):
             self.transpiler.compile(code)
         self.assertIn("TDOG", str(cm.exception))
         self.assertIn("placé sous l'algorithme", str(cm.exception))
+
+    # -------------------------------------------------------------------------
+    # Mandatory Subprogram Declaration Tests (Called functions/procedures)
+    # -------------------------------------------------------------------------
+    def test_called_procedure_missing_in_tdog_rejected(self):
+        code = """
+        Procedure Saisir(@n: Entier)
+        DEBUT
+          n <- 10
+        FIN
+        Tableau de déclaration des objets locaux
+        /
+
+        ALGORITHME MonProg
+        DEBUT
+          Saisir(n)
+        FIN
+        Tableau de déclaration des objets globaux
+        n : Entier
+        """
+        with self.assertRaises(MissingTypeError) as cm:
+            self.transpiler.compile(code)
+        self.assertIn("Saisir", str(cm.exception))
+        self.assertIn("TDOG", str(cm.exception))
+
+    def test_called_function_missing_in_tdog_rejected(self):
+        code = """
+        Fonction Carre(x: Entier) : Entier
+        DEBUT
+          Retourner x * x
+        FIN
+        Tableau de déclaration des objets locaux
+        /
+
+        ALGORITHME MonProg
+        DEBUT
+          y <- Carre(5)
+        FIN
+        Tableau de déclaration des objets globaux
+        y : Entier
+        """
+        with self.assertRaises(MissingTypeError) as cm:
+            self.transpiler.compile(code)
+        self.assertIn("Carre", str(cm.exception))
+        self.assertIn("TDOG", str(cm.exception))
+
+    def test_called_subprogram_inside_subprogram_missing_in_tdol_rejected(self):
+        code = """
+        Fonction Verif(x: Entier) : Booléen
+        DEBUT
+          Retourner x > 0
+        FIN
+        Tableau de déclaration des objets locaux
+        /
+
+        Procedure Traiter(n: Entier)
+        DEBUT
+          Si Verif(n) Alors
+            ecrire("OK")
+          FinSi
+        FIN
+        Tableau de déclaration des objets locaux
+        /
+
+        ALGORITHME MonProg
+        DEBUT
+          Traiter(5)
+        FIN
+        Tableau de déclaration des objets globaux
+        Traiter : Procédure
+        """
+        with self.assertRaises(MissingTypeError) as cm:
+            self.transpiler.compile(code)
+        self.assertIn("Verif", str(cm.exception))
+        self.assertIn("TDOL", str(cm.exception))
+
+    def test_called_subprograms_declared_pass(self):
+        code = """
+        Fonction Carre(x: Entier) : Entier
+        DEBUT
+          Retourner x * x
+        FIN
+        Tableau de déclaration des objets locaux
+        /
+
+        Procedure AfficherCarre(n: Entier)
+        DEBUT
+          res <- Carre(n)
+          ecrire(res)
+        FIN
+        Tableau de déclaration des objets locaux
+        Carre : Fonction
+        res : Entier
+
+        ALGORITHME MonProg
+        DEBUT
+          AfficherCarre(4)
+        FIN
+        Tableau de déclaration des objets globaux
+        AfficherCarre : Procédure
+        """
+        py = self.transpiler.compile(code)
+        self.assertIn("def Carre(x):", py)
+        self.assertIn("def AfficherCarre(n):", py)
 
     # -------------------------------------------------------------------------
     # Mandatory Types Tests
@@ -245,7 +351,7 @@ class TestAlgoValidator(unittest.TestCase):
           Test(10)
         FIN
         Tableau de déclaration des objets globaux
-        /
+        Test : Procédure
         """
         with self.assertRaises(MissingTypeError) as cm:
             self.transpiler.compile(code)
@@ -265,7 +371,7 @@ class TestAlgoValidator(unittest.TestCase):
           Test(1, 2)
         FIN
         Tableau de déclaration des objets globaux
-        /
+        Test : Procédure
         """
         with self.assertRaises(MissingTypeError) as cm:
             self.transpiler.compile(code)
@@ -284,6 +390,7 @@ class TestAlgoValidator(unittest.TestCase):
           res <- Somme(2, 3)
         FIN
         Tableau de déclaration des objets globaux
+        Somme : Fonction
         res : Entier
         """
         with self.assertRaises(MissingTypeError) as cm:
@@ -353,7 +460,7 @@ class TestAlgoValidator(unittest.TestCase):
           Calc(5)
         FIN
         Tableau de déclaration des objets globaux
-        /
+        Calc : Procédure
         """
         py = self.transpiler.compile(code)
         self.assertIn("def Calc(n):", py)

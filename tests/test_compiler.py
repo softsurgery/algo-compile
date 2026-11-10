@@ -125,6 +125,7 @@ class TestAlgoTranspiler(unittest.TestCase):
         FIN
         Tableau de déclaration des objets globaux
         Objet  Type / Nature
+        saisir Procédure
         n      Entier
         """
         py = self.transpiler.compile(algo)
@@ -163,6 +164,7 @@ class TestAlgoTranspiler(unittest.TestCase):
         FIN
         Tableau de déclaration des objets globaux
         Objet  Type / Nature
+        remplir Procédure
         T      Tableau de 5 Chaine
         """
         py = self.transpiler.compile(algo)
@@ -198,7 +200,7 @@ class TestAlgoTranspiler(unittest.TestCase):
 
         # Missing FIN in subprogram
         with self.assertRaises(CompileError) as cm:
-            self.transpiler.compile("Procedure p()\nDEBUT\nx <- 1\nTableau de déclaration des objets locaux\n/\nALGORITHME T\nDEBUT\np()\nFIN\nTableau de déclaration des objets globaux\nx : Entier")
+            self.transpiler.compile("Procedure p()\nDEBUT\nx <- 1\nTableau de déclaration des objets locaux\n/\nALGORITHME T\nDEBUT\np()\nFIN\nTableau de déclaration des objets globaux\np: Procédure\nx : Entier")
         self.assertIn("FIN", str(cm.exception))
 
         # Missing FIN in ALGORITHME
@@ -246,7 +248,7 @@ class TestAlgoTranspiler(unittest.TestCase):
           test(5)
         FIN
         Tableau de déclaration des objets globaux
-        /
+        test : Procédure
         """
         with self.assertRaises(MissingTypeError) as cm:
             self.transpiler.compile(algo_no_tdol)
@@ -265,7 +267,7 @@ class TestAlgoTranspiler(unittest.TestCase):
           test(5)
         FIN
         Tableau de déclaration des objets globaux
-        /
+        test : Procédure
         """
         with self.assertRaises(MissingTypeError) as cm:
             self.transpiler.compile(algo_sub)
@@ -284,7 +286,7 @@ class TestAlgoTranspiler(unittest.TestCase):
           test(5)
         FIN
         Tableau de déclaration des objets globaux
-        /
+        test : Procédure
         """
         with self.assertRaises(MissingTypeError) as cm:
             self.transpiler.compile(algo_param)
@@ -303,6 +305,7 @@ class TestAlgoTranspiler(unittest.TestCase):
           y <- carre(5)
         FIN
         Tableau de déclaration des objets globaux
+        carre : Fonction
         y : Entier
         """
         with self.assertRaises(MissingTypeError) as cm:

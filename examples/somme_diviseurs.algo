@@ -40,8 +40,9 @@ DEBUT
 FIN
 
 Tableau de déclaration des objets locaux
-Objet    Type / Nature
-i        Entier
+Objet        Type / Nature
+verifIdent   Fonction
+i            Entier
 
 ALGORITHME PROB2019
 DEBUT
@@ -50,7 +51,8 @@ DEBUT
 FIN
 
 Tableau de déclaration des objets globaux
-Objet          Type / Nature
-n              entier
-IDENT          Tableau de 50 Chaine
-DATE           Tableau de 50 Chaine
+Objet              Type / Nature
+saisir, remplir    Procédure
+n                  entier
+IDENT              Tableau de 50 Chaine
+DATE               Tableau de 50 Chaine
