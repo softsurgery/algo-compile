@@ -16,9 +16,6 @@ from PyQt5.QtGui import QColor, QTextCursor, QFont
 from PyQt5.QtCore import Qt, QProcess, pyqtSignal
 
 
-from ui.icons import create_icon
-
-
 class ConsoleOutputEdit(QTextEdit):
     def __init__(self, console, parent=None):
         super().__init__(parent)
@@ -120,21 +117,6 @@ class AlgoConsole(QWidget):
         header_layout.addWidget(self.status_badge)
 
         header_layout.addStretch()
-
-        # Zoom buttons in console header
-        self.btn_zoom_out = QPushButton()
-        self.btn_zoom_out.setIcon(create_icon("zoom_out", "#64748b", 16))
-        self.btn_zoom_out.setToolTip("Zoom arrière (Ctrl -)")
-        self.btn_zoom_out.setFixedSize(26, 24)
-        self.btn_zoom_out.clicked.connect(self.zoom_out)
-        header_layout.addWidget(self.btn_zoom_out)
-
-        self.btn_zoom_in = QPushButton()
-        self.btn_zoom_in.setIcon(create_icon("zoom_in", "#64748b", 16))
-        self.btn_zoom_in.setToolTip("Zoom avant (Ctrl +)")
-        self.btn_zoom_in.setFixedSize(26, 24)
-        self.btn_zoom_in.clicked.connect(self.zoom_in)
-        header_layout.addWidget(self.btn_zoom_in)
 
         self.btn_clear = QPushButton("Effacer")
         self.btn_clear.setFixedHeight(24)
