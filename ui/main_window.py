@@ -277,6 +277,13 @@ class MainWindow(QMainWindow):
         act_paste.setShortcut(QKeySequence.Paste)
         act_paste.triggered.connect(lambda: self.current_editor().paste() if self.current_editor() else None)
         menu_edit.addAction(act_paste)
+        menu_edit.addSeparator()
+
+        act_comment = QAction("Commenter / Décommenter\tCtrl+/", self)
+        act_comment.setShortcut(QKeySequence("Ctrl+/"))
+        act_comment.setToolTip("Commenter ou décommenter la ligne actuelle (Ctrl+/)")
+        act_comment.triggered.connect(lambda: self.current_editor().toggle_comment() if self.current_editor() else None)
+        menu_edit.addAction(act_comment)
 
         # Exécuter
         menu_run = menubar.addMenu("&Exécuter")
@@ -774,23 +781,25 @@ class MainWindow(QMainWindow):
 
     def closeEvent(self, event):
         """Handles window closing: prompts for unsaved changes and saves session to DB."""
-        for i in range(self.tab_widget.count()):
-            editor = self.tab_widget.widget(i)
-            if editor and editor.property("is_dirty"):
-                fname = self.tab_widget.tabText(i).replace("*", "").strip()
-                res = QMessageBox.question(
-                    self, "Modifications non enregistrées",
-                    f"Voulez-vous enregistrer les modifications apportées à '{fname}' ?",
-                    QMessageBox.Save | QMessageBox.Discard | QMessageBox.Cancel
-                )
-                if res == QMessageBox.Save:
-                    self.tab_widget.setCurrentIndex(i)
-                    if not self.save_file():
+        if self.isVisible():
+            for i in range(self.tab_widget.count()):
+                editor = self.tab_widget.widget(i)
+                if editor and editor.property("is_dirty"):
+                    fname = self.tab_widget.tabText(i).replace("*", "").strip()
+                    res = QMessageBox.question(
+                        self, "Modifications non enregistrées",
+                        f"Voulez-vous enregistrer les modifications apportées à '{fname}' ?",
+                        QMessageBox.Save | QMessageBox.Discard | QMessageBox.Cancel,
+                        QMessageBox.Cancel
+                    )
+                    if res == QMessageBox.Save:
+                        self.tab_widget.setCurrentIndex(i)
+                        if not self.save_file():
+                            event.ignore()
+                            return
+                    elif res == QMessageBox.Cancel:
                         event.ignore()
                         return
-                elif res == QMessageBox.Cancel:
-                    event.ignore()
-                    return
 
         self._sync_tabs_to_db()
         event.accept()

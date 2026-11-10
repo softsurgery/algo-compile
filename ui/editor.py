@@ -312,10 +312,91 @@ class AlgoCodeEditor(QPlainTextEdit):
             bottom = top + int(self.blockBoundingRect(block).height())
             block_number += 1
 
+    def toggle_comment(self):
+        """Toggles line comment (//) on the current line or across selected lines."""
+        cursor = self.textCursor()
+        orig_block_no = cursor.blockNumber()
+        orig_col = cursor.positionInBlock()
+        has_selection = cursor.hasSelection()
+        start_pos = cursor.selectionStart()
+        end_pos = cursor.selectionEnd()
+
+        cursor.beginEditBlock()
+
+        start_block = self.document().findBlock(start_pos)
+        end_block = self.document().findBlock(end_pos)
+
+        # If selection ends at start of next block, don't include that block
+        if end_pos > start_pos and end_pos == end_block.position():
+            end_block = end_block.previous()
+
+        blocks = []
+        curr = start_block
+        while curr.isValid():
+            blocks.append(curr)
+            if curr == end_block:
+                break
+            curr = curr.next()
+
+        # Check if all non-empty lines are already commented with //
+        all_commented = True
+        has_content = False
+        for b in blocks:
+            txt = b.text().strip()
+            if txt:
+                has_content = True
+                if not txt.startswith("//"):
+                    all_commented = False
+                    break
+
+        delta_col = 0
+        if has_content and all_commented:
+            # Uncomment lines
+            for b in blocks:
+                text = b.text()
+                m = re.match(r'^(\s*)//\s?(.*)$', text)
+                if m:
+                    new_text = m.group(1) + m.group(2)
+                    removed_len = len(text) - len(new_text)
+                    if b.blockNumber() == orig_block_no:
+                        delta_col = -removed_len
+                    c = QTextCursor(b)
+                    c.movePosition(QTextCursor.StartOfBlock)
+                    c.movePosition(QTextCursor.EndOfBlock, QTextCursor.KeepAnchor)
+                    c.insertText(new_text)
+        else:
+            # Comment out lines
+            for b in blocks:
+                text = b.text()
+                m = re.match(r'^(\s*)(.*)$', text)
+                if m:
+                    new_text = f"{m.group(1)}// {m.group(2)}"
+                    added_len = len(new_text) - len(text)
+                    if b.blockNumber() == orig_block_no:
+                        delta_col = added_len
+                    c = QTextCursor(b)
+                    c.movePosition(QTextCursor.StartOfBlock)
+                    c.movePosition(QTextCursor.EndOfBlock, QTextCursor.KeepAnchor)
+                    c.insertText(new_text)
+
+        cursor.endEditBlock()
+
+        if not has_selection:
+            target_block = self.document().findBlockByNumber(orig_block_no)
+            if target_block.isValid():
+                new_col = max(0, min(orig_col + delta_col, max(0, target_block.length() - 1)))
+                new_cursor = self.textCursor()
+                new_cursor.setPosition(target_block.position() + new_col)
+                self.setTextCursor(new_cursor)
+
     def keyPressEvent(self, event):
-        """Auto-indent on Enter and Ctrl +/- zoom."""
+        """Auto-indent on Enter, Ctrl +/- zoom, and Ctrl+/ toggle comment."""
         if event.modifiers() & Qt.ControlModifier:
-            if event.key() in (Qt.Key_Plus, Qt.Key_Equal) or event.text() in ('+', '='):
+            if event.key() == Qt.Key_Slash or event.text() == '/':
+                self.toggle_comment()
+                event.accept()
+                return
+            elif event.key() in (Qt.Key_Plus, Qt.Key_Equal) or event.text() in ('+', '='):
                 self.zoom_in()
                 event.accept()
                 return
