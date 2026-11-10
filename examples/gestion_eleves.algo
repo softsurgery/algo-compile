@@ -19,6 +19,7 @@ DEBUT
   Ecrire_nl("Moyenne : ", E.moyenne)
   Ecrire_nl("Mention : ", E.mention)
 FIN
-Déclaration des objets
+
+Tableau de déclaration des objets globaux
 Objet       Type / Nature
 E           Enregistrement

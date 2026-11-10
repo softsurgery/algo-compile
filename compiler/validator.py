@@ -75,10 +75,14 @@ class AlgoValidator:
         # 2. Subprogram headers (return types & parameter types)
         self.validate_subprogram_headers(sections.get('subprograms', []))
 
-        # 3. TDO/TDOG/TDOL syntax: objects cannot be declared without a type
+        # 3. Mandatory tables presence (TDOL after subprograms, TDOG under main)
+        if self.strict_types:
+            self.validate_tables_presence(raw_lines, sections)
+
+        # 4. TDO/TDOG/TDOL syntax: objects cannot be declared without a type
         self.validate_tdo_syntax(sections.get('objects', []))
 
-        # 4. Mandatory types verification (Variables used must have declared types)
+        # 5. Mandatory types verification (Variables used must have declared types)
         if self.strict_types:
             self.validate_mandatory_types(
                 sections,
@@ -124,6 +128,44 @@ class AlgoValidator:
                 raise MissingEndError(
                     f"Sous-programme '{sub_name}' ouvert à la ligne {sub_line} non fermé : 'FIN' manquant",
                     line_num=sub_line
+                )
+
+    def validate_tables_presence(self, raw_lines: list, sections: dict):
+        """
+        Validates mandatory presence and placement of objects tables:
+        1. Every subprogram MUST have a 'Tableau de déclaration des objets locaux' (TDOL) after it.
+        2. The main algorithm MUST have a 'Tableau de déclaration des objets globaux' (TDOG) under it.
+        """
+        # 1. Validate subprogram TDOL tables
+        for subprog in sections.get('subprograms', []):
+            if not subprog.get('has_tdol', False):
+                sub_name = subprog.get('name', 'Sous-programme')
+                sub_line = subprog.get('start_line', 1)
+                raise MissingTypeError(
+                    f"Tableau de déclaration des objets locaux (TDOL) manquant pour le sous-programme '{sub_name}' (doit être placé après le sous-programme)",
+                    line_num=sub_line
+                )
+
+        # 2. Validate main algorithm TDOG table under main
+        has_main_debut = sections.get('has_main_debut', False)
+        has_main_fin = sections.get('has_main_fin', False)
+        main_lines = sections.get('main', [])
+        has_header = bool(sections.get('header', []))
+
+        # If there is a main program body or header
+        if has_main_debut or has_main_fin or main_lines or has_header:
+            if not sections.get('has_tdog_under_main', False):
+                main_start = sections.get('main_start_line')
+                if not main_start:
+                    if sections.get('header'):
+                        main_start = sections['header'][0][0]
+                    elif main_lines:
+                        main_start = main_lines[0][0]
+                    else:
+                        main_start = len(raw_lines) or 1
+                raise MissingTypeError(
+                    "Tableau de déclaration des objets globaux (TDOG) manquant pour l'algorithme principal (doit être placé sous l'algorithme)",
+                    line_num=main_start
                 )
 
     def validate_block_closures(self, line_tuples: list):

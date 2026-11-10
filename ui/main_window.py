@@ -497,7 +497,7 @@ class MainWindow(QMainWindow):
             "DEBUT\n"
             "  Ecrire_nl(\"Bonjour le monde !\")\n"
             "FIN\n"
-            "Déclaration des objets\n"
+            "Tableau de déclaration des objets globaux\n"
             "Objet          Type / Nature\n"
         )
         editor.setPlainText(default_content)

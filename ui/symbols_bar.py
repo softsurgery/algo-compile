@@ -61,7 +61,8 @@ class SymbolsBar(QWidget):
             ("Tant que", "Tant que condition Faire\n    \nFin Tant que", "Insérer boucle Tant que"),
             ("Répéter", "Répéter\n    \nJusqu'à condition", "Insérer boucle Répéter"),
             ("Selon", "Selon sélecteur\n    1 : \n    Sinon \nFin Selon", "Insérer Selon"),
-            ("TDO", "Déclaration des objets\nObjet          Type / Nature\n", "Insérer section TDO"),
+            ("TDOG", "Tableau de déclaration des objets globaux\nObjet          Type / Nature\n", "Insérer TDOG (Objets globaux sous l'algorithme)"),
+            ("TDOL", "Tableau de déclaration des objets locaux\nObjet          Type / Nature\n", "Insérer TDOL (Objets locaux après le sous-programme)"),
         ]
 
         for label, text_to_insert, tooltip in snippets:

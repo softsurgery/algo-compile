@@ -11,22 +11,31 @@ from PyQt5.QtGui import QFont
 
 
 REFERENCE_TOPICS = {
-    "1. Structure Générale & TDO": """
+    "1. Structure Générale, TDOG & TDOL": """
 <h3>Forme générale d'un algorithme</h3>
 <pre>
+Procedure Exemple(@x: Entier)
+DEBUT
+  // Traitement local
+FIN
+Tableau de déclaration des objets locaux
+Objet          Type / Nature
+/              /
+
 ALGORITHME Nom
 DEBUT
   Traitements...
 FIN
-Déclaration des objets
+Tableau de déclaration des objets globaux
 Objet          Type / Nature
 n, s, i        Entier
 T              Tableau de 20 Entier
 </pre>
 <b>Règles d'or :</b>
 <ul>
-  <li>L'écriture de l'algorithme doit respecter l'indentation.</li>
-  <li>La nomenclature des objets doit être significative.</li>
+  <li>Chaque sous-programme doit être suivi de son <b>Tableau de déclaration des objets locaux (TDOL)</b> placé immédiatement après son <code>FIN</code>.</li>
+  <li>L'algorithme principal doit être suivi de son <b>Tableau de déclaration des objets globaux (TDOG)</b> placé sous son <code>FIN</code>.</li>
+  <li>Tous les objets locaux et globaux utilisés doivent y être typés.</li>
   <li>L'indice du premier élément d'une chaîne ou d'un tableau est <b>0</b>.</li>
 </ul>
 """,
@@ -234,8 +243,12 @@ class AssistantView(QWidget):
         low = error_message.lower()
         if "indent" in low:
             tips.append("Vérifiez l'indentation de vos blocs (après Alors, Faire, DEBUT).")
+        if "tdol" in low or "objets locaux" in low:
+            tips.append("Chaque sous-programme doit être suivi de son <b>Tableau de déclaration des objets locaux (TDOL)</b> placé immédiatement après son <code>FIN</code>.")
+        if "tdog" in low or "objets globaux" in low:
+            tips.append("L'algorithme principal doit obligatoirement posséder son <b>Tableau de déclaration des objets globaux (TDOG)</b> placé sous son <code>FIN</code>.")
         if "nameerror" in low or "not defined" in low or "non déclaré" in low:
-            tips.append("Assurez-vous que l'objet est bien déclaré dans la section <b>Déclaration des objets (TDO)</b> avec son type.")
+            tips.append("Assurez-vous que l'objet est bien déclaré dans la table correspondante (<b>TDOL</b> pour les sous-programmes ou <b>TDOG</b> pour l'algorithme) avec son type.")
         if "type manquant" in low or "type obligatoire" in low or "types sont obligatoires" in low:
             tips.append("Tous les objets, paramètres et fonctions doivent obligatoirement posséder un type défini (ex: <code>x : Entier</code>, <code>f(a: Entier) : Booléen</code>).")
         if "fin" in low and "manquant" in low:

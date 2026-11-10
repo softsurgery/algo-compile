@@ -65,8 +65,11 @@ class AlgoHighlighter(QSyntaxHighlighter):
         keywords = [
             r'\bALGORITHME\b', r'\bDEBUT\b', r'\bDÉBUT\b', r'\bFIN\b',
             r'\bFonction\b', r'\bProcédure\b', r'\bProcedure\b', r'\bRetourner\b',
-            r'\bDéclaration\s+des\s+objets\b', r'\bDéclaration\s+des\s+nouveaux\s+types\b',
-            r'\bTDO\b', r'\bTDNT\b'
+            r'\bTableau\s+de\s+déclaration\s+des\s+objets(?:\s+globaux|\s+locaux)?\b',
+            r'\bDéclaration\s+des\s+objets(?:\s+globaux|\s+locaux)?\b',
+            r'\bTableau\s+de\s+déclaration\s+des\s+nouveaux\s+types\b',
+            r'\bDéclaration\s+des\s+nouveaux\s+types\b',
+            r'\bTDOG\b', r'\bTDOL\b', r'\bTDO\b', r'\bTDNT\b'
         ]
         for pattern in keywords:
             rule = (re.compile(pattern, re.IGNORECASE), self.fmt_keyword)

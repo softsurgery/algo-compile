@@ -36,6 +36,7 @@ class SectionExtractor:
         in_tdo = False
         in_types = False
         in_tdol = False
+        has_tdog_under_main = False
 
         i = 0
         while i < len(lines):
@@ -59,8 +60,12 @@ class SectionExtractor:
 
             lower = stripped.lower()
 
-            # Check for TDOL / TDOL- (Local TDO) -> ignore so it does not spill into main
-            if re.match(r'^t\.?d\.?o\.?l(?:-|\s|$)', stripped, re.IGNORECASE):
+            # Check for TDOL / Tableau de déclaration des objets locaux (Local TDO)
+            is_tdol = bool(
+                re.match(r'^t\.?d\.?o\.?l(?:-|\s|$)', stripped, re.IGNORECASE) or
+                re.match(r'^(?:tableau\s+de\s+)?(?:déclaration|declaration)\s+des\s+objets?\s+locaux\b', stripped, re.IGNORECASE)
+            )
+            if is_tdol:
                 if current_subprog is not None and current_subprog.get('has_debut'):
                     prev_name = current_subprog.get('name', 'Sous-programme')
                     prev_line = current_subprog.get('start_line', 1)
@@ -72,12 +77,18 @@ class SectionExtractor:
                 in_types = False
                 in_main = False
                 current_subprog = None
+                if sections['subprograms']:
+                    sections['subprograms'][-1]['has_tdol'] = True
+                    sections['subprograms'][-1]['tdol_start_line'] = line_no
                 i += 1
                 continue
 
-            # Check for TDOG / TDO (Global or standard TDO)
-            if re.match(r'^(?:t\.?d\.?o\.?g|t\.?d\.?o)\b', stripped, re.IGNORECASE) or \
-               re.match(r'^(?:déclaration|declaration)\s+des\s+objets', stripped, re.IGNORECASE):
+            # Check for TDOG / TDO / Tableau de déclaration des objets globaux
+            is_tdog = bool(
+                re.match(r'^(?:t\.?d\.?o\.?g|t\.?d\.?o)\b', stripped, re.IGNORECASE) or
+                re.match(r'^(?:tableau\s+de\s+)?(?:déclaration|declaration)\s+des\s+objets?(?:\s+globaux)?\b', stripped, re.IGNORECASE)
+            )
+            if is_tdog:
                 if current_subprog is not None:
                     prev_name = current_subprog.get('name', 'Sous-programme')
                     prev_line = current_subprog.get('start_line', 1)
@@ -89,12 +100,20 @@ class SectionExtractor:
                 in_types = False
                 in_main = False
                 current_subprog = None
+                sections['has_tdog'] = True
+                if main_has_fin:
+                    has_tdog_under_main = True
+                sections['has_tdog_under_main'] = has_tdog_under_main
+                sections['tdog_start_line'] = line_no
                 i += 1
                 continue
 
-            # Check for TDNT / Declarations des types
-            if re.match(r'^t\.?d\.?n\.?t\b', stripped, re.IGNORECASE) or \
-               re.match(r'^(?:déclaration|declaration)\s+des\s+(?:nouveaux\s+)?types', stripped, re.IGNORECASE):
+            # Check for TDNT / Tableau de déclaration des nouveaux types
+            is_tdnt = bool(
+                re.match(r'^t\.?d\.?n\.?t\b', stripped, re.IGNORECASE) or
+                re.match(r'^(?:tableau\s+de\s+)?(?:déclaration|declaration)\s+des\s+(?:nouveaux\s+)?types\b', stripped, re.IGNORECASE)
+            )
+            if is_tdnt:
                 if current_subprog is not None:
                     prev_name = current_subprog.get('name', 'Sous-programme')
                     prev_line = current_subprog.get('start_line', 1)
@@ -131,6 +150,8 @@ class SectionExtractor:
                     'start_line': line_no,
                     'has_debut': False,
                     'has_fin': False,
+                    'has_tdol': False,
+                    'tdol_start_line': None,
                     'lines': [(line_no, line)],
                     'tdo': []
                 }
@@ -226,6 +247,8 @@ class SectionExtractor:
         sections['has_main_debut'] = main_has_debut
         sections['has_main_fin'] = main_has_fin
         sections['main_start_line'] = main_start_line
+        sections['has_tdog_under_main'] = has_tdog_under_main
+        sections['has_tdog'] = bool(sections.get('has_tdog', False) or sections['objects'])
 
         return sections
 

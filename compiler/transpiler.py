@@ -108,6 +108,8 @@ class AlgoTranspiler:
 
         # 6. Validate subprogram headers and TDO syntax
         self.validator.validate_subprogram_headers(blocks.get('subprograms', []))
+        if self.validator.strict_types:
+            self.validator.validate_tables_presence(raw_lines, blocks)
         self.validator.validate_tdo_syntax(blocks.get('objects', []))
 
         # 7. Validate mandatory types (cannot pass without)
