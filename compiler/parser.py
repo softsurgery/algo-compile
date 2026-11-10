@@ -25,6 +25,11 @@ class SectionExtractor:
             'tdol': [],
             'has_main_debut': False,
             'has_main_fin': False,
+            'has_tdog': False,
+            'has_tdog_under_main': False,
+            'has_tdnt': False,
+            'tdnt_count': 0,
+            'tdnt_start_lines': [],
             'main_start_line': None
         }
 
@@ -110,8 +115,9 @@ class SectionExtractor:
 
             # Check for TDNT / Tableau de déclaration des nouveaux types
             is_tdnt = bool(
-                re.match(r'^t\.?d\.?n\.?t\b', stripped, re.IGNORECASE) or
-                re.match(r'^(?:tableau\s+de\s+)?(?:déclaration|declaration)\s+des\s+(?:nouveaux\s+)?types\b', stripped, re.IGNORECASE)
+                re.match(r'^t\.?d\.?n\.?t(?:-|\s|:|$)', stripped, re.IGNORECASE) or
+                re.match(r'^(?:tableau\s+de\s+)?(?:déclaration|declaration)\s+des\s+(?:nouveaux\s+)?types\b', stripped, re.IGNORECASE) or
+                re.match(r'^tableau\s+des\s+(?:nouveaux\s+)?types\b', stripped, re.IGNORECASE)
             )
             if is_tdnt:
                 if current_subprog is not None:
@@ -125,6 +131,9 @@ class SectionExtractor:
                 in_tdol = False
                 in_main = False
                 current_subprog = None
+                sections['has_tdnt'] = True
+                sections['tdnt_count'] = sections.get('tdnt_count', 0) + 1
+                sections.setdefault('tdnt_start_lines', []).append(line_no)
                 i += 1
                 continue
 
@@ -178,6 +187,21 @@ class SectionExtractor:
                 i += 1
                 continue
 
+            # Check for DEBUT / BEGIN (switches from any preceding declarations into code body)
+            if stripped.upper() in ("DEBUT", "DÉBUT", "BEGIN"):
+                if current_subprog is not None:
+                    current_subprog['has_debut'] = True
+                    current_subprog['lines'].append((line_no, line))
+                else:
+                    in_main = True
+                    main_has_debut = True
+                    main_start_line = line_no
+                in_types = False
+                in_tdo = False
+                in_tdol = False
+                i += 1
+                continue
+
             # Inside TDNT (types), accumulate all lines
             if in_types:
                 sections['types'].append((line_no, line))
@@ -195,18 +219,6 @@ class SectionExtractor:
             # Inside TDOG / TDO, accumulate
             if in_tdo:
                 sections['objects'].append((line_no, line))
-                i += 1
-                continue
-
-            # Check for DEBUT / BEGIN
-            if stripped.upper() in ("DEBUT", "DÉBUT", "BEGIN"):
-                if current_subprog is not None:
-                    current_subprog['has_debut'] = True
-                    current_subprog['lines'].append((line_no, line))
-                else:
-                    in_main = True
-                    main_has_debut = True
-                    main_start_line = line_no
                 i += 1
                 continue
 

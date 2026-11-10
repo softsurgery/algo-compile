@@ -20,6 +20,13 @@ DEBUT
   Ecrire_nl("Mention : ", E.mention)
 FIN
 
+Tableau de déclaration des nouveaux types
+Eleve = Enregistrement
+    nom : Chaîne
+    moyenne : Réel
+    mention : Chaîne
+Fin Enregistrement
+
 Tableau de déclaration des objets globaux
 Objet       Type / Nature
-E           Enregistrement
+E           Eleve

@@ -106,14 +106,18 @@ class AlgoTranspiler:
         for subprog in blocks.get('subprograms', []):
             self.section_extractor.register_subprogram_signature(subprog, self.subprogram_meta)
 
-        # 6. Validate subprogram headers and TDO syntax
+        # 6. Validate TDNT rules and Enregistrement type constraints
+        self.validator.validate_tdnt_rules(blocks)
+        self.validator.validate_no_direct_enregistrement(blocks)
+
+        # 7. Validate subprogram headers and TDO syntax
         self.validator.validate_subprogram_headers(blocks.get('subprograms', []))
         if self.validator.strict_types:
             self.validator.validate_tables_presence(raw_lines, blocks)
             self.validator.validate_subprogram_declarations(blocks, self.subprogram_meta)
         self.validator.validate_tdo_syntax(blocks.get('objects', []))
 
-        # 7. Validate mandatory types (cannot pass without)
+        # 8. Validate mandatory types (cannot pass without)
         if self.validator.strict_types:
             self.validator.validate_mandatory_types(
                 blocks,

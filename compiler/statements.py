@@ -392,8 +392,10 @@ class StatementTranslator:
                 target_var = self.expr_trans.translate_target(arg.strip())
                 clean_id = re.sub(r'\[.*\]', '', arg.strip())
                 clean_id = clean_id.split('.')[0].strip()
-                vtype = self.declared_objects.get(clean_id, None)
+                vtype = self.local_objects.get(clean_id, None) or self.declared_objects.get(clean_id, None)
                 if vtype:
+                    if hasattr(self.type_handler, 'resolve_type'):
+                        vtype = self.type_handler.resolve_type(vtype)
                     target_type = vtype
                     # If reading an array element (e.g. IDENT[i]), get the element type
                     if '[' in arg:

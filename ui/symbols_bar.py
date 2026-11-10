@@ -61,6 +61,7 @@ class SymbolsBar(QWidget):
             ("Tant que", "Tant que condition Faire\n    \nFin Tant que", "Insérer boucle Tant que"),
             ("Répéter", "Répéter\n    \nJusqu'à condition", "Insérer boucle Répéter"),
             ("Selon", "Selon sélecteur\n    1 : \n    Sinon \nFin Selon", "Insérer Selon"),
+            ("TDNT", "Tableau de déclaration des nouveaux types\nType\nNomEnreg = Enregistrement\n    champ1 : Type1\n    champ2 : Type2\nFin Enregistrement\nTab = Tableau de 100 Entier\n", "Insérer TDNT (Nouveaux types / typedef : Enregistrement, Tableau)"),
             ("TDOG", "Tableau de déclaration des objets globaux\nObjet          Type / Nature\n", "Insérer TDOG (Objets globaux sous l'algorithme)"),
             ("TDOL", "Tableau de déclaration des objets locaux\nObjet          Type / Nature\n", "Insérer TDOL (Objets locaux après le sous-programme)"),
         ]

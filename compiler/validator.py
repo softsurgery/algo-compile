@@ -47,7 +47,7 @@ KEYWORDS = {
 # Known standard primitive and composite type keywords
 STANDARD_TYPES = {
     'entier', 'reel', 'réel', 'booleen', 'booléen', 'caractere', 'caractère',
-    'chaine', 'chaîne', 'tableau', 'enregistrement', 'fichier', 'int', 'float',
+    'chaine', 'chaîne', 'tableau', 'fichier', 'int', 'float',
     'bool', 'str', 'char', 'void'
 }
 
@@ -80,18 +80,22 @@ class AlgoValidator:
         # 2. Subprogram headers (return types & parameter types)
         self.validate_subprogram_headers(sections.get('subprograms', []))
 
-        # 3. Mandatory tables presence (TDOL after subprograms, TDOG under main)
+        # 3. TDNT rules & Enregistrement usage
+        self.validate_tdnt_rules(sections)
+        self.validate_no_direct_enregistrement(sections)
+
+        # 4. Mandatory tables presence (TDOL after subprograms, TDOG under main)
         if self.strict_types:
             self.validate_tables_presence(raw_lines, sections)
 
-        # 4. TDO/TDOG/TDOL syntax: objects cannot be declared without a type
+        # 5. TDO/TDOG/TDOL syntax: objects cannot be declared without a type
         self.validate_tdo_syntax(sections.get('objects', []))
 
-        # 5. Subprogram declarations validation (functions/procedures called must be declared)
+        # 6. Subprogram declarations validation (functions/procedures called must be declared)
         if self.strict_types:
             self.validate_subprogram_declarations(sections, subprogram_meta)
 
-        # 6. Mandatory types verification (Variables used must have declared types)
+        # 7. Mandatory types verification (Variables used must have declared types)
         if self.strict_types:
             self.validate_mandatory_types(
                 sections,
@@ -176,6 +180,9 @@ class AlgoValidator:
                     "Tableau de déclaration des objets globaux (TDOG) manquant pour l'algorithme principal (doit être placé sous l'algorithme)",
                     line_num=main_start
                 )
+
+        # 3. Validate TDNT (at most one TDNT table in the program)
+        self.validate_tdnt_rules(sections)
 
     def validate_block_closures(self, line_tuples: list):
         """
@@ -275,6 +282,12 @@ class AlgoValidator:
                         f"Type de retour obligatoire pour la fonction '{name}'",
                         line_num=line_no
                     )
+                if ret_type.strip().lower() == 'enregistrement':
+                    raise MissingTypeError(
+                        f"Le mot-clé 'Enregistrement' ne peut pas être utilisé directement comme type de retour pour la fonction '{name}'. "
+                        f"Déclarez un nouveau type dans le Tableau de déclaration des nouveaux types (TDNT).",
+                        line_num=line_no
+                    )
 
             # Subprogram parameters must have explicit types
             if params_str.strip():
@@ -295,6 +308,72 @@ class AlgoValidator:
                             f"Type manquant pour le paramètre '{clean_pname}' du sous-programme '{name}'",
                             line_num=line_no
                         )
+                    if ptype.strip().lower() == 'enregistrement':
+                        clean_pname = pname.lstrip('@').strip()
+                        raise MissingTypeError(
+                            f"Le mot-clé 'Enregistrement' ne peut pas être utilisé directement comme type pour le paramètre '{clean_pname}' du sous-programme '{name}'. "
+                            f"Déclarez un nouveau type dans le Tableau de déclaration des nouveaux types (TDNT).",
+                            line_num=line_no
+                        )
+
+    def validate_tdnt_rules(self, sections: dict):
+        """
+        Validates TDNT (Tableau de déclaration des nouveaux types):
+        - There can be at most one TDNT in the entire program.
+        """
+        tdnt_count = sections.get('tdnt_count', 0)
+        if tdnt_count > 1:
+            lines = sections.get('tdnt_start_lines', [1, 1])
+            err_line = lines[1] if len(lines) > 1 else 1
+            raise InvalidStructureError(
+                f"Il ne peut y avoir qu'un seul Tableau de déclaration des nouveaux types (TDNT) dans tout le programme (trouvé {tdnt_count})",
+                line_num=err_line
+            )
+
+    def validate_no_direct_enregistrement(self, sections: dict):
+        """
+        Ensures 'Enregistrement' is never used directly as a variable type in TDOG or TDOL.
+        """
+        # 1. Check TDOG
+        for line_no, line in sections.get('objects', []):
+            self._check_line_no_direct_enregistrement(line, line_no, "TDOG")
+
+        # 2. Check each subprogram TDOL
+        for sp in sections.get('subprograms', []):
+            sp_name = sp.get('name', 'sous-programme')
+            for line_no, line in sp.get('tdo', []):
+                self._check_line_no_direct_enregistrement(line, line_no, f"TDOL de '{sp_name}'")
+
+    def _check_line_no_direct_enregistrement(self, line: str, line_no: int, context: str):
+        s = line.strip()
+        if not s or s.lower().startswith(('objet', 'type', 'nom_objet', '---', '===')):
+            return
+        parts = None
+        if ':' in s:
+            parts = s.split(':', 1)
+        elif '|' in s:
+            parts = s.split('|', 1)
+        else:
+            m = re.match(
+                r'^([a-zA-Z0-9_,\s\u00C0-\u017F]+?)\s+(Tableau\b.*|Enregistrement\b.*|Fichier\b.*|Entier\b.*|Réel\b.*|Reel\b.*|Booléen\b.*|Booleen\b.*|Caractère\b.*|Caractere\b.*|Chaîne\b.*|Chaine\b.*|Procédure\b.*|Procedure\b.*|Fonction\b.*|[a-zA-Z0-9_\u00C0-\u017F]+)$',
+                s,
+                re.IGNORECASE
+            )
+            if m:
+                parts = [m.group(1), m.group(2)]
+            elif re.search(r'\s{2,}|\t', s):
+                parts = re.split(r'\s{2,}|\t', s, 1)
+
+        if parts and len(parts) == 2:
+            obj_name = parts[0].strip()
+            type_str = parts[1].strip()
+            if type_str.lower() == 'enregistrement':
+                raise MissingTypeError(
+                    f"Le mot-clé 'Enregistrement' ne peut pas être utilisé directement comme type pour l'objet '{obj_name}' dans le {context}. "
+                    f"Vous devez définir un nouveau type dans le Tableau de déclaration des nouveaux types (TDNT) "
+                    f"(ex: NomType = Enregistrement ... Fin) et utiliser ce nom de type.",
+                    line_num=line_no
+                )
 
     def validate_tdo_syntax(self, tdo_lines: list):
         """
@@ -309,22 +388,11 @@ class AlgoValidator:
             if lower.startswith(('objet', 'type', 'nom_objet', '---', '===')):
                 continue
 
+            parts = None
             if ':' in s:
                 parts = s.split(':', 1)
-                if not parts[1].strip():
-                    name = parts[0].strip()
-                    raise MissingTypeError(
-                        f"Type manquant pour l'objet '{name}' dans la déclaration des objets",
-                        line_num=line_no
-                    )
             elif '|' in s:
                 parts = s.split('|', 1)
-                if not parts[1].strip():
-                    name = parts[0].strip()
-                    raise MissingTypeError(
-                        f"Type manquant pour l'objet '{name}' dans la déclaration des objets",
-                        line_num=line_no
-                    )
             else:
                 words = s.split()
                 if len(words) == 1:
@@ -334,6 +402,24 @@ class AlgoValidator:
                             f"Type manquant pour l'objet '{clean_w}' dans la déclaration des objets",
                             line_num=line_no
                         )
+                elif len(words) >= 2:
+                    parts = [words[0], " ".join(words[1:])]
+
+            if parts and len(parts) == 2:
+                name = parts[0].strip()
+                type_part = parts[1].strip()
+                if not type_part:
+                    raise MissingTypeError(
+                        f"Type manquant pour l'objet '{name}' dans la déclaration des objets",
+                        line_num=line_no
+                    )
+                if type_part.lower() == 'enregistrement':
+                    raise MissingTypeError(
+                        f"Le mot-clé 'Enregistrement' ne peut pas être utilisé directement comme type pour l'objet '{name}'. "
+                        f"Vous devez définir un nouveau type dans le Tableau de déclaration des nouveaux types (TDNT) "
+                        f"(ex: NomType = Enregistrement ... Fin) et utiliser ce nom de type.",
+                        line_num=line_no
+                    )
 
     def validate_subprogram_declarations(
         self,

@@ -65,14 +65,30 @@ class SubprogramTranslator:
                 continue
             body_lines.append((line_no, line))
 
+        from compiler.validator import AlgoValidator
+
+        # Extract local TDOL variables and combine with parameter types
+        tdol_vars, _ = AlgoValidator.extract_table_declarations(subprog.get('tdo', []))
+        all_locals = dict(tdol_vars)
+        all_locals.update(local_types)
+
         prev_local = getattr(self.stmt_trans, 'local_objects', {})
-        self.stmt_trans.local_objects = dict(local_types)
+        self.stmt_trans.local_objects = dict(all_locals)
         try:
             sub_body = self.stmt_trans.translate_statements(body_lines, indent_level=1)
         finally:
             self.stmt_trans.local_objects = prev_local
         if not sub_body:
             sub_body = ["    pass"]
+
+        # Initialize local TDOL variables that are not parameters
+        if hasattr(self.stmt_trans, 'type_handler') and self.stmt_trans.type_handler:
+            param_lower = {p.lower() for p in py_params}
+            non_param_locals = {k: v for k, v in tdol_vars.items() if k.lower() not in param_lower}
+            if non_param_locals:
+                inits = self.stmt_trans.type_handler.generate_object_initializations(non_param_locals)
+                for init_l in reversed(inits):
+                    sub_body.insert(0, f"    {init_l}")
 
         # If procedure has pass-by-reference params and doesn't explicitly return
         if kind == 'procedure' and param_ref:
