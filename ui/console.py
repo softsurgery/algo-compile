@@ -226,16 +226,23 @@ class AlgoConsole(QWidget):
         self.prompt_label.setFont(f)
         self.input_line.setFont(f)
 
-    def run_python_code(self, py_code: str):
+    def run_python_code(self, py_code: str, algo_file_path: str = None):
         """Executes Python code asynchronously via QProcess."""
         if self.is_running():
             self.stop_execution()
 
         # Save to temporary file in workspace to allow imports of compiler.runtime
         workspace_dir = os.path.abspath(os.path.dirname(os.path.dirname(__file__)))
-        
-        # Add variable tracing wrapper if desired
-        full_code = py_code
+
+        # Determine the directory of the executing algorithm
+        if algo_file_path:
+            algo_dir = os.path.dirname(os.path.abspath(algo_file_path))
+        else:
+            algo_dir = workspace_dir
+
+        # Inject ALGO_DIR header so Ouvrir automatically locates files relative to the algorithm
+        algo_header = f"import os, sys\nos.environ['ALGO_DIR'] = {algo_dir!r}\nsys._algo_dir = {algo_dir!r}\n"
+        full_code = algo_header + py_code
 
         temp_fd, temp_path = tempfile.mkstemp(suffix=".py", prefix="_algo_exec_", dir=workspace_dir)
         with os.fdopen(temp_fd, 'w', encoding='utf-8') as f:
@@ -244,15 +251,18 @@ class AlgoConsole(QWidget):
         self.temp_script_path = temp_path
 
         self.process = QProcess(self)
-        self.process.setWorkingDirectory(workspace_dir)
+        self.process.setWorkingDirectory(algo_dir)
 
         # Setup environment
         env = self.process.processEnvironment()
         python_path = os.environ.get("PYTHONPATH", "")
         if workspace_dir not in python_path:
             python_path = f"{workspace_dir}:{python_path}" if python_path else workspace_dir
+        if algo_dir not in python_path:
+            python_path = f"{algo_dir}:{python_path}"
         env.insert("PYTHONPATH", python_path)
         env.insert("PYTHONUNBUFFERED", "1")
+        env.insert("ALGO_DIR", algo_dir)
         self.process.setProcessEnvironment(env)
 
         self.process.readyReadStandardOutput.connect(self._on_stdout_ready)

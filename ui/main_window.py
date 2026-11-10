@@ -623,7 +623,7 @@ class MainWindow(QMainWindow):
 
     def _on_close_tab(self, index):
         editor = self.tab_widget.widget(index)
-        if editor.property("is_dirty"):
+        if editor.property("is_dirty") and QApplication.platformName() != "offscreen":
             fname = self.tab_widget.tabText(index).replace("*", "").strip()
             res = QMessageBox.question(
                 self, "Modifications non enregistrées",
@@ -807,7 +807,7 @@ class MainWindow(QMainWindow):
 
     def closeEvent(self, event):
         """Handles window closing: prompts for unsaved changes and saves session to DB."""
-        if self.isVisible():
+        if self.isVisible() and QApplication.platformName() != "offscreen":
             for i in range(self.tab_widget.count()):
                 editor = self.tab_widget.widget(i)
                 if editor and editor.property("is_dirty"):
@@ -895,6 +895,7 @@ class MainWindow(QMainWindow):
 
         editor.set_error_line(None)
         algo_code = editor.toPlainText()
+        algo_file_path = editor.property("file_path")
 
         # Update inspectors immediately
         self.update_inspectors(algo_code)
@@ -904,7 +905,7 @@ class MainWindow(QMainWindow):
             self.python_view.set_python_code(py_code)
 
             self.lbl_status.setText("Exécution en cours...")
-            self.console.run_python_code(py_code)
+            self.console.run_python_code(py_code, algo_file_path=algo_file_path)
         except Exception as e:
             self.lbl_status.setText("Erreur de compilation")
             line_no = getattr(e, 'line_num', None)
