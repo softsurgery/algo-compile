@@ -64,7 +64,7 @@ Nom_logique = Ouvrir("Chemin\\Nom_physique", "Mode")
 |---|---|---|
 | `Ouvrir("source.txt", F, "r")` | `F = open("source.txt", "r")` | Ouverture en lecture |
 | `Lire(F, ch)` | `ch = F.read()` | Lecture de **tout** le fichier dans une chaîne |
-| `Lire_ligne(F, ch)` | `ch = F.readline()` | Lecture d'**une seule ligne** |
+| `Lire_ligne(F, ch)` | `ch = F.readline().rstrip('\r\n')` | Lecture d'**une seule ligne** (sans le saut de ligne `\n`) |
 | `Ecrire(F, ch)` | `F.write(ch)` | Écriture sans saut de ligne |
 | `Ecrire_nl(F, ch)` | `F.write(ch + "\n")` | Écriture **avec saut de ligne** |
 | `Fin_fichier(F)` | Condition de fin | `Vrai` si la fin du fichier est atteinte |
