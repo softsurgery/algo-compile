@@ -21,6 +21,7 @@ from ui.theme_utils import (
     create_light_palette
 )
 from ui.main_window import MainWindow
+from database import get_database
 
 def main():
     # Enable High DPI scaling
@@ -32,12 +33,18 @@ def main():
     app.setApplicationDisplayName("Algoo")
     app.setOrganizationName("softsurgery")
 
-    # Determine theme preference and pre-configure application palette
-    settings = QSettings("softsurgery", "Algoo")
-    if settings.contains("dark_mode"):
-        is_dark = settings.value("dark_mode", type=bool)
+    # Determine theme preference from SQLite database, with fallback to QSettings / system
+    db = get_database()
+    saved_dark_mode = db.is_dark_mode()
+    if saved_dark_mode is not None:
+        is_dark = saved_dark_mode
     else:
-        is_dark = detect_system_dark_mode()
+        settings = QSettings("softsurgery", "Algoo")
+        if settings.contains("dark_mode"):
+            is_dark = settings.value("dark_mode", type=bool)
+        else:
+            is_dark = detect_system_dark_mode()
+        db.set_dark_mode(is_dark)
 
     app.setPalette(create_dark_palette() if is_dark else create_light_palette())
 

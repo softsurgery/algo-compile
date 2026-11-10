@@ -28,20 +28,29 @@ from ui.styles import (
     detect_system_dark_mode, apply_os_window_theme
 )
 from ui.insert_code_dialog import InsertCodeDialog
+from database import get_database, DatabaseManager
+from typing import Optional
 
 
 class MainWindow(QMainWindow):
-    def __init__(self):
+    def __init__(self, db: Optional[DatabaseManager] = None):
         super().__init__()
         self.setWindowTitle("Algoo - IDE Algorithmique")
         self.resize(1200, 800)
 
-        # Check saved setting or detect system preference
+        # Database initialization & theme preference
+        self.db = db or get_database()
         self.settings = QSettings("softsurgery", "Algoo")
-        if self.settings.contains("dark_mode"):
+
+        saved_dark = self.db.is_dark_mode()
+        if saved_dark is not None:
+            self.is_dark_mode = saved_dark
+        elif self.settings.contains("dark_mode"):
             self.is_dark_mode = self.settings.value("dark_mode", type=bool)
+            self.db.set_dark_mode(self.is_dark_mode)
         else:
             self.is_dark_mode = detect_system_dark_mode()
+            self.db.set_dark_mode(self.is_dark_mode)
 
         self.transpiler = AlgoTranspiler()
 
@@ -51,8 +60,8 @@ class MainWindow(QMainWindow):
         self._setup_statusbar()
         self.apply_theme(recreate_native=False)
 
-        # Open initial starter tab
-        self._open_default_example()
+        # Restore latest opened files or open starter default example
+        self._restore_opened_files()
 
     def _setup_ui(self):
         central_widget = QWidget(self)
@@ -218,6 +227,11 @@ class MainWindow(QMainWindow):
         menu_file = menubar.addMenu("&Fichier")
         menu_file.addAction(self.act_new)
         menu_file.addAction(self.act_open)
+
+        # Fichiers récents
+        self.menu_recent = menu_file.addMenu("Fichiers récents")
+        self._populate_recent_files_menu()
+
         menu_file.addAction(self.act_save)
         
         act_save_as = QAction("Enregistrer sous...", self)
@@ -474,6 +488,8 @@ class MainWindow(QMainWindow):
 
     def toggle_theme(self):
         self.is_dark_mode = not self.is_dark_mode
+        if hasattr(self, "db") and self.db:
+            self.db.set_dark_mode(self.is_dark_mode)
         if hasattr(self, "settings"):
             self.settings.setValue("dark_mode", self.is_dark_mode)
         self.apply_theme(recreate_native=True)
@@ -518,12 +534,17 @@ class MainWindow(QMainWindow):
         if path:
             self.load_file(path)
 
-    def load_file(self, path: str):
+    def load_file(self, path: str, record: bool = True):
         # Check if already open
+        norm_target = os.path.abspath(path)
         for i in range(self.tab_widget.count()):
             ed = self.tab_widget.widget(i)
-            if ed.property("file_path") == path:
+            ed_path = ed.property("file_path")
+            if ed_path and os.path.abspath(ed_path) == norm_target:
                 self.tab_widget.setCurrentIndex(i)
+                if record and hasattr(self, "db") and self.db:
+                    self.db.record_file_opened(norm_target, is_open=True, is_active=True, tab_order=i)
+                    self._populate_recent_files_menu()
                 return
 
         try:
@@ -535,9 +556,15 @@ class MainWindow(QMainWindow):
 
         filename = os.path.basename(path)
         editor = self.new_file(filename, content)
-        editor.setProperty("file_path", path)
+        editor.setProperty("file_path", norm_target)
         editor.setProperty("is_dirty", False)
         self.lbl_status.setText(f"Fichier ouvert : {filename}")
+
+        if record and hasattr(self, "db") and self.db:
+            idx = self.tab_widget.currentIndex()
+            self.db.record_file_opened(norm_target, is_open=True, is_active=True, tab_order=idx)
+            self._sync_tabs_to_db()
+            self._populate_recent_files_menu()
 
     def save_file(self) -> bool:
         editor = self.current_editor()
@@ -555,6 +582,12 @@ class MainWindow(QMainWindow):
             idx = self.tab_widget.currentIndex()
             self.tab_widget.setTabText(idx, f" {os.path.basename(path)} ")
             self.lbl_status.setText(f"Enregistré : {os.path.basename(path)}")
+            if hasattr(self, "db") and self.db:
+                norm_path = os.path.abspath(path)
+                editor.setProperty("file_path", norm_path)
+                self.db.record_file_opened(norm_path, is_open=True, is_active=True, tab_order=idx)
+                self._sync_tabs_to_db()
+                self._populate_recent_files_menu()
             return True
         except Exception as e:
             QMessageBox.critical(self, "Erreur d'enregistrement", str(e))
@@ -570,14 +603,14 @@ class MainWindow(QMainWindow):
             "Fichiers Algorithme (*.algo);;Tous les fichiers (*.*)"
         )
         if path:
-            editor.setProperty("file_path", path)
+            editor.setProperty("file_path", os.path.abspath(path))
             return self.save_file()
         return False
 
     def _on_close_tab(self, index):
         editor = self.tab_widget.widget(index)
         if editor.property("is_dirty"):
-            fname = self.tab_widget.tabText(index).replace("*", "")
+            fname = self.tab_widget.tabText(index).replace("*", "").strip()
             res = QMessageBox.question(
                 self, "Modifications non enregistrées",
                 f"Voulez-vous enregistrer les modifications apportées à '{fname}' ?",
@@ -590,12 +623,23 @@ class MainWindow(QMainWindow):
             elif res == QMessageBox.Cancel:
                 return
 
+        file_path = editor.property("file_path")
+        if file_path and hasattr(self, "db") and self.db:
+            self.db.record_file_closed(file_path)
+
         self.tab_widget.removeTab(index)
+        self._sync_tabs_to_db()
+        self._populate_recent_files_menu()
+
         if self.tab_widget.count() == 0:
             self.new_file()
 
     def _on_tab_changed(self, index):
         self._on_cursor_position_changed()
+        if hasattr(self, "db") and self.db:
+            editor = self.current_editor()
+            if editor and editor.property("file_path"):
+                self.db.set_active_file(editor.property("file_path"))
 
     def _on_cursor_position_changed(self):
         editor = self.current_editor()
@@ -619,6 +663,138 @@ class MainWindow(QMainWindow):
         if editor:
             editor.insertPlainText(text)
             editor.setFocus()
+
+    def _sync_tabs_to_db(self):
+        """Synchronizes open tabs and their active state to the SQLite database."""
+        if not hasattr(self, "db") or not self.db:
+            return
+        tabs = []
+        current_idx = self.tab_widget.currentIndex()
+        for i in range(self.tab_widget.count()):
+            ed = self.tab_widget.widget(i)
+            if isinstance(ed, AlgoCodeEditor):
+                p = ed.property("file_path")
+                if p:
+                    tabs.append({
+                        "file_path": p,
+                        "tab_order": i,
+                        "is_active": (i == current_idx)
+                    })
+        self.db.sync_open_tabs(tabs)
+
+    def _populate_recent_files_menu(self):
+        """Populates the recent files submenu from the SQLite database."""
+        if not hasattr(self, "menu_recent") or not hasattr(self, "db") or not self.db:
+            return
+        self.menu_recent.clear()
+
+        act_open_latest = QAction("Ouvrir les derniers fichiers ouverts", self)
+        act_open_latest.setToolTip("Rouvrir les fichiers récemment ouverts")
+        act_open_latest.triggered.connect(lambda: self.open_latest_opened_files(5))
+        self.menu_recent.addAction(act_open_latest)
+        self.menu_recent.addSeparator()
+
+        recent_files = self.db.get_latest_opened_files(limit=10)
+        valid_files = [f for f in recent_files if os.path.exists(f)]
+
+        if valid_files:
+            for path in valid_files:
+                fname = os.path.basename(path)
+                act = QAction(fname, self)
+                act.setToolTip(path)
+                act.triggered.connect(lambda _, p=path: self.load_file(p))
+                self.menu_recent.addAction(act)
+
+            self.menu_recent.addSeparator()
+            act_clear = QAction("Effacer l'historique", self)
+            act_clear.triggered.connect(self._clear_recent_files_history)
+            self.menu_recent.addAction(act_clear)
+        else:
+            act_empty = QAction("(Aucun fichier récent)", self)
+            act_empty.setEnabled(False)
+            self.menu_recent.addAction(act_empty)
+
+    def _clear_recent_files_history(self):
+        """Clears recent file history in SQLite database."""
+        if hasattr(self, "db") and self.db:
+            self.db.clear_recent_files()
+            self._populate_recent_files_menu()
+            self.lbl_status.setText("Historique des fichiers récents effacé")
+
+    def open_latest_opened_files(self, limit: int = 5):
+        """Opens the most recently opened files from SQLite database."""
+        if not hasattr(self, "db") or not self.db:
+            return
+        latest_files = self.db.get_latest_opened_files(limit=limit)
+        opened_count = 0
+        for path in latest_files:
+            if os.path.exists(path):
+                self.load_file(path)
+                opened_count += 1
+        if opened_count > 0:
+            self.lbl_status.setText(f"{opened_count} fichier(s) récent(s) ouvert(s)")
+        else:
+            self.lbl_status.setText("Aucun fichier récent à ouvrir")
+
+    def _restore_opened_files(self):
+        """Restores previously open tabs from SQLite database or latest opened files."""
+        opened_any = False
+        target_tab_index = 0
+
+        if hasattr(self, "db") and self.db:
+            open_files = self.db.get_open_files()
+            active_file = self.db.get_active_file()
+
+            if open_files:
+                for path in open_files:
+                    if os.path.exists(path):
+                        self.load_file(path, record=False)
+                        opened_any = True
+                        if active_file and os.path.abspath(path) == os.path.abspath(active_file):
+                            target_tab_index = self.tab_widget.count() - 1
+
+                if opened_any and self.tab_widget.count() > 0:
+                    self.tab_widget.setCurrentIndex(target_tab_index)
+
+            # If no open tabs were restored, open the latest opened file
+            if not opened_any:
+                latest_files = self.db.get_latest_opened_files(limit=1)
+                for path in latest_files:
+                    if os.path.exists(path):
+                        self.load_file(path, record=True)
+                        opened_any = True
+                        break
+
+        # If nothing could be restored, fall back to default example
+        if not opened_any:
+            self._open_default_example()
+        else:
+            self._sync_tabs_to_db()
+            self._populate_recent_files_menu()
+
+    def closeEvent(self, event):
+        """Handles window closing: prompts for unsaved changes and saves session to DB."""
+        for i in range(self.tab_widget.count()):
+            editor = self.tab_widget.widget(i)
+            if editor and editor.property("is_dirty"):
+                fname = self.tab_widget.tabText(i).replace("*", "").strip()
+                res = QMessageBox.question(
+                    self, "Modifications non enregistrées",
+                    f"Voulez-vous enregistrer les modifications apportées à '{fname}' ?",
+                    QMessageBox.Save | QMessageBox.Discard | QMessageBox.Cancel
+                )
+                if res == QMessageBox.Save:
+                    self.tab_widget.setCurrentIndex(i)
+                    if not self.save_file():
+                        event.ignore()
+                        return
+                elif res == QMessageBox.Cancel:
+                    event.ignore()
+                    return
+
+        self._sync_tabs_to_db()
+        event.accept()
+        super().closeEvent(event)
 
     def _open_default_example(self):
         example_path = os.path.join(
