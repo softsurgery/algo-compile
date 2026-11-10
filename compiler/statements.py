@@ -4,6 +4,7 @@ Statement and Control Flow Translator.
 
 import re
 from compiler.utils import split_arguments
+from compiler.errors import  MissingEndError
 
 class StatementTranslator:
     """Translates algorithmic statements and structured control blocks into Python 3."""
@@ -54,7 +55,7 @@ class StatementTranslator:
                 result.append(f"{base_indent}if {cond}:")
                 
                 # Collect then block, elifs, and else
-                block_res, next_i = self.parse_si_block(line_tuples, i + 1, indent_level)
+                block_res, next_i = self.parse_si_block(line_tuples, i + 1, indent_level, si_line_no=line_no)
                 result.extend(block_res)
                 i = next_i
                 continue
@@ -64,7 +65,7 @@ class StatementTranslator:
             if m_selon:
                 selector = self.expr_trans.translate_expression(m_selon.group(1))
                 result.append(f"{base_indent}match {selector}:")
-                selon_res, next_i = self.parse_selon_block(line_tuples, i + 1, indent_level, selector)
+                selon_res, next_i = self.parse_selon_block(line_tuples, i + 1, indent_level, selector, selon_line_no=line_no)
                 result.extend(selon_res)
                 i = next_i
                 continue
@@ -89,7 +90,10 @@ class StatementTranslator:
                 result.append(f"{base_indent}for {counter} in {range_expr}:")
                 
                 # Collect loop body until Fin Pour
-                body_lines, next_i = self.collect_block_until(line_tuples, i + 1, [r'^(?:fin\s*pour|finpour)$'])
+                body_lines, next_i = self.collect_block_until(
+                    line_tuples, i + 1, [r'^(?:fin[\s_]*pour|finpour)$'],
+                    block_name="Pour", start_line_no=line_no
+                )
                 translated_body = self.translate_statements(body_lines, indent_level + 1)
                 if not translated_body:
                     translated_body = [f"{base_indent}    pass"]
@@ -102,7 +106,10 @@ class StatementTranslator:
             if m_tq:
                 cond = self.expr_trans.translate_expression(m_tq.group(1))
                 result.append(f"{base_indent}while {cond}:")
-                body_lines, next_i = self.collect_block_until(line_tuples, i + 1, [r'^(?:fin\s*tan.*|fintan.*)$'])
+                body_lines, next_i = self.collect_block_until(
+                    line_tuples, i + 1, [r'^(?:fin[\s_]*tan.*|fintan.*)$'],
+                    block_name="Tant que", start_line_no=line_no
+                )
                 translated_body = self.translate_statements(body_lines, indent_level + 1)
                 if not translated_body:
                     translated_body = [f"{base_indent}    pass"]
@@ -113,7 +120,7 @@ class StatementTranslator:
             # 5. Répéter ... Jusqu'à <Condition>
             if s.lower() in ('répéter', 'repeter'):
                 result.append(f"{base_indent}while True:")
-                body_lines, until_cond, next_i = self.collect_repeter_block(line_tuples, i + 1)
+                body_lines, until_cond, next_i = self.collect_repeter_block(line_tuples, i + 1, start_line_no=line_no)
                 translated_body = self.translate_statements(body_lines, indent_level + 1)
                 if not translated_body:
                     translated_body = [f"{base_indent}    pass"]
@@ -141,7 +148,7 @@ class StatementTranslator:
 
         return result
 
-    def parse_si_block(self, line_tuples: list, start_idx: int, indent_level: int):
+    def parse_si_block(self, line_tuples: list, start_idx: int, indent_level: int, si_line_no: int = None):
         """Parses if branches and returns translated lines and next index."""
         result = []
         base_indent = "    " * indent_level
@@ -160,7 +167,7 @@ class StatementTranslator:
                 continue
 
             if nesting > 0:
-                if re.match(r'^(?:fin\s*si|finsi)$', s, re.IGNORECASE):
+                if re.match(r'^(?:fin[\s_]*si|finsi)$', s, re.IGNORECASE):
                     nesting -= 1
                 branch_body.append((line_no, line))
                 idx += 1
@@ -185,7 +192,7 @@ class StatementTranslator:
                 idx += 1
                 continue
 
-            if re.match(r'^(?:fin\s*si|finsi)$', s, re.IGNORECASE):
+            if re.match(r'^(?:fin[\s_]*si|finsi)$', s, re.IGNORECASE):
                 sub = self.translate_statements(branch_body, indent_level + 1)
                 result.extend(sub if sub else [f"{base_indent}    pass"])
                 idx += 1
@@ -194,11 +201,10 @@ class StatementTranslator:
             branch_body.append((line_no, line))
             idx += 1
 
-        sub = self.translate_statements(branch_body, indent_level + 1)
-        result.extend(sub if sub else [f"{base_indent}    pass"])
-        return result, idx
+        line_info = f" à la ligne {si_line_no}" if si_line_no is not None else ""
+        raise MissingEndError(f"Bloc 'Si' ouvert{line_info} non fermé : 'Fin Si' manquant", line_num=si_line_no)
 
-    def parse_selon_block(self, line_tuples: list, start_idx: int, indent_level: int, selector: str):
+    def parse_selon_block(self, line_tuples: list, start_idx: int, indent_level: int, selector: str, selon_line_no: int = None):
         """Parses Selon choices into match/case."""
         result = []
         base_indent = "    " * indent_level
@@ -208,7 +214,7 @@ class StatementTranslator:
             line_no, line = line_tuples[idx]
             s = line.strip()
 
-            if re.match(r'^(?:fin\s*selon|finselon)$', s, re.IGNORECASE):
+            if re.match(r'^(?:fin[\s_]*selon|finselon)$', s, re.IGNORECASE):
                 idx += 1
                 return result, idx
 
@@ -253,9 +259,10 @@ class StatementTranslator:
 
             idx += 1
 
-        return result, idx
+        line_info = f" à la ligne {selon_line_no}" if selon_line_no is not None else ""
+        raise MissingEndError(f"Bloc 'Selon' ouvert{line_info} non fermé : 'Fin Selon' manquant", line_num=selon_line_no)
 
-    def collect_block_until(self, line_tuples: list, start_idx: int, end_patterns: list):
+    def collect_block_until(self, line_tuples: list, start_idx: int, end_patterns: list, block_name: str = "Bloc", start_line_no: int = None):
         """Collects lines until a matching closing pattern is found at depth 0."""
         body = []
         nesting = 0
@@ -281,16 +288,18 @@ class StatementTranslator:
                 else:
                     return body, idx + 1
 
-            if re.match(r'^(?:fin\s*si|finsi|fin\s*pour|finpour|fin\s*tant\s*que|fintantque|fintanqtue|fin\s*selon|jusqu[\'’]?(?:à|a))', s, re.IGNORECASE):
+            if re.match(r'^(?:fin[\s_]*si|finsi|fin[\s_]*pour|finpour|fin[\s_]*tant[\s_]*que|fintantque|fintanqtue|fin[\s_]*selon|jusqu[\'’]?(?:à|a))', s, re.IGNORECASE):
                 if nesting > 0:
                     nesting -= 1
 
             body.append((line_no, line))
             idx += 1
 
-        return body, idx
+        line_info = f" à la ligne {start_line_no}" if start_line_no is not None else ""
+        end_desc = f"'Fin {block_name}'" if block_name else "délimiteur de fin"
+        raise MissingEndError(f"Bloc '{block_name}' ouvert{line_info} non fermé : {end_desc} manquant", line_num=start_line_no)
 
-    def collect_repeter_block(self, line_tuples: list, start_idx: int):
+    def collect_repeter_block(self, line_tuples: list, start_idx: int, start_line_no: int = None):
         """Collects lines for Répéter until Jusqu'à."""
         body = []
         nesting = 0
@@ -320,7 +329,8 @@ class StatementTranslator:
             body.append((line_no, line))
             idx += 1
 
-        return body, None, idx
+        line_info = f" à la ligne {start_line_no}" if start_line_no is not None else ""
+        raise MissingEndError(f"Bloc 'Répéter' ouvert{line_info} non fermé : 'Jusqu\'à' manquant", line_num=start_line_no)
 
     def translate_single_statement(self, s: str, line_no: int = 0) -> str:
         """Translates an assignment, Lire, Ecrire, or subprogram call."""

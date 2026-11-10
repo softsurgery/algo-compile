@@ -2,7 +2,13 @@
 Main Transpiler Pipeline for Algorithm to Python 3.
 """
 
-from compiler.errors import CompileError
+from compiler.errors import (
+    CompileError,
+    MissingEndError,
+    MissingTypeError,
+    InvalidStructureError,
+)
+from compiler.validator import AlgoValidator
 from compiler.utils import normalize_accents, split_arguments
 from compiler.types import TypeHandler
 from compiler.parser import SectionExtractor
@@ -10,22 +16,32 @@ from compiler.expressions import ExpressionTranslator
 from compiler.statements import StatementTranslator
 from compiler.subprograms import SubprogramTranslator
 
+__all__ = [
+    "AlgoTranspiler",
+    "CompileError",
+    "MissingEndError",
+    "MissingTypeError",
+    "InvalidStructureError",
+]
+
 
 class AlgoTranspiler:
     """
     Main Compiler / Transpiler Pipeline.
-    Coordinates section extraction, type/object analysis, expression parsing,
-    control flow structure compilation, and subprogram generation.
+    Coordinates section extraction, error validation, type/object analysis,
+    expression parsing, control flow structure compilation, and subprogram generation.
     """
 
-    def __init__(self):
+    def __init__(self, strict_types: bool = True):
         self.subprogram_meta = {}   # name -> {'kind': kind, 'ref_params': [...], 'all_params': [...]}
         self.errors = []
         self.warnings = []
+        self.strict_types = strict_types
 
         # Modular components
         self.section_extractor = SectionExtractor()
         self.type_handler = TypeHandler()
+        self.validator = AlgoValidator(strict_types=strict_types)
         self.expr_trans = ExpressionTranslator()
         self.stmt_trans = StatementTranslator(self.expr_trans, self.type_handler, self.subprogram_meta)
         self.subprog_trans = SubprogramTranslator(self.stmt_trans)
@@ -54,7 +70,7 @@ class AlgoTranspiler:
     def program_name(self, val):
         self.section_extractor.program_name = val
 
-    def compile(self, algo_code: str) -> str:
+    def compile(self, algo_code: str, strict_types: bool = None) -> str:
         """
         Main entry point: transpiles algorithmic code to Python 3 with NumPy.
         Returns the generated Python source string.
@@ -66,21 +82,42 @@ class AlgoTranspiler:
         self.errors = []
         self.warnings = []
 
+        if strict_types is not None:
+            self.validator.strict_types = strict_types
+        else:
+            self.validator.strict_types = self.strict_types
+
         code = normalize_accents(algo_code)
         raw_lines = code.splitlines()
 
         # 1. Extract structural sections
         blocks = self.section_extractor.extract_sections(raw_lines)
+
+        # 2. Validate mandatory END structure
+        self.validator.validate_end_structure(raw_lines, blocks)
         
-        # 2. Parse type definitions first (TDNT)
+        # 3. Parse type definitions first (TDNT)
         self.type_handler.parse_type_declarations(blocks.get('types', []))
         
-        # 3. Parse object declarations (TDO / TDOG)
+        # 4. Parse object declarations (TDO / TDOG)
         self.type_handler.parse_object_declarations(blocks.get('objects', []))
 
-        # 4. Pre-scan subprograms headers to register signatures and @ ref params
+        # 5. Pre-scan subprograms headers to register signatures and @ ref params
         for subprog in blocks.get('subprograms', []):
             self.section_extractor.register_subprogram_signature(subprog, self.subprogram_meta)
+
+        # 6. Validate subprogram headers and TDO syntax
+        self.validator.validate_subprogram_headers(blocks.get('subprograms', []))
+        self.validator.validate_tdo_syntax(blocks.get('objects', []))
+
+        # 7. Validate mandatory types (cannot pass without)
+        if self.validator.strict_types:
+            self.validator.validate_mandatory_types(
+                blocks,
+                self.declared_objects,
+                self.custom_types,
+                self.subprogram_meta
+            )
 
         # 5. Generate standard Python header & runtime imports
         py_lines = [

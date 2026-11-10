@@ -234,8 +234,13 @@ class AssistantView(QWidget):
         low = error_message.lower()
         if "indent" in low:
             tips.append("Vérifiez l'indentation de vos blocs (après Alors, Faire, DEBUT).")
-        if "nameerror" in low or "not defined" in low:
-            tips.append("Assurez-vous que l'objet est bien déclaré dans la section <b>Déclaration des objets (TDO)</b>.")
+        if "nameerror" in low or "not defined" in low or "non déclaré" in low:
+            tips.append("Assurez-vous que l'objet est bien déclaré dans la section <b>Déclaration des objets (TDO)</b> avec son type.")
+        if "type manquant" in low or "type obligatoire" in low or "types sont obligatoires" in low:
+            tips.append("Tous les objets, paramètres et fonctions doivent obligatoirement posséder un type défini (ex: <code>x : Entier</code>, <code>f(a: Entier) : Booléen</code>).")
+        if "fin" in low and "manquant" in low:
+            tips.append("Vérifiez que votre algorithme principal et tous vos sous-programmes se terminent par le mot-clé obligatoire <b>FIN</b> (ou <b>END</b>).")
+            tips.append("Vérifiez également que chaque structure ouverte (<code>Si</code>, <code>Pour</code>, <code>Tant que</code>, <code>Selon</code>, <code>Répéter</code>) est bien fermée.")
         if "syntaxerror" in low:
             tips.append("Vérifiez la concordance des mots clés (ex: <code>Si ... FinSi</code>, <code>Pour ... Fin Pour</code>).")
             tips.append("Vérifiez que le symbole d'affectation est bien <code>&larr;</code> ou <code>&lt;-</code>.")

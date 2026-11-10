@@ -655,7 +655,10 @@ class MainWindow(QMainWindow):
             return py_code
         except Exception as e:
             self.lbl_status.setText("Erreur de compilation")
-            self.assistant_view.show_error_advice(str(e))
+            line_no = getattr(e, 'line_num', None)
+            if line_no and editor:
+                editor.set_error_line(line_no)
+            self.assistant_view.show_error_advice(str(e), line_no=line_no)
             self.side_tabs.setCurrentWidget(self.assistant_view)
             QMessageBox.warning(self, "Erreur de compilation", str(e))
             return ""
@@ -679,7 +682,10 @@ class MainWindow(QMainWindow):
             self.console.run_python_code(py_code)
         except Exception as e:
             self.lbl_status.setText("Erreur de compilation")
-            self.assistant_view.show_error_advice(str(e))
+            line_no = getattr(e, 'line_num', None)
+            if line_no and editor:
+                editor.set_error_line(line_no)
+            self.assistant_view.show_error_advice(str(e), line_no=line_no)
             self.side_tabs.setCurrentWidget(self.assistant_view)
             self.console.output_text.append(f"<span style='color: #ef4444; font-weight: bold;'>Erreur de compilation : {e}</span>")
 

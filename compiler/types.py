@@ -3,6 +3,7 @@ Type and Object Declarations Handler.
 """
 
 import re
+from compiler.errors import  MissingEndError
 
 class TypeHandler:
     """Manages custom types (TDNT) and declared objects (TDO/TDOG)."""
@@ -29,12 +30,15 @@ class TypeHandler:
             m_rec = re.match(r'^([a-zA-Z0-9_]+)\s*=\s*enregistrement', s, re.IGNORECASE)
             if m_rec:
                 type_name = m_rec.group(1)
+                rec_line_no = line_no
                 fields = {}
+                closed = False
                 while idx < len(lines):
                     l_no, l_text = lines[idx]
                     idx += 1
                     t_str = l_text.strip()
-                    if t_str.upper() in ('FIN', 'FIN ENREGISTREMENT') or re.match(r'^fin\s*(?:enregistrement)?$', t_str, re.IGNORECASE):
+                    if t_str.upper() in ('FIN', 'FIN ENREGISTREMENT') or re.match(r'^fin[\s_]*(?:enregistrement)?$', t_str, re.IGNORECASE):
+                        closed = True
                         break
                     if ':' in t_str:
                         fname, ftype = t_str.split(':', 1)
@@ -42,6 +46,8 @@ class TypeHandler:
                             f_clean = f.strip()
                             if f_clean:
                                 fields[f_clean] = ftype.strip()
+                if not closed:
+                    raise MissingEndError(f"Enregistrement '{type_name}' ouvert à la ligne {rec_line_no} non fermé : 'Fin Enregistrement' manquant", line_num=rec_line_no)
                 self.custom_types[type_name] = {'kind': 'enregistrement', 'fields': fields}
                 continue
 
