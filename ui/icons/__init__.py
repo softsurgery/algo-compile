@@ -20,6 +20,9 @@ from . import (
     theme,
     help,
     close,
+    folder,
+    doc,
+    refresh,
 )
 
 ICONS = {
@@ -37,6 +40,9 @@ ICONS = {
     "theme": theme.get_icon,
     "help": help.get_icon,
     "close": close.get_icon,
+    "folder": folder.get_icon,
+    "doc": doc.get_icon,
+    "refresh": refresh.get_icon,
 }
 
 def create_icon(name: str, color_hex: str = "#2c3e50", size: int = 24) -> QIcon:
