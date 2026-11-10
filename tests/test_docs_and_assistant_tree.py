@@ -135,6 +135,100 @@ class TestDocsAndAssistantTree(unittest.TestCase):
         view.set_dark_mode(False)
         self.assertFalse(view.is_dark)
 
+    def test_code_block_syntax_highlighting(self):
+        """Verifies that code blocks in docs are properly syntax-colored."""
+        view = AssistantView(is_dark=True, docs_dir=self.docs_dir)
+        algo_doc = """# Test
+```algo
+ALGORITHME Demo
+DEBUT
+  // Ceci est un commentaire
+  x <- 42
+  Ecrire_nl("Bonjour", x)
+FIN
+```
+"""
+        view._render_markdown_content(algo_doc)
+        html_out = view.browser.toHtml()
+        # Verify colored spans exist for keywords, comments, numbers, strings, etc.
+        self.assertIn("style=", html_out)
+        self.assertIn("ALGORITHME", html_out)
+        self.assertIn("DEBUT", html_out)
+        self.assertIn("Bonjour", html_out)
+
+        # Light mode highlighting
+        view.set_dark_mode(False)
+        view._render_markdown_content(algo_doc)
+        html_light = view.browser.toHtml()
+        self.assertIn("style=", html_light)
+
+    def test_documentation_zoom_scaling(self):
+        """Verifies that documentation zoom scales text and code blocks proportionally."""
+        view = AssistantView(is_dark=False, docs_dir=self.docs_dir)
+        test_doc = """# Test Zoom
+```algo
+x <- 10
+```
+"""
+        view._render_markdown_content(test_doc)
+        self.assertEqual(view.zoom_level, 0)
+        initial_html = view.browser.toHtml()
+        self.assertTrue("font-size:12px;" in initial_html or "font-size: 12px;" in initial_html)
+
+        # Zoom in
+        view.zoom_in(3)
+        self.assertEqual(view.zoom_level, 3)
+        zoomed_in_html = view.browser.toHtml()
+        self.assertTrue("font-size:15px;" in zoomed_in_html or "font-size: 15px;" in zoomed_in_html)
+
+        # Zoom out
+        view.zoom_out(1)
+        self.assertEqual(view.zoom_level, 2)
+        zoomed_html = view.browser.toHtml()
+        self.assertTrue("font-size:14px;" in zoomed_html or "font-size: 14px;" in zoomed_html)
+
+        # Reset zoom
+        view.reset_zoom()
+        self.assertEqual(view.zoom_level, 0)
+        reset_html = view.browser.toHtml()
+        self.assertTrue("font-size:12px;" in reset_html or "font-size: 12px;" in reset_html)
+
+    def test_doc_browser_ctrl_wheel_and_keys(self):
+        """Tests that Ctrl+Wheel and Ctrl+/-/0 on DocBrowser trigger zoom actions."""
+        from PyQt5.QtGui import QWheelEvent, QKeyEvent
+        from PyQt5.QtCore import QPointF, QPoint
+
+        view = AssistantView(is_dark=False, docs_dir=self.docs_dir)
+        view._current_content = "# Doc\n```algo\nx <- 1\n```"
+        view._render_markdown_content(view._current_content)
+
+        # Simulate Ctrl + Wheel Up
+        wheel_up = QWheelEvent(QPointF(10, 10), QPointF(10, 10), QPoint(0, 0), QPoint(0, 120), Qt.NoButton, Qt.ControlModifier, Qt.NoScrollPhase, False)
+        view.browser.wheelEvent(wheel_up)
+        self.assertEqual(view.zoom_level, 1)
+
+        # Simulate Ctrl + Wheel Down
+        wheel_down = QWheelEvent(QPointF(10, 10), QPointF(10, 10), QPoint(0, 0), QPoint(0, -120), Qt.NoButton, Qt.ControlModifier, Qt.NoScrollPhase, False)
+        view.browser.wheelEvent(wheel_down)
+        self.assertEqual(view.zoom_level, 0)
+
+        # Simulate Ctrl + Key_Plus
+        key_plus = QKeyEvent(QKeyEvent.KeyPress, Qt.Key_Plus, Qt.ControlModifier, "+")
+        view.browser.keyPressEvent(key_plus)
+        self.assertEqual(view.zoom_level, 1)
+
+        # Simulate Ctrl + Key_Minus
+        key_minus = QKeyEvent(QKeyEvent.KeyPress, Qt.Key_Minus, Qt.ControlModifier, "-")
+        view.browser.keyPressEvent(key_minus)
+        self.assertEqual(view.zoom_level, 0)
+
+        # Zoom in then reset with Ctrl + 0
+        view.zoom_in(2)
+        self.assertEqual(view.zoom_level, 2)
+        key_zero = QKeyEvent(QKeyEvent.KeyPress, Qt.Key_0, Qt.ControlModifier, "0")
+        view.browser.keyPressEvent(key_zero)
+        self.assertEqual(view.zoom_level, 0)
+
 
 if __name__ == "__main__":
     unittest.main()

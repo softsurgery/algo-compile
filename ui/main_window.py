@@ -412,29 +412,41 @@ class MainWindow(QMainWindow):
     def zoom_in(self):
         if self._is_console_focused():
             self.console.zoom_in()
+        elif hasattr(self, 'assistant_view') and hasattr(self.assistant_view, 'browser') and self.assistant_view.browser.hasFocus():
+            self.assistant_view.zoom_in()
         else:
             editor = self.current_editor()
             if editor:
                 editor.zoom_in()
             self.python_view.zoom_in()
+            if hasattr(self, 'assistant_view'):
+                self.assistant_view.zoom_in()
 
     def zoom_out(self):
         if self._is_console_focused():
             self.console.zoom_out()
+        elif hasattr(self, 'assistant_view') and hasattr(self.assistant_view, 'browser') and self.assistant_view.browser.hasFocus():
+            self.assistant_view.zoom_out()
         else:
             editor = self.current_editor()
             if editor:
                 editor.zoom_out()
             self.python_view.zoom_out()
+            if hasattr(self, 'assistant_view'):
+                self.assistant_view.zoom_out()
 
     def reset_zoom(self):
         if self._is_console_focused():
             self.console.reset_zoom()
+        elif hasattr(self, 'assistant_view') and hasattr(self.assistant_view, 'browser') and self.assistant_view.browser.hasFocus():
+            self.assistant_view.reset_zoom()
         else:
             editor = self.current_editor()
             if editor:
                 editor.reset_zoom()
             self.python_view.reset_zoom()
+            if hasattr(self, 'assistant_view'):
+                self.assistant_view.reset_zoom()
 
     def apply_theme(self, recreate_native: bool = False):
         if self.is_dark_mode:
