@@ -17,14 +17,21 @@ class TypeHandler:
         self.declared_objects.clear()
 
     def resolve_type(self, type_str: str) -> str:
-        """Resolves type aliases recursively (like typedef in C)."""
+        """Resolves type aliases recursively (like typedef in C), case-insensitively."""
         curr = type_str.strip()
         visited = set()
-        while curr in self.custom_types and self.custom_types[curr].get('kind') == 'alias':
-            if curr in visited:
+        while True:
+            found = False
+            for k, v in self.custom_types.items():
+                if k.lower() == curr.lower() and v.get('kind') == 'alias':
+                    if curr.lower() in visited:
+                        break
+                    visited.add(curr.lower())
+                    curr = v.get('target_type', curr).strip()
+                    found = True
+                    break
+            if not found:
                 break
-            visited.add(curr)
-            curr = self.custom_types[curr].get('target_type', curr).strip()
         return curr
 
     def parse_type_declarations(self, lines: list):
@@ -106,8 +113,8 @@ class TypeHandler:
                 self.custom_types[t_name] = {'kind': 'tableau_1d', 'size': size, 'elem_type': elem_type}
                 continue
 
-            # Type Alias / Typedef: Nom = Type
-            m_alias = re.match(r'^([a-zA-Z0-9_\u00C0-\u017F]+)\s*(?:=|:)\s*([a-zA-Z0-9_\u00C0-\u017F]+)$', s, re.IGNORECASE)
+            # Type Alias / Typedef / File type: Nom = Type or Nom = Fichier ...
+            m_alias = re.match(r'^([a-zA-Z0-9_\u00C0-\u017F]+)\s*(?:=|:)\s*(.+)$', s, re.IGNORECASE)
             if m_alias:
                 t_name, target = m_alias.group(1).strip(), m_alias.group(2).strip()
                 if target.lower() == 'enregistrement':
@@ -174,7 +181,9 @@ class TypeHandler:
                 return f"array([[{init_val}] * ({c_def['cols']})] * ({c_def['rows']}){dtype})"
 
         t = resolved.lower()
-        if 'entier' in t or 'int' in t:
+        if 'fichier' in t:
+            return "None"
+        elif 'entier' in t or 'int' in t:
             return "0"
         elif 'reel' in t or 'réel' in t or 'float' in t:
             return "0.0"

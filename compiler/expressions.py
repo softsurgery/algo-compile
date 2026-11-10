@@ -27,6 +27,10 @@ class ExpressionTranslator:
             'effacer': 'Effacer',
             'majus': 'Majus',
             'fin_fichier': '_fin_fichier',
+            'finfichier': '_fin_fichier',
+            'ouvrir': 'Ouvrir',
+            'lire_ligne': 'Lire_ligne',
+            'lireligne': 'Lire_ligne',
         }
 
     def translate_target(self, target_str: str) -> str:

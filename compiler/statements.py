@@ -22,6 +22,37 @@ class StatementTranslator:
             combined.update(self.local_objects)
         return combined
 
+    def _get_var_type(self, var_name: str) -> str:
+        """Looks up the declared or local type of var_name case-insensitively and resolves aliases."""
+        if not var_name:
+            return ""
+        target = var_name.strip().lower()
+        found_type = None
+        # Check local objects first
+        if hasattr(self, 'local_objects') and self.local_objects:
+            for k, v in self.local_objects.items():
+                if k.lower() == target:
+                    found_type = v
+                    break
+        # Check declared objects
+        if not found_type and hasattr(self, 'declared_objects') and self.declared_objects:
+            for k, v in self.declared_objects.items():
+                if k.lower() == target:
+                    found_type = v
+                    break
+        if found_type:
+            if hasattr(self, 'type_handler') and hasattr(self.type_handler, 'resolve_type'):
+                found_type = self.type_handler.resolve_type(found_type)
+            return found_type
+        return ""
+
+    def _is_file_var(self, var_name: str) -> tuple[bool, bool]:
+        """Returns (is_file, is_text) for a variable name."""
+        t_obj = self._get_var_type(var_name).lower()
+        if 'fichier' in t_obj:
+            return True, ('texte' in t_obj)
+        return False, False
+
     def translate_statements(self, line_tuples: list, indent_level: int = 1) -> list:
         """Translates a sequence of algorithmic lines to Python statements."""
         result = []
@@ -345,18 +376,30 @@ class StatementTranslator:
             args_str = m_ecrire.group(1).strip()
             args = split_arguments(args_str)
             
-            # File logical name check: Ecrire(f, obj)
-            if len(args) >= 2 and args[0].isidentifier() and args[0] in self.declared_objects:
-                t_obj = self.declared_objects[args[0]].lower()
-                if 'fichier' in t_obj:
+            # File logical name check: Ecrire(f, obj...) or Ecrire_nl(f, obj...)
+            if len(args) >= 2 and args[0].isidentifier():
+                is_file, is_text = self._is_file_var(args[0])
+                if is_file:
                     f_name = args[0]
-                    content = self.expr_trans.translate_expression(args[1])
-                    if 'texte' in t_obj:
-                        if is_nl:
-                            return f"{f_name}.write(str({content}) + '\\n')"
-                        return f"{f_name}.write(str({content}))"
+                    if is_text:
+                        if len(args) == 2:
+                            content = self.expr_trans.translate_expression(args[1])
+                            if is_nl:
+                                return f"{f_name}.write(str({content}) + '\\n')"
+                            return f"{f_name}.write(str({content}))"
+                        else:
+                            py_items = [f"str({self.expr_trans.translate_expression(a)})" for a in args[1:]]
+                            content = " + ".join(py_items)
+                            if is_nl:
+                                return f"{f_name}.write({content} + '\\n')"
+                            return f"{f_name}.write({content})"
                     else:
-                        return f"dump({content}, {f_name})"
+                        # Binary data file: pickle dump
+                        dumps = []
+                        for a in args[1:]:
+                            content = self.expr_trans.translate_expression(a)
+                            dumps.append(f"dump({content}, {f_name})")
+                        return "; ".join(dumps)
 
             # Console output
             py_args = [self.expr_trans.translate_expression(arg) for arg in args]
@@ -373,18 +416,27 @@ class StatementTranslator:
             args_str = m_lire.group(1).strip()
             args = split_arguments(args_str)
 
-            # File read: Lire(f, obj) or Lire_ligne(f, ch)
-            if len(args) == 2 and args[0].isidentifier() and args[0] in self.declared_objects:
-                t_obj = self.declared_objects[args[0]].lower()
-                if 'fichier' in t_obj:
+            # File read: Lire(f, obj...) or Lire_ligne(f, ch...)
+            if len(args) >= 2 and args[0].isidentifier():
+                is_file, is_text = self._is_file_var(args[0])
+                if is_file or is_line:
                     f_name = args[0]
-                    target_var = self.expr_trans.translate_target(args[1])
-                    if 'texte' in t_obj:
-                        if is_line:
-                            return f"{target_var} = {f_name}.readline()"
-                        return f"{target_var} = {f_name}.read()"
+                    if is_text or is_line:
+                        reads = []
+                        for a in args[1:]:
+                            target_var = self.expr_trans.translate_target(a)
+                            if is_line:
+                                reads.append(f"{target_var} = {f_name}.readline().rstrip('\\r\\n')")
+                            else:
+                                reads.append(f"{target_var} = {f_name}.read()")
+                        return "; ".join(reads)
                     else:
-                        return f"{target_var} = load({f_name})"
+                        # Binary data file: pickle load
+                        reads = []
+                        for a in args[1:]:
+                            target_var = self.expr_trans.translate_target(a)
+                            reads.append(f"{target_var} = load({f_name})")
+                        return "; ".join(reads)
 
             # Interactive input from console: Lire(a, b, ...)
             assignments = []
@@ -392,10 +444,8 @@ class StatementTranslator:
                 target_var = self.expr_trans.translate_target(arg.strip())
                 clean_id = re.sub(r'\[.*\]', '', arg.strip())
                 clean_id = clean_id.split('.')[0].strip()
-                vtype = self.local_objects.get(clean_id, None) or self.declared_objects.get(clean_id, None)
+                vtype = self._get_var_type(clean_id)
                 if vtype:
-                    if hasattr(self.type_handler, 'resolve_type'):
-                        vtype = self.type_handler.resolve_type(vtype)
                     target_type = vtype
                     # If reading an array element (e.g. IDENT[i]), get the element type
                     if '[' in arg:
@@ -423,10 +473,23 @@ class StatementTranslator:
         if m_open:
             args = split_arguments(m_open.group(1))
             if len(args) >= 3:
+                arg0 = args[0].strip()
+                arg1 = args[1].strip()
+                arg2 = args[2].strip()
+                all_objs_lower = {k.lower(): v for k, v in {**self.declared_objects, **self.local_objects}.items()}
+                if arg0.lower() in all_objs_lower and arg1.lower() not in all_objs_lower:
+                    f_name = arg0
+                    path = self.expr_trans.translate_expression(arg1)
+                    mode = self.expr_trans.translate_expression(arg2)
+                else:
+                    path = self.expr_trans.translate_expression(arg0)
+                    f_name = arg1
+                    mode = self.expr_trans.translate_expression(arg2)
+                return f"{f_name} = Ouvrir({path}, {mode})"
+            elif len(args) == 2:
                 path = self.expr_trans.translate_expression(args[0])
-                f_name = args[1].strip()
-                mode = self.expr_trans.translate_expression(args[2])
-                return f"{f_name} = open({path}, {mode})"
+                mode = self.expr_trans.translate_expression(args[1])
+                return f"Ouvrir({path}, {mode})"
 
         # 4. File close: Fermer(f)
         m_close = re.match(r'^fermer\s*\((.+?)\)$', s, re.IGNORECASE)

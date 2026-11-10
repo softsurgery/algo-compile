@@ -30,7 +30,8 @@ BUILTIN_FUNCTIONS = {
     'arrondi', 'racinecarré', 'racinecarre', 'aléa', 'alea', 'ent', 'abs',
     'ord', 'chr', 'long', 'pos', 'convch', 'estnum', 'valeur', 'sous_chaine',
     'effacer', 'majus', 'vrai', 'faux', 'true', 'false', 'pi', 'null', 'none',
-    '_lire_valeur', '_fin_fichier'
+    '_lire_valeur', '_fin_fichier',
+    'ouvrir', 'fermer', 'fin_fichier', 'finfichier', 'lire_ligne', 'lireligne'
 }
 
 # Algorithmic syntax keywords
@@ -41,13 +42,14 @@ KEYWORDS = {
     'selon', 'finselon', 'retourner', 'lire', 'ecrire', 'ecrire_nl', 'écrire',
     'écrire_nl', 'algorithme', 'fonction', 'procedure', 'procédure',
     'enregistrement', 'tableau', 'div', 'mod', 'et', 'ou', 'non', 'in',
-    'dans', 'pas', 'end', 'begin', 'true', 'false', 'match', 'case'
+    'dans', 'pas', 'end', 'begin', 'true', 'false', 'match', 'case',
+    'ouvrir', 'fermer', 'lire_ligne', 'fin_fichier', 'finfichier'
 }
 
 # Known standard primitive and composite type keywords
 STANDARD_TYPES = {
     'entier', 'reel', 'réel', 'booleen', 'booléen', 'caractere', 'caractère',
-    'chaine', 'chaîne', 'tableau', 'fichier', 'int', 'float',
+    'chaine', 'chaîne', 'tableau', 'fichier', 'texte', 'int', 'float',
     'bool', 'str', 'char', 'void'
 }
 

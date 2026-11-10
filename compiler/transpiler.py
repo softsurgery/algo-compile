@@ -144,7 +144,8 @@ class AlgoTranspiler:
             "    Arrondi, RacineCarré, RacineCarre, Aléa, Alea, Ent, Abs,",
             "    Ord, Chr, Long, Pos, Convch, Estnum, Valeur, Sous_chaine,",
             "    Effacer, Majus, Enregistrement, _lire_valeur, _fin_fichier,",
-            "    Vrai, Faux, vrai, faux",
+            "    Fin_fichier, fin_fichier, Ouvrir, ouvrir, Fermer, fermer,",
+            "    Lire_ligne, lire_ligne, Vrai, Faux, vrai, faux",
             ")",
             "",
         ]
