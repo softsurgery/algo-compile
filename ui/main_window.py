@@ -141,7 +141,7 @@ class MainWindow(QMainWindow):
         self.act_new = QAction(create_icon("new"), "Nouveau", self)
         self.act_new.setShortcut(QKeySequence.New)
         self.act_new.setToolTip("Nouveau fichier algorithmique (Ctrl+N)")
-        self.act_new.triggered.connect(self.new_file)
+        self.act_new.triggered.connect(lambda checked=False: self.new_file())
         self.toolbar.addAction(self.act_new)
 
         # Open file
@@ -512,7 +512,9 @@ class MainWindow(QMainWindow):
             return w
         return None
 
-    def new_file(self, title: str = "Sans-titre.algo", content: str = ""):
+    def new_file(self, title: str = "Nouveau Script", content: str = ""):
+        if isinstance(title, bool) or not title:
+            title = "Nouveau Script"
         editor = AlgoCodeEditor(self, is_dark=self.is_dark_mode)
         
         default_content = content or (
@@ -531,6 +533,7 @@ class MainWindow(QMainWindow):
         self.tab_widget.setCurrentIndex(idx)
         editor.setProperty("file_path", None)
         editor.setProperty("is_dirty", False)
+        self._update_window_title()
         return editor
 
     def open_file(self):
@@ -588,6 +591,7 @@ class MainWindow(QMainWindow):
             editor.setProperty("is_dirty", False)
             idx = self.tab_widget.currentIndex()
             self.tab_widget.setTabText(idx, f" {os.path.basename(path)} ")
+            self._update_window_title()
             self.lbl_status.setText(f"Enregistré : {os.path.basename(path)}")
             if hasattr(self, "db") and self.db:
                 norm_path = os.path.abspath(path)
@@ -640,9 +644,20 @@ class MainWindow(QMainWindow):
 
         if self.tab_widget.count() == 0:
             self.new_file()
+        else:
+            self._update_window_title()
+
+    def _update_window_title(self):
+        idx = self.tab_widget.currentIndex()
+        if idx >= 0:
+            tab_text = self.tab_widget.tabText(idx).strip()
+            self.setWindowTitle(f"{tab_text} — Algoo - IDE Algorithmique")
+        else:
+            self.setWindowTitle("Algoo - IDE Algorithmique")
 
     def _on_tab_changed(self, index):
         self._on_cursor_position_changed()
+        self._update_window_title()
         if hasattr(self, "db") and self.db:
             editor = self.current_editor()
             if editor and editor.property("file_path"):
@@ -664,6 +679,7 @@ class MainWindow(QMainWindow):
             title = self.tab_widget.tabText(idx)
             if not title.endswith("*"):
                 self.tab_widget.setTabText(idx, title + "*")
+            self._update_window_title()
 
     def _on_insert_symbol(self, text: str):
         editor = self.current_editor()
