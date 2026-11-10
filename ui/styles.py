@@ -223,25 +223,25 @@ QPushButton:pressed {
     background-color: #e2e8f0;
 }
 
-/* List Widgets */
-QListWidget {
+/* List & Tree Widgets */
+QListWidget, QTreeWidget, QTreeView {
     background-color: #ffffff;
     color: #1e293b;
     border: 1px solid #e2e8f0;
     border-radius: 6px;
 }
 
-QListWidget::item {
-    padding: 6px 8px;
+QListWidget::item, QTreeWidget::item, QTreeView::item {
+    padding: 5px 8px;
     border-radius: 4px;
     color: #1e293b;
 }
 
-QListWidget::item:hover {
+QListWidget::item:hover, QTreeWidget::item:hover, QTreeView::item:hover {
     background-color: #f1f5f9;
 }
 
-QListWidget::item:selected {
+QListWidget::item:selected, QTreeWidget::item:selected, QTreeView::item:selected {
     background-color: #e2e8f0;
     color: #0f172a;
 }
@@ -529,25 +529,25 @@ QPushButton:pressed {
     background-color: #585b70;
 }
 
-/* List Widgets */
-QListWidget {
+/* List & Tree Widgets */
+QListWidget, QTreeWidget, QTreeView {
     background-color: #181825;
     color: #cdd6f4;
     border: 1px solid #313244;
     border-radius: 6px;
 }
 
-QListWidget::item {
-    padding: 6px 8px;
+QListWidget::item, QTreeWidget::item, QTreeView::item {
+    padding: 5px 8px;
     border-radius: 4px;
     color: #cdd6f4;
 }
 
-QListWidget::item:hover {
+QListWidget::item:hover, QTreeWidget::item:hover, QTreeView::item:hover {
     background-color: #313244;
 }
 
-QListWidget::item:selected {
+QListWidget::item:selected, QTreeWidget::item:selected, QTreeView::item:selected {
     background-color: #45475a;
     color: #ffffff;
 }
