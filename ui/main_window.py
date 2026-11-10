@@ -18,8 +18,8 @@ from compiler.transpiler import AlgoTranspiler, CompileError
 from ui.editor import AlgoCodeEditor
 from ui.console import AlgoConsole
 from ui.python_view import PythonView
-from ui.variables_view import VariablesView
 from ui.tdo_view import TDOView
+from ui.tdnt_view import TDNTView
 from ui.assistant_view import AssistantView
 from ui.symbols_bar import SymbolsBar
 from ui.icons import create_icon
@@ -111,17 +111,19 @@ class MainWindow(QMainWindow):
         self.python_view = PythonView(self, is_dark=self.is_dark_mode)
         self.side_tabs.addTab(self.python_view, "Code Python")
 
-        # 2. Variables View
-        self.variables_view = VariablesView(self, is_dark=self.is_dark_mode)
-        self.side_tabs.addTab(self.variables_view, "Variables")
-
-        # 3. TDO View
+        # 2. TDO View (Separate TDOG and TDOL tables)
         self.tdo_view = TDOView(self, is_dark=self.is_dark_mode)
         self.side_tabs.addTab(self.tdo_view, "Tableau T.D.O.")
+
+        # 3. TDNT View
+        self.tdnt_view = TDNTView(self, is_dark=self.is_dark_mode)
+        self.side_tabs.addTab(self.tdnt_view, "Tableau T.D.N.T.")
 
         # 4. Guide & Assistant View
         self.assistant_view = AssistantView(self, is_dark=self.is_dark_mode)
         self.side_tabs.addTab(self.assistant_view, "Guide et Aide")
+
+        self.side_tabs.currentChanged.connect(self._on_side_tab_changed)
 
         self.h_splitter.addWidget(self.side_tabs)
 
@@ -302,13 +304,13 @@ class MainWindow(QMainWindow):
         act_show_py.triggered.connect(lambda: self.side_tabs.setCurrentWidget(self.python_view))
         menu_view.addAction(act_show_py)
 
-        act_show_var = QAction("Variables", self)
-        act_show_var.triggered.connect(lambda: self.side_tabs.setCurrentWidget(self.variables_view))
-        menu_view.addAction(act_show_var)
-
         act_show_tdo = QAction("Tableau T.D.O.", self)
         act_show_tdo.triggered.connect(lambda: self.side_tabs.setCurrentWidget(self.tdo_view))
         menu_view.addAction(act_show_tdo)
+
+        act_show_tdnt = QAction("Tableau T.D.N.T.", self)
+        act_show_tdnt.triggered.connect(lambda: self.side_tabs.setCurrentWidget(self.tdnt_view))
+        menu_view.addAction(act_show_tdnt)
 
         act_show_guide = QAction("Guide et Aide", self)
         act_show_guide.triggered.connect(lambda: self.side_tabs.setCurrentWidget(self.assistant_view))
@@ -465,10 +467,10 @@ class MainWindow(QMainWindow):
             self.console.set_dark_mode(self.is_dark_mode)
         if hasattr(self, "python_view"):
             self.python_view.set_dark_mode(self.is_dark_mode)
-        if hasattr(self, "variables_view"):
-            self.variables_view.set_dark_mode(self.is_dark_mode)
         if hasattr(self, "tdo_view"):
             self.tdo_view.set_dark_mode(self.is_dark_mode)
+        if hasattr(self, "tdnt_view"):
+            self.tdnt_view.set_dark_mode(self.is_dark_mode)
         if hasattr(self, "assistant_view"):
             self.assistant_view.set_dark_mode(self.is_dark_mode)
 
@@ -569,6 +571,7 @@ class MainWindow(QMainWindow):
         editor.setProperty("file_path", norm_target)
         editor.setProperty("is_dirty", False)
         self.lbl_status.setText(f"Fichier ouvert : {filename}")
+        self.update_inspectors(content)
 
         if record and hasattr(self, "db") and self.db:
             idx = self.tab_widget.currentIndex()
@@ -658,10 +661,17 @@ class MainWindow(QMainWindow):
     def _on_tab_changed(self, index):
         self._on_cursor_position_changed()
         self._update_window_title()
+        self.update_inspectors()
         if hasattr(self, "db") and self.db:
             editor = self.current_editor()
             if editor and editor.property("file_path"):
                 self.db.set_active_file(editor.property("file_path"))
+
+    def _on_side_tab_changed(self, index):
+        cur = self.side_tabs.widget(index)
+        if cur in (getattr(self, "tdo_view", None),
+                   getattr(self, "tdnt_view", None)):
+            self.update_inspectors()
 
     def _on_cursor_position_changed(self):
         editor = self.current_editor()
@@ -831,6 +841,20 @@ class MainWindow(QMainWindow):
         else:
             self.new_file()
 
+    def update_inspectors(self, algo_code: str = None):
+        """Extracts and populates Variables, TDO, and TDNT views with all symbols."""
+        if algo_code is None:
+            editor = self.current_editor()
+            if not editor:
+                return
+            algo_code = editor.toPlainText()
+
+        symbols = self.transpiler.extract_symbols(algo_code)
+        if hasattr(self, "tdo_view"):
+            self.tdo_view.update_tdo(symbols.get('tdo_tables', []))
+        if hasattr(self, "tdnt_view"):
+            self.tdnt_view.update_tdnt(symbols.get('custom_types', {}))
+
     # -------------------------------------------------------------------------
     # Compilation and Execution
     # -------------------------------------------------------------------------
@@ -843,13 +867,12 @@ class MainWindow(QMainWindow):
         editor.set_error_line(None)
         algo_code = editor.toPlainText()
 
+        # Update inspectors immediately
+        self.update_inspectors(algo_code)
+
         try:
             py_code = self.transpiler.compile(algo_code)
             self.python_view.set_python_code(py_code)
-
-            # Update declared objects in TDO and Variables views
-            self.tdo_view.update_tdo(self.transpiler.declared_objects)
-            self.variables_view.update_declared_variables(self.transpiler.declared_objects)
 
             self.side_tabs.setCurrentWidget(self.python_view)
             self.lbl_status.setText("Traduction Python terminée avec succès")
@@ -873,11 +896,12 @@ class MainWindow(QMainWindow):
         editor.set_error_line(None)
         algo_code = editor.toPlainText()
 
+        # Update inspectors immediately
+        self.update_inspectors(algo_code)
+
         try:
             py_code = self.transpiler.compile(algo_code)
             self.python_view.set_python_code(py_code)
-            self.tdo_view.update_tdo(self.transpiler.declared_objects)
-            self.variables_view.update_declared_variables(self.transpiler.declared_objects)
 
             self.lbl_status.setText("Exécution en cours...")
             self.console.run_python_code(py_code)

@@ -15,6 +15,7 @@ from compiler.parser import SectionExtractor
 from compiler.expressions import ExpressionTranslator
 from compiler.statements import StatementTranslator
 from compiler.subprograms import SubprogramTranslator
+from compiler.symbol_extractor import extract_all_symbols
 
 __all__ = [
     "AlgoTranspiler",
@@ -45,6 +46,8 @@ class AlgoTranspiler:
         self.expr_trans = ExpressionTranslator()
         self.stmt_trans = StatementTranslator(self.expr_trans, self.type_handler, self.subprogram_meta)
         self.subprog_trans = SubprogramTranslator(self.stmt_trans)
+        self.last_blocks = {}
+        self.last_symbols = {}
 
     @property
     def declared_objects(self):
@@ -92,6 +95,8 @@ class AlgoTranspiler:
 
         # 1. Extract structural sections
         blocks = self.section_extractor.extract_sections(raw_lines)
+        self.last_blocks = blocks
+        self.last_symbols = extract_all_symbols(algo_code)
 
         # 2. Validate mandatory END structure
         self.validator.validate_end_structure(raw_lines, blocks)
@@ -219,3 +224,34 @@ class AlgoTranspiler:
 
     def _split_arguments(self, s):
         return split_arguments(s)
+
+    def extract_symbols(self, algo_code: str = None) -> dict:
+        """
+        Extracts all symbols (TDNT, TDOG, and all subprograms variables & objects).
+        If algo_code is None, uses last extracted symbols.
+        """
+        if algo_code is not None:
+            self.last_symbols = extract_all_symbols(algo_code, self.custom_types)
+        elif not self.last_symbols and hasattr(self, 'last_blocks'):
+            self.last_symbols = extract_all_symbols("", self.custom_types)
+        return self.last_symbols
+
+    def get_all_variables(self, algo_code: str = None) -> list:
+        """Returns list of all variables across global scope and all subprograms."""
+        symbols = self.extract_symbols(algo_code)
+        return symbols.get('variables', [])
+
+    def get_all_tdo_objects(self, algo_code: str = None) -> list:
+        """Returns list of all TDO objects (TDOG + all subprogram TDOL & parameters)."""
+        symbols = self.extract_symbols(algo_code)
+        return symbols.get('tdo_objects', [])
+
+    def get_all_tdo_tables(self, algo_code: str = None) -> list:
+        """Returns list of separated TDO tables (TDOG and each subprogram TDOL)."""
+        symbols = self.extract_symbols(algo_code)
+        return symbols.get('tdo_tables', [])
+
+    def get_all_custom_types(self, algo_code: str = None) -> dict:
+        """Returns dict of all TDNT custom types."""
+        symbols = self.extract_symbols(algo_code)
+        return symbols.get('custom_types', self.custom_types)
