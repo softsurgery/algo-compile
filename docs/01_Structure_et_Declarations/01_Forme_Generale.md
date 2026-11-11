@@ -43,6 +43,6 @@ x              Entier
 2. **Indentation** :
    - Les blocs d'instructions situés entre `DEBUT` et `FIN`, ainsi que l'intérieur des structures de contrôle (`Si`, `Pour`, `Tant que`...) doivent être indentés pour une clarté optimale.
 3. **Indices des tableaux et chaînes** :
-   - Selon la convention officielle (2024-2025), le premier élément d'une chaîne ou d'un tableau a l'indice **0**.
+   - Selon la convention officielle, le premier élément d'une chaîne ou d'un tableau a l'indice **0**.
 4. **Typage strict** :
    - Tout identificateur (variable, constante, tableau, fonction) utilisé dans l'algorithme doit être expressément déclaré dans son tableau correspondant (**TDOG** ou **TDOL**).

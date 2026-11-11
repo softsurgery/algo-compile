@@ -1,4 +1,4 @@
-# 2. Conventions Algorithmiques Officielles (2024-2025)
+# 2. Conventions Algorithmiques Officielles
 
 Synthèse des conventions adoptées pour l'enseignement de l'informatique et de l'algorithmique (Sections Sciences de l'Informatique, Mathématiques et Sciences Expérimentales).
 
@@ -19,15 +19,15 @@ Synthèse des conventions adoptées pour l'enseignement de l'informatique et de 
 
 ## 2. Correspondance des Notations
 
-| Algorithmique Officielle | Transpilation Python |
-|---|---|
-| `x <- expr` ou `x ← expr` | `x = expr` |
-| `Lire(x)` | Saisie selon type (ex: `int(input())`) |
-| `Ecrire(expr)` | `print(expr, end='')` |
-| `Ecrire_nl(expr)` | `print(expr)` |
-| `a Div b` | `a // b` |
-| `a Mod b` | `a % b` |
-| `a ≠ b` ou `a <> b` | `a != b` |
-| `Non (A Et B)` | `not (A and B)` |
-| `x ∈ [a .. b]` | `a <= x <= b` |
-| `Tableau de N Type` | `numpy.array([defaut] * N)` |
+| Algorithmique Officielle  | Transpilation Python                   |
+| ------------------------- | -------------------------------------- |
+| `x <- expr` ou `x ← expr` | `x = expr`                             |
+| `Lire(x)`                 | Saisie selon type (ex: `int(input())`) |
+| `Ecrire(expr)`            | `print(expr, end='')`                  |
+| `Ecrire_nl(expr)`         | `print(expr)`                          |
+| `a Div b`                 | `a // b`                               |
+| `a Mod b`                 | `a % b`                                |
+| `a ≠ b` ou `a <> b`       | `a != b`                               |
+| `Non (A Et B)`            | `not (A and B)`                        |
+| `x ∈ [a .. b]`            | `a <= x <= b`                          |
+| `Tableau de N Type`       | `numpy.array([defaut] * N)`            |
