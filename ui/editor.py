@@ -12,51 +12,87 @@ from PyQt5.QtGui import (
 from PyQt5.QtCore import Qt, QRect, QSize
 
 
+DEFAULT_SYNTAX_COLORS_DARK = {
+    "keyword": "#89b4fa",
+    "control": "#cba6f7",
+    "type": "#fab387",
+    "builtin": "#94e2d5",
+    "operator": "#f38ba8",
+    "string": "#a6e3a1",
+    "literal": "#a6e3a1",
+    "comment": "#6c7086",
+}
+
+DEFAULT_SYNTAX_COLORS_LIGHT = {
+    "keyword": "#0969da",
+    "control": "#8250df",
+    "type": "#953800",
+    "builtin": "#0550ae",
+    "operator": "#cf222e",
+    "string": "#0a7029",
+    "literal": "#1a7f37",
+    "comment": "#6e7781",
+}
+
+
 class AlgoHighlighter(QSyntaxHighlighter):
     """Syntax Highlighter for Algorithmic Code."""
 
-    def __init__(self, parent=None, is_dark=False):
+    def __init__(self, parent=None, is_dark=False, custom_colors=None):
         super().__init__(parent)
         self.is_dark = is_dark
+        self.custom_colors = custom_colors or {}
         self.highlighting_rules = []
         self._setup_formats()
         self._build_rules()
 
-    def set_dark_mode(self, is_dark: bool):
+    def set_custom_colors(self, custom_colors: dict):
+        self.custom_colors = custom_colors or {}
+        self._setup_formats()
+        self._build_rules()
+        self.rehighlight()
+
+    def set_dark_mode(self, is_dark: bool, custom_colors: dict = None):
         self.is_dark = is_dark
+        if custom_colors is not None:
+            self.custom_colors = custom_colors
         self._setup_formats()
         self._build_rules()
         self.rehighlight()
 
     def _setup_formats(self):
+        palette = dict(DEFAULT_SYNTAX_COLORS_DARK if self.is_dark else DEFAULT_SYNTAX_COLORS_LIGHT)
+        if self.custom_colors:
+            palette.update(self.custom_colors)
+
         self.fmt_keyword = QTextCharFormat()
         self.fmt_keyword.setFontWeight(QFont.Bold)
-        self.fmt_keyword.setForeground(QColor("#89b4fa" if self.is_dark else "#0969da"))
+        self.fmt_keyword.setForeground(QColor(palette["keyword"]))
 
         self.fmt_control = QTextCharFormat()
         self.fmt_control.setFontWeight(QFont.Bold)
-        self.fmt_control.setForeground(QColor("#cba6f7" if self.is_dark else "#8250df"))
+        self.fmt_control.setForeground(QColor(palette["control"]))
 
         self.fmt_type = QTextCharFormat()
         self.fmt_type.setFontWeight(QFont.DemiBold)
-        self.fmt_type.setForeground(QColor("#fab387" if self.is_dark else "#953800"))
+        self.fmt_type.setForeground(QColor(palette["type"]))
 
         self.fmt_builtin = QTextCharFormat()
-        self.fmt_builtin.setForeground(QColor("#94e2d5" if self.is_dark else "#0550ae"))
+        self.fmt_builtin.setForeground(QColor(palette["builtin"]))
 
         self.fmt_operator = QTextCharFormat()
         self.fmt_operator.setFontWeight(QFont.Bold)
-        self.fmt_operator.setForeground(QColor("#f38ba8" if self.is_dark else "#cf222e"))
+        self.fmt_operator.setForeground(QColor(palette["operator"]))
 
         self.fmt_literal = QTextCharFormat()
-        self.fmt_literal.setForeground(QColor("#a6e3a1" if self.is_dark else "#1a7f37"))
+        self.fmt_literal.setForeground(QColor(palette["literal"]))
 
         self.fmt_string = QTextCharFormat()
-        self.fmt_string.setForeground(QColor("#a6e3a1" if self.is_dark else "#0a7029"))
+        self.fmt_string.setForeground(QColor(palette["string"]))
 
         self.fmt_comment = QTextCharFormat()
         self.fmt_comment.setFontItalic(True)
-        self.fmt_comment.setForeground(QColor("#6c7086" if self.is_dark else "#6e7781"))
+        self.fmt_comment.setForeground(QColor(palette["comment"]))
 
     def _build_rules(self):
         self.highlighting_rules = []
@@ -188,11 +224,37 @@ class AlgoCodeEditor(QPlainTextEdit):
         self.update_line_number_area_width(0)
         self.highlight_current_line()
 
-    def set_dark_mode(self, is_dark: bool):
+    def set_dark_mode(self, is_dark: bool, custom_colors: dict = None):
         self.is_dark = is_dark
-        self.highlighter.set_dark_mode(is_dark)
+        self.highlighter.set_dark_mode(is_dark, custom_colors)
         self.highlight_current_line()
         self.line_number_area.update()
+
+    def apply_settings(self, settings: dict = None, custom_colors: dict = None):
+        """Applies font family, size, tab width, line number visibility, and custom colors."""
+        if settings:
+            family = settings.get("font_family")
+            size = settings.get("font_size", 11)
+            if family:
+                f = QFont(family, size)
+                f.setStyleHint(QFont.Monospace)
+                self.setFont(f)
+
+            self.tab_size = settings.get("tab_size", 4)
+            self.setTabStopDistance(self.fontMetrics().horizontalAdvance(' ') * self.tab_size)
+
+            self.show_line_numbers = settings.get("show_line_numbers", True)
+            self.line_number_area.setVisible(self.show_line_numbers)
+            if not self.show_line_numbers:
+                self.setViewportMargins(0, 0, 0, 0)
+            else:
+                self.update_line_number_area_width(0)
+
+            self.highlight_line_enabled = settings.get("highlight_current_line", True)
+            self.highlight_current_line()
+
+        if custom_colors is not None:
+            self.highlighter.set_custom_colors(custom_colors)
 
     def line_number_area_width(self):
         digits = 1
@@ -224,7 +286,7 @@ class AlgoCodeEditor(QPlainTextEdit):
     def highlight_current_line(self):
         extra_selections = []
 
-        if not self.isReadOnly():
+        if not self.isReadOnly() and getattr(self, "highlight_line_enabled", True):
             selection = QTextEdit.ExtraSelection()
             line_color = QColor("#313244") if self.is_dark else QColor("#f1f5f9")
             selection.format.setBackground(line_color)

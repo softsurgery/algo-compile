@@ -118,17 +118,50 @@ class DatabaseManager:
             self._conn.commit()
 
     def get_theme(self, default: Optional[str] = None) -> Optional[str]:
-        """Returns 'dark' or 'light', or default if not set."""
+        """Returns 'dark', 'light', or 'system', or default if not set."""
+        mode = self.get_setting("theme_mode", None)
+        if mode in ("dark", "light", "system"):
+            return mode
         return self.get_setting("theme", default)
 
     def set_theme(self, theme: str) -> None:
-        """Sets theme preference ('dark' or 'light')."""
-        norm_theme = "dark" if theme.lower().startswith("dark") else "light"
-        self.set_setting("theme", norm_theme)
+        """Sets theme preference ('dark', 'light', or 'system')."""
+        t = theme.lower().strip()
+        if t in ("system", "système", "auto"):
+            norm_theme = "system"
+        elif t.startswith("dark") or t.startswith("sombre"):
+            norm_theme = "dark"
+        else:
+            norm_theme = "light"
+        self.set_setting("theme", "dark" if norm_theme == "dark" else "light")
+        self.set_setting("theme_mode", norm_theme)
+
+    def get_theme_mode(self, default: str = "system") -> str:
+        """Returns 'system', 'dark', or 'light'."""
+        mode = self.get_setting("theme_mode", None)
+        if mode in ("system", "dark", "light"):
+            return mode
+        legacy = self.get_setting("theme", None)
+        if legacy in ("dark", "light"):
+            return legacy
+        return default
+
+    def set_theme_mode(self, mode: str) -> None:
+        """Stores theme mode ('system', 'dark', or 'light')."""
+        self.set_theme(mode)
 
     def is_dark_mode(self, default: Optional[bool] = None) -> Optional[bool]:
         """Returns True if dark mode is configured, False if light mode, or default."""
-        theme = self.get_theme(None)
+        mode = self.get_theme_mode(None)
+        if mode == "system":
+            try:
+                from ui.theme_utils import detect_system_dark_mode
+                return detect_system_dark_mode()
+            except Exception:
+                return default
+        if mode in ("dark", "light"):
+            return mode == "dark"
+        theme = self.get_setting("theme", None)
         if theme is None:
             return default
         return theme == "dark"
@@ -136,6 +169,55 @@ class DatabaseManager:
     def set_dark_mode(self, is_dark: bool) -> None:
         """Convenience method to set dark mode boolean."""
         self.set_theme("dark" if is_dark else "light")
+
+    def get_global_theme(self, default: str = "catppuccin") -> str:
+        """Returns global theme variant name ('catppuccin', 'slate', 'nord', etc.)."""
+        return self.get_setting("global_theme", default)
+
+    def set_global_theme(self, name: str) -> None:
+        """Stores global theme variant name."""
+        self.set_setting("global_theme", name)
+
+    def get_editor_settings(self) -> Dict[str, Any]:
+        """Returns dictionary of editor font and behavior preferences."""
+        import json
+        raw = self.get_setting("editor_settings", None)
+        if raw:
+            try:
+                return json.loads(raw)
+            except Exception:
+                pass
+        return {
+            "font_family": "JetBrains Mono",
+            "font_size": 11,
+            "tab_size": 4,
+            "show_line_numbers": True,
+            "highlight_current_line": True,
+            "auto_indent": True,
+        }
+
+    def set_editor_settings(self, settings: Dict[str, Any]) -> None:
+        """Persists dictionary of editor preferences."""
+        import json
+        self.set_setting("editor_settings", json.dumps(settings))
+
+    def get_syntax_colors(self, is_dark: bool) -> Dict[str, str]:
+        """Returns custom syntax highlighting colors or empty dict if default."""
+        import json
+        key = "syntax_colors_dark" if is_dark else "syntax_colors_light"
+        raw = self.get_setting(key, None)
+        if raw:
+            try:
+                return json.loads(raw)
+            except Exception:
+                pass
+        return {}
+
+    def set_syntax_colors(self, colors: Dict[str, str], is_dark: bool) -> None:
+        """Persists custom syntax highlighting colors."""
+        import json
+        key = "syntax_colors_dark" if is_dark else "syntax_colors_light"
+        self.set_setting(key, json.dumps(colors))
 
     # -------------------------------------------------------------------------
     # Opened Files & Tabs Session Management

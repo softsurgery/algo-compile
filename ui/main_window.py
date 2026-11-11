@@ -48,14 +48,23 @@ class MainWindow(QMainWindow):
         self.db = db or get_database()
         self.settings = QSettings("softsurgery", "Algoo")
 
-        saved_dark = self.db.is_dark_mode()
-        if saved_dark is not None:
-            self.is_dark_mode = saved_dark
-        elif self.settings.contains("dark_mode"):
-            self.is_dark_mode = self.settings.value("dark_mode", type=bool)
-            self.db.set_dark_mode(self.is_dark_mode)
-        else:
+        theme_mode = self.db.get_theme_mode() if hasattr(self.db, "get_theme_mode") else "system"
+        if theme_mode == "system":
             self.is_dark_mode = detect_system_dark_mode()
+        elif theme_mode == "dark":
+            self.is_dark_mode = True
+        elif theme_mode == "light":
+            self.is_dark_mode = False
+        else:
+            saved_dark = self.db.is_dark_mode()
+            if saved_dark is not None:
+                self.is_dark_mode = saved_dark
+            elif self.settings.contains("dark_mode"):
+                self.is_dark_mode = self.settings.value("dark_mode", type=bool)
+            else:
+                self.is_dark_mode = detect_system_dark_mode()
+
+        if hasattr(self.db, "set_dark_mode"):
             self.db.set_dark_mode(self.is_dark_mode)
 
         self.transpiler = AlgoTranspiler()
@@ -217,16 +226,10 @@ class MainWindow(QMainWindow):
         self.act_zoom_in.triggered.connect(self.zoom_in)
         self.toolbar.addAction(self.act_zoom_in)
 
-        # Spacer to push theme button to right
-        spacer = QWidget()
-        spacer.setSizePolicy(spacer.sizePolicy().Expanding, spacer.sizePolicy().Preferred)
-        self.toolbar.addWidget(spacer)
-
-        # Theme toggle button
+        # Theme action (accessible programmatically and via shortcuts, moved from toolbar to Preferences)
         self.act_theme = QAction(create_icon("theme"), "Thème", self)
         self.act_theme.setToolTip("Basculer entre le thème clair et le thème sombre")
         self.act_theme.triggered.connect(self.toggle_theme)
-        self.toolbar.addAction(self.act_theme)
 
     def _setup_menus(self):
         menubar = self.menuBar()
@@ -338,7 +341,12 @@ class MainWindow(QMainWindow):
         menu_view.addAction(self.act_fullscreen)
         menu_view.addSeparator()
 
-        menu_view.addAction(self.act_theme)
+        self.act_preferences = QAction("Préférences...", self)
+        self.act_preferences.setShortcut(QKeySequence("Ctrl+,"))
+        self.act_preferences.setIcon(create_icon("settings", "#475569" if not self.is_dark_mode else "#cdd6f4"))
+        self.act_preferences.setToolTip("Ouvrir les préférences de l'application (Ctrl+,)")
+        self.act_preferences.triggered.connect(self.show_preferences_dialog)
+        menu_view.addAction(self.act_preferences)
 
         # Tools
         menu_tools = menubar.addMenu("&Tools")
@@ -509,6 +517,8 @@ class MainWindow(QMainWindow):
         self.act_zoom_in.setIcon(create_icon("zoom_in", color_hex))
         self.act_zoom_out.setIcon(create_icon("zoom_out", color_hex))
         self.act_theme.setIcon(create_icon("theme", color_hex))
+        if hasattr(self, "act_preferences"):
+            self.act_preferences.setIcon(create_icon("settings", color_hex))
         if hasattr(self, "act_fullscreen"):
             self.act_fullscreen.setIcon(create_icon("fullscreen", color_hex))
 
@@ -530,10 +540,13 @@ class MainWindow(QMainWindow):
 
         # Propagate to all open editors
         if hasattr(self, "tab_widget"):
+            editor_settings = self.db.get_editor_settings() if hasattr(self, "db") and self.db else {}
+            syntax_colors = self.db.get_syntax_colors(self.is_dark_mode) if hasattr(self, "db") and self.db else {}
             for i in range(self.tab_widget.count()):
                 editor = self.tab_widget.widget(i)
                 if isinstance(editor, AlgoCodeEditor):
                     editor.set_dark_mode(self.is_dark_mode)
+                    editor.apply_settings(editor_settings, syntax_colors)
 
         # On Wayland (e.g. GNOME Wayland), client-side decorations (Bradient/QtWayland)
         # determine their colors upon window handle instantiation. Recreating the native
@@ -553,11 +566,39 @@ class MainWindow(QMainWindow):
         self.is_dark_mode = not self.is_dark_mode
         if hasattr(self, "db") and self.db:
             self.db.set_dark_mode(self.is_dark_mode)
+            if hasattr(self.db, "set_theme_mode"):
+                self.db.set_theme_mode("dark" if self.is_dark_mode else "light")
         if hasattr(self, "settings"):
             self.settings.setValue("dark_mode", self.is_dark_mode)
         self.apply_theme(recreate_native=True)
         mode_str = "sombre" if self.is_dark_mode else "clair"
         self.lbl_status.setText(f"Thème {mode_str} activé")
+
+    def show_preferences_dialog(self):
+        """Opens the Preferences Dialog (Theme mode, colors, font, editor settings)."""
+        from ui.preferences_dialog import PreferencesDialog
+        dlg = PreferencesDialog(self, is_dark=self.is_dark_mode, db=self.db)
+        dlg.settings_applied.connect(self._apply_all_preferences)
+        if dlg.exec_() == QDialog.Accepted:
+            self._apply_all_preferences()
+
+    def _apply_all_preferences(self):
+        """Applies theme mode (system/light/dark) and editor preferences."""
+        theme_mode = self.db.get_theme_mode() if hasattr(self, "db") and hasattr(self.db, "get_theme_mode") else "system"
+        if theme_mode == "system":
+            effective_dark = detect_system_dark_mode()
+        elif theme_mode == "dark":
+            effective_dark = True
+        else:
+            effective_dark = False
+
+        if self.is_dark_mode != effective_dark:
+            self.is_dark_mode = effective_dark
+            if hasattr(self, "db") and self.db:
+                self.db.set_dark_mode(self.is_dark_mode)
+            self.apply_theme(recreate_native=True)
+        else:
+            self.apply_theme(recreate_native=False)
 
     # -------------------------------------------------------------------------
     # Editor & Tabs Management
@@ -572,6 +613,10 @@ class MainWindow(QMainWindow):
         if isinstance(title, bool) or not title:
             title = "Nouveau Script"
         editor = AlgoCodeEditor(self, is_dark=self.is_dark_mode)
+        if hasattr(self, "db") and self.db:
+            editor_settings = self.db.get_editor_settings()
+            syntax_colors = self.db.get_syntax_colors(self.is_dark_mode)
+            editor.apply_settings(editor_settings, syntax_colors)
         
         default_content = content or (
             "ALGORITHME MonAlgorithme\n"

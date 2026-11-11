@@ -30,6 +30,7 @@ from . import (
     fullscreen,
     prev,
     next,
+    settings,
 )
 
 ICONS = {
@@ -59,6 +60,8 @@ ICONS = {
     "next": next.get_icon,
     "left": prev.get_icon,
     "right": next.get_icon,
+    "settings": settings.get_icon,
+    "preferences": settings.get_icon,
 }
 
 get_app_icon = logo.get_icon

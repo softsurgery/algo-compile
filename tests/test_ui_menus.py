@@ -34,6 +34,19 @@ class TestUIMenusAndDialogs(unittest.TestCase):
         self.assertIn("btn_python", names)
         self.assertIn("btn_stop", names)
 
+        # Theme toggle must NOT be in toolbar
+        self.assertNotIn(self.win.act_theme, self.win.toolbar.actions())
+
+    def test_view_menu_preferences_action(self):
+        menubar = self.win.menuBar()
+        menus = menubar.findChildren(type(menubar.addMenu("")))
+        view_menu = next((m for m in menus if "Affichage" in m.title()), None)
+        self.assertIsNotNone(view_menu, "Affichage menu should exist in menubar")
+
+        actions = [a.text() for a in view_menu.actions()]
+        self.assertTrue(any("Préférences" in a for a in actions), "Préférences action must be present in Affichage menu")
+        self.assertTrue(hasattr(self.win, "act_preferences"))
+
     def test_tools_menu_and_insert_code_action(self):
         menubar = self.win.menuBar()
         menus = menubar.findChildren(type(menubar.addMenu("")))
