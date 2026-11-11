@@ -26,6 +26,10 @@ from . import (
     logo,
     image,
     attach,
+    pdf,
+    fullscreen,
+    prev,
+    next,
 )
 
 ICONS = {
@@ -49,6 +53,12 @@ ICONS = {
     "logo": logo.get_icon,
     "image": image.get_icon,
     "attach": attach.get_icon,
+    "pdf": pdf.get_icon,
+    "fullscreen": fullscreen.get_icon,
+    "prev": prev.get_icon,
+    "next": next.get_icon,
+    "left": prev.get_icon,
+    "right": next.get_icon,
 }
 
 get_app_icon = logo.get_icon
