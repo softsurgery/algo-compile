@@ -1,0 +1,129 @@
+procedure saisir(@n:entier)
+Debut
+	Repeter
+		ecrire("N = ")
+		lire(n)
+	jusqu'à(2 <= n <= 30)
+Fin
+
+TDOL
+********************************
+Objet              Type
+********************************
+/                  /
+********************************
+
+procedure registerPlayers(@T:Tab, n:entier)
+Debut
+    pour i de 0 à n-1 faire
+	    ecrire("Player ", i, " nom : ")
+	    lire(T[i].nom)
+	  finpour
+Fin
+
+TDOL-
+********************************
+Objet              Type
+********************************
+i                  entier
+********************************
+
+procedure playRounds(@T:Tab, n:entier, p:entier)
+Debut
+    pour i de 0 à n-1 faire
+        ecrire("Score Round ", p, " pour ", T[i].nom, " : ")
+        si (p = 1) alors
+            lire(T[i].r1)
+        sinon si (p = 2) alors
+            lire(T[i].r2)
+        sinon si (p = 3) alors
+            lire(T[i].r3)
+        sinon
+            lire(T[i].r4)
+        finsi
+    finpour
+Fin
+
+TDOL
+********************************
+Objet              Type
+********************************
+i                  entier
+********************************
+
+procedure determineRanking(@T:tab, n:entier)
+Debut
+    pour i de 0 à n-1 faire
+        T[i].rt <- T[i].r1 + T[i].r2 + T[i].r3 + T[i].r4
+		finpour
+		
+    trie <- Faux
+
+    tantque (non trie) faire
+        trie <- Vrai
+        pour i de 0 à n - 2 faire
+            si (T[i].rt <  T[i+1].rt) alors
+               p <- T[i]
+               T[i] <- T[i+1]
+               T[i+1] <- p
+               trie <- Faux
+            finsi
+        finpour
+    fintanqtue
+               
+    pour i de 0 à n-1 faire
+        ecrire_nl("Player ", T[i].nom, " ranked at ", i + 1, " with score ", T[i].rt)
+    finpour
+Fin
+
+TDOL
+********************************
+Objet              Type
+********************************
+i                  entier
+trie               booleén
+p                  Player
+********************************
+
+Algorithme Players
+Debut
+	saisir(n)
+	registerPlayers(T, n)
+	ecrire_nl("--- Round 1 ---")
+	playRounds(T, n, 1)
+	ecrire_nl("--- Round 2 ---")
+	playRounds(T, n, 2)
+	ecrire_nl("--- Round 3 ---")
+	playRounds(T, n, 3)
+	ecrire_nl("--- Round 4 ---")
+	playRounds(T, n, 4)
+	
+	ecrire_nl("--- Final Ranking ---")
+	determineRanking(T, n)
+FIn
+
+TDOG
+********************************
+Objet              Type
+********************************
+n                  entier
+T                  Tab
+saisir             Procedure
+registerPlayers    Procedure
+playRounds         Procedure
+determineRanking   Procedure
+********************************
+
+TDNT
+********************************
+Player = Enregistrement
+	nom: chaine
+	r1: entier
+	r2: entier
+	r3: entier
+	r4: entier
+	rt: entier
+Fin Enregistrement
+
+Tab = Tableau de 30 Player
+********************************

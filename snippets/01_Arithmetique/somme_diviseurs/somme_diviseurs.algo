@@ -1,0 +1,58 @@
+Procedure saisir(@n:entier)
+DEBUT
+  Repeter
+    ecrire("N=")
+    lire(n)
+  Jusqu'à(3<=n<=50)
+FIN
+
+Tableau de déclaration des objets locaux
+Objet    Type / Nature
+/        /
+
+Fonction verifIdent(id:chaine) : Booléen
+DEBUT
+  verif <- Vrai
+  i <- 0
+  Tantque(i<long(id) et verif):
+  	Si (non ('0'<=id[i]<='9')) Alors
+  	  verif <- Faux
+  	Sinon
+  	  i <- i + 1
+  	Finsi 
+  FinTantque
+  Retourner verif
+FIN
+
+Tableau de déclaration des objets locaux
+Objet        Type / Nature
+verif        Booléen
+i            Entier
+
+Procedure remplir(@IDENT:Tableau de 50 Chaine, @DATE:Tableau de 50 Chaine, n:entier)
+DEBUT
+  Pour i de 0 à n-1 faire
+    Repeter
+    	ecrire("IDENT[",i,"]=")
+    	lire(IDENT[i])
+   	Jusqu'à(verifIdent(IDENT[i]))
+  Finpour
+FIN
+
+Tableau de déclaration des objets locaux
+Objet        Type / Nature
+verifIdent   Fonction
+i            Entier
+
+ALGORITHME PROB2019
+DEBUT
+	saisir(n)
+	remplir(IDENT,DATE,n)
+FIN
+
+Tableau de déclaration des objets globaux
+Objet              Type / Nature
+saisir, remplir    Procédure
+n                  entier
+IDENT              Tableau de 50 Chaine
+DATE               Tableau de 50 Chaine

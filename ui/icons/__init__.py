@@ -24,6 +24,8 @@ from . import (
     doc,
     refresh,
     logo,
+    image,
+    attach,
 )
 
 ICONS = {
@@ -45,6 +47,8 @@ ICONS = {
     "doc": doc.get_icon,
     "refresh": refresh.get_icon,
     "logo": logo.get_icon,
+    "image": image.get_icon,
+    "attach": attach.get_icon,
 }
 
 get_app_icon = logo.get_icon

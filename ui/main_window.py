@@ -28,6 +28,7 @@ from ui.styles import (
     detect_system_dark_mode, apply_os_window_theme
 )
 from ui.insert_code_dialog import InsertCodeDialog
+from ui.snippets_view import SnippetsWidget
 from ui.about_dialog import AboutDialog
 from database import get_database, DatabaseManager
 from typing import Optional
@@ -127,6 +128,12 @@ class MainWindow(QMainWindow):
         # 4. Guide & Assistant View
         self.assistant_view = AssistantView(self, is_dark=self.is_dark_mode)
         self.side_tabs.addTab(self.assistant_view, "Guide et Aide")
+
+        # 5. Snippets and Collections View (Tree View + Multi-tab viewer)
+        self.snippets_view = SnippetsWidget(self, is_dark=self.is_dark_mode)
+        self.snippets_view.insert_requested.connect(self._on_snippet_side_insert)
+        self.snippets_view.new_tab_requested.connect(self._on_snippet_side_new_tab)
+        self.side_tabs.addTab(self.snippets_view, "Extraits & Collections")
 
         self.side_tabs.currentChanged.connect(self._on_side_tab_changed)
 
@@ -403,6 +410,27 @@ class MainWindow(QMainWindow):
                         editor.setTextCursor(cursor)
                 self.lbl_status.setText(f"Code inséré : {dlg.selected_title}")
 
+    def _on_snippet_side_insert(self, code: str, title: str):
+        if not code:
+            return
+        editor = self.current_editor()
+        if not editor:
+            self.new_file(title, code)
+        else:
+            if not editor.toPlainText().strip():
+                editor.setPlainText(code)
+            else:
+                cursor = editor.textCursor()
+                cursor.insertText(code)
+                editor.setTextCursor(cursor)
+        self.lbl_status.setText(f"Code inséré : {title}")
+
+    def _on_snippet_side_new_tab(self, code: str, title: str):
+        if not code:
+            return
+        self.new_file(title, code)
+        self.lbl_status.setText(f"Extrait ouvert dans un nouvel onglet : {title}")
+
     def _is_console_focused(self) -> bool:
         focus_w = self.focusWidget() or QApplication.focusWidget()
         if not focus_w:
@@ -426,6 +454,8 @@ class MainWindow(QMainWindow):
             self.python_view.zoom_in()
             if hasattr(self, 'assistant_view'):
                 self.assistant_view.zoom_in()
+            if hasattr(self, 'snippets_view'):
+                self.snippets_view.zoom_in()
 
     def zoom_out(self):
         if self._is_console_focused():
@@ -439,6 +469,8 @@ class MainWindow(QMainWindow):
             self.python_view.zoom_out()
             if hasattr(self, 'assistant_view'):
                 self.assistant_view.zoom_out()
+            if hasattr(self, 'snippets_view'):
+                self.snippets_view.zoom_out()
 
     def reset_zoom(self):
         if self._is_console_focused():
@@ -490,6 +522,8 @@ class MainWindow(QMainWindow):
             self.tdnt_view.set_dark_mode(self.is_dark_mode)
         if hasattr(self, "assistant_view"):
             self.assistant_view.set_dark_mode(self.is_dark_mode)
+        if hasattr(self, "snippets_view"):
+            self.snippets_view.set_dark_mode(self.is_dark_mode)
 
         # Propagate to all open editors
         if hasattr(self, "tab_widget"):

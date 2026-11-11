@@ -1,0 +1,29 @@
+ALGORITHME SommeMatrice
+DEBUT
+  lignes <- 3
+  colonnes <- 3
+  
+  Ecrire_nl("Génération d'une matrice 3x3 :")
+  Pour i de 0 à lignes - 1 Faire
+    Pour j de 0 à colonnes - 1 Faire
+      M[i, j] <- Aléa(1, 9)
+      Ecrire(M[i, j], "  ")
+    Fin Pour
+    Ecrire_nl("")
+  Fin Pour
+  
+  // Calcul de la somme des éléments
+  total <- 0
+  Pour i de 0 à lignes - 1 Faire
+    Pour j de 0 à colonnes - 1 Faire
+      total <- total + M[i, j]
+    Fin Pour
+  Fin Pour
+  
+  Ecrire_nl("Somme totale de la matrice = ", total)
+FIN
+
+Tableau de déclaration des objets globaux
+Objet                           Type / Nature
+M                               Tableau de 3 lignes * 3 colonnes Entier
+i, j, lignes, colonnes, total   Entier
