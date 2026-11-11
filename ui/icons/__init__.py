@@ -31,6 +31,13 @@ from . import (
     prev,
     next,
     settings,
+    palette,
+    font,
+    syntax,
+    check,
+    sun,
+    moon,
+    system,
 )
 
 ICONS = {
@@ -62,6 +69,16 @@ ICONS = {
     "right": next.get_icon,
     "settings": settings.get_icon,
     "preferences": settings.get_icon,
+    "palette": palette.get_icon,
+    "font": font.get_icon,
+    "syntax": syntax.get_icon,
+    "colors": syntax.get_icon,
+    "check": check.get_icon,
+    "sun": sun.get_icon,
+    "moon": moon.get_icon,
+    "system": system.get_icon,
+    "light": sun.get_icon,
+    "dark": moon.get_icon,
 }
 
 get_app_icon = logo.get_icon

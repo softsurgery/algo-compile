@@ -8,9 +8,11 @@ from .base import make_icon
 
 
 def draw(painter: QPainter, s: float, margin: float, color: QColor):
-    painter.setPen(QPen(color, 1.8, Qt.SolidLine, Qt.RoundCap, Qt.RoundJoin))
-    r = s - 2 * margin - 2.0
-    rect = QRectF(margin + 1.0, margin + 1.0, r, r)
+    pen_w = max(1.5, s * 0.08)
+    painter.setPen(QPen(color, pen_w, Qt.SolidLine, Qt.RoundCap, Qt.RoundJoin))
+
+    m = s * 0.14
+    rect = QRectF(m, m, s - 2 * m, s - 2 * m)
 
     path = QPainterPath()
     path.arcMoveTo(rect, 45)
@@ -18,8 +20,9 @@ def draw(painter: QPainter, s: float, margin: float, color: QColor):
     painter.drawPath(path)
 
     end_pt = path.currentPosition()
-    painter.drawLine(end_pt, end_pt + QPointF(3.0, 0))
-    painter.drawLine(end_pt, end_pt + QPointF(0, -3.0))
+    arrow_len = s * 0.18
+    painter.drawLine(end_pt, end_pt + QPointF(arrow_len, 0))
+    painter.drawLine(end_pt, end_pt + QPointF(0, -arrow_len))
 
 
 def get_icon(color_hex: str = "#2c3e50", size: int = 24) -> QIcon:
