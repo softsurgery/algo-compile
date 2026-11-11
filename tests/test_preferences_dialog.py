@@ -1,15 +1,16 @@
 """
-Unit tests for PreferencesDialog, theme modes, code color customization, and editor settings.
+Unit tests for PreferencesDialog, theme modes, syntax presets, and editor settings.
 """
 
 import unittest
 import os
 import tempfile
 from PyQt5.QtWidgets import QApplication
-from PyQt5.QtGui import QColor
 from database import DatabaseManager
 from ui.preferences_dialog import PreferencesDialog
-from ui.editor import AlgoCodeEditor, DEFAULT_SYNTAX_COLORS_DARK, DEFAULT_SYNTAX_COLORS_LIGHT
+from ui.editor import (
+    AlgoCodeEditor, SYNTAX_PRESETS, DEFAULT_SYNTAX_COLORS_DARK, DEFAULT_SYNTAX_COLORS_LIGHT
+)
 
 app = QApplication.instance() or QApplication([])
 
@@ -33,10 +34,9 @@ class TestPreferencesDialog(unittest.TestCase):
         self.assertIsNotNone(dlg.pages)
         self.assertEqual(dlg.tree.topLevelItemCount(), 2)
 
-        # Check top level items
-        item_app = dlg.tree.topLevelItem(0)
-        self.assertIn("Thème", item_app.text(0))
-        self.assertEqual(item_app.childCount(), 2)
+        # Check top level items: Thème and Éditeur de code
+        item_theme = dlg.tree.topLevelItem(0)
+        self.assertIn("Thème", item_theme.text(0))
 
         item_editor = dlg.tree.topLevelItem(1)
         self.assertIn("Éditeur", item_editor.text(0))
@@ -45,12 +45,32 @@ class TestPreferencesDialog(unittest.TestCase):
         # Test selecting page via tree
         child_item = item_editor.child(1) # Couleurs de syntaxe
         dlg.tree.setCurrentItem(child_item)
-        self.assertEqual(dlg.pages.currentIndex(), 3)
+        self.assertEqual(dlg.pages.currentIndex(), 2)
+
+        # Select Thème
+        dlg.tree.setCurrentItem(item_theme)
+        self.assertEqual(dlg.pages.currentIndex(), 0)
+
+        # Verify spacing and resizing configuration
+        self.assertGreaterEqual(dlg.tree.minimumWidth(), 200)
+        self.assertFalse(dlg.splitter.childrenCollapsible())
+        self.assertGreaterEqual(item_theme.sizeHint(0).height(), 34)
+        self.assertGreaterEqual(child_item.sizeHint(0).height(), 32)
+
+        # Verify smooth splitter resize
+        dlg.show()
+        dlg.splitter.setSizes([260, 700])
+        self.assertEqual(dlg.splitter.sizes()[0], 260)
         dlg.close()
 
-    def test_theme_mode_selection_and_saving(self):
+    def test_theme_mode_selection_and_icons(self):
         dlg = PreferencesDialog(parent=None, is_dark=False, db=self.db)
         
+        # Verify vector icons on options
+        self.assertFalse(dlg.rb_system.icon().isNull())
+        self.assertFalse(dlg.rb_light.icon().isNull())
+        self.assertFalse(dlg.rb_dark.icon().isNull())
+
         # Default is system
         self.assertTrue(dlg.rb_system.isChecked())
 
@@ -98,42 +118,45 @@ class TestPreferencesDialog(unittest.TestCase):
         self.assertFalse(editor.highlight_line_enabled)
         dlg.close()
 
-    def test_syntax_colors_customization_and_reset(self):
+    def test_syntax_presets_and_application(self):
         dlg = PreferencesDialog(parent=None, is_dark=False, db=self.db)
         
-        # Set light palette in selector
-        dlg.combo_color_palette_mode.setCurrentIndex(1)
-        test_color = "#ff007f"
-        dlg.colors_light["keyword"] = test_color
-        dlg.color_buttons["keyword"].set_color(test_color)
+        # Verify presets exist
+        self.assertIn("Algoo", SYNTAX_PRESETS)
+        self.assertIn("VS Code", SYNTAX_PRESETS)
+        self.assertIn("Monokai", SYNTAX_PRESETS)
+        self.assertIn("Nord", SYNTAX_PRESETS)
+
+        # Select VS Code preset
+        idx = dlg.combo_syntax_preset.findText("VS Code")
+        self.assertGreaterEqual(idx, 0)
+        dlg.combo_syntax_preset.setCurrentIndex(idx)
         dlg.apply_preferences()
 
-        # Check DB
-        saved_colors = self.db.get_syntax_colors(is_dark=False)
-        self.assertEqual(saved_colors["keyword"], test_color)
+        # Check DB persistence
+        self.assertEqual(self.db.get_syntax_preset(), "VS Code")
+        saved_dark = self.db.get_syntax_colors(is_dark=True)
+        saved_light = self.db.get_syntax_colors(is_dark=False)
 
-        # Check editor syntax highlighting
-        editor = AlgoCodeEditor(is_dark=False)
-        editor.apply_settings({}, saved_colors)
-        fmt = editor.highlighter.fmt_keyword
-        self.assertEqual(fmt.foreground().color().name().lower(), test_color.lower())
+        self.assertEqual(saved_dark["keyword"], SYNTAX_PRESETS["VS Code"]["dark"]["keyword"])
+        self.assertEqual(saved_light["keyword"], SYNTAX_PRESETS["VS Code"]["light"]["keyword"])
 
-        # Reset to defaults
-        dlg._reset_syntax_colors()
-        self.assertEqual(dlg.colors_light["keyword"], DEFAULT_SYNTAX_COLORS_LIGHT["keyword"])
+        # Check AlgoCodeEditor highlighter with the preset
+        editor = AlgoCodeEditor(is_dark=True)
+        editor.apply_settings({}, saved_dark)
+        self.assertEqual(
+            editor.highlighter.fmt_keyword.foreground().color().name().lower(),
+            SYNTAX_PRESETS["VS Code"]["dark"]["keyword"].lower()
+        )
+
+        # Select Monokai preset
+        idx_mono = dlg.combo_syntax_preset.findText("Monokai")
+        dlg.combo_syntax_preset.setCurrentIndex(idx_mono)
         dlg.apply_preferences()
 
-        saved_reset = self.db.get_syntax_colors(is_dark=False)
-        self.assertEqual(saved_reset["keyword"], DEFAULT_SYNTAX_COLORS_LIGHT["keyword"])
-        dlg.close()
-
-    def test_global_theme_selection(self):
-        dlg = PreferencesDialog(parent=None, is_dark=False, db=self.db)
-        dlg.combo_global_theme.setCurrentIndex(1)
-        selected_text = dlg.combo_global_theme.currentText()
-        dlg.apply_preferences()
-
-        self.assertEqual(self.db.get_global_theme(), selected_text)
+        self.assertEqual(self.db.get_syntax_preset(), "Monokai")
+        saved_mono_light = self.db.get_syntax_colors(is_dark=False)
+        self.assertEqual(saved_mono_light["keyword"], SYNTAX_PRESETS["Monokai"]["light"]["keyword"])
         dlg.close()
 
 

@@ -229,21 +229,46 @@ QListWidget, QTreeWidget, QTreeView {
     color: #1e293b;
     border: 1px solid #e2e8f0;
     border-radius: 6px;
+    outline: none;
+    show-decoration-selected: 0;
 }
 
 QListWidget::item, QTreeWidget::item, QTreeView::item {
     padding: 5px 8px;
     border-radius: 4px;
     color: #1e293b;
+    border: none;
+    outline: none;
 }
 
 QListWidget::item:hover, QTreeWidget::item:hover, QTreeView::item:hover {
     background-color: #f1f5f9;
+    border: none;
+    outline: none;
 }
 
 QListWidget::item:selected, QTreeWidget::item:selected, QTreeView::item:selected {
     background-color: #e2e8f0;
     color: #0f172a;
+    border: none;
+    outline: none;
+}
+
+QListWidget::item:focus, QTreeWidget::item:focus, QTreeView::item:focus {
+    border: none;
+    outline: none;
+}
+
+QTreeWidget::branch {
+    background: transparent;
+    border: none;
+    outline: none;
+}
+
+QTreeWidget::branch:selected {
+    background: transparent;
+    border: none;
+    outline: none;
 }
 
 /* Scrollbars - Light Theme */
@@ -535,21 +560,46 @@ QListWidget, QTreeWidget, QTreeView {
     color: #cdd6f4;
     border: 1px solid #313244;
     border-radius: 6px;
+    outline: none;
+    show-decoration-selected: 0;
 }
 
 QListWidget::item, QTreeWidget::item, QTreeView::item {
     padding: 5px 8px;
     border-radius: 4px;
     color: #cdd6f4;
+    border: none;
+    outline: none;
 }
 
 QListWidget::item:hover, QTreeWidget::item:hover, QTreeView::item:hover {
     background-color: #313244;
+    border: none;
+    outline: none;
 }
 
 QListWidget::item:selected, QTreeWidget::item:selected, QTreeView::item:selected {
     background-color: #45475a;
     color: #ffffff;
+    border: none;
+    outline: none;
+}
+
+QListWidget::item:focus, QTreeWidget::item:focus, QTreeView::item:focus {
+    border: none;
+    outline: none;
+}
+
+QTreeWidget::branch {
+    background: transparent;
+    border: none;
+    outline: none;
+}
+
+QTreeWidget::branch:selected {
+    background: transparent;
+    border: none;
+    outline: none;
 }
 
 /* Line Edits */

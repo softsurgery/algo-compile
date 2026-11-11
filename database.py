@@ -201,6 +201,14 @@ class DatabaseManager:
         import json
         self.set_setting("editor_settings", json.dumps(settings))
 
+    def get_syntax_preset(self, default: str = "Algoo") -> str:
+        """Returns active syntax colors preset name."""
+        return self.get_setting("syntax_preset", default)
+
+    def set_syntax_preset(self, preset_name: str) -> None:
+        """Persists chosen syntax colors preset name."""
+        self.set_setting("syntax_preset", preset_name)
+
     def get_syntax_colors(self, is_dark: bool) -> Dict[str, str]:
         """Returns custom syntax highlighting colors or empty dict if default."""
         import json

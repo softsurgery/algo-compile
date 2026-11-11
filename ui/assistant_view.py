@@ -11,7 +11,8 @@ import html
 from PyQt5.QtWidgets import (
     QWidget, QVBoxLayout, QHBoxLayout, QTextBrowser,
     QTreeWidget, QTreeWidgetItem, QLineEdit, QPushButton,
-    QLabel, QSplitter, QToolButton
+    QLabel, QSplitter, QToolButton,
+    QStyledItemDelegate, QStyleOptionViewItem, QStyle
 )
 from PyQt5.QtCore import Qt, QSize
 from PyQt5.QtGui import QFont, QPalette, QColor, QIcon
@@ -275,6 +276,14 @@ class DocBrowser(QTextBrowser):
         super().keyPressEvent(event)
 
 
+class NoFocusDelegate(QStyledItemDelegate):
+    """Prevents Qt from drawing dotted or rectangular focus artifacts on tree items."""
+    def paint(self, painter, option, index):
+        opt = QStyleOptionViewItem(option)
+        opt.state &= ~QStyle.State_HasFocus
+        super().paint(painter, opt, index)
+
+
 class AssistantView(QWidget):
     """
     Documentation and contextual help browser with a tree-view for all markdown docs.
@@ -347,9 +356,11 @@ class AssistantView(QWidget):
         tree_layout.setSpacing(2)
 
         self.tree = QTreeWidget()
+        self.tree.setItemDelegate(NoFocusDelegate(self.tree))
+        self.tree.setFocusPolicy(Qt.NoFocus)
         self.tree.setHeaderHidden(True)
         self.tree.setAnimated(True)
-        self.tree.setIndentation(18)
+        self.tree.setIndentation(14)
         self.tree.setIconSize(QSize(18, 18))
         self.tree.itemSelectionChanged.connect(self._on_tree_selection_changed)
         self.tree.itemClicked.connect(self._load_item)
@@ -900,12 +911,60 @@ class AssistantView(QWidget):
 
         # Tree widget
         self.tree.setStyleSheet(
-            f"QTreeWidget {{ background-color: {bg}; color: {fg}; border: 1px solid {border}; "
-            f"border-radius: 4px; padding: 4px; }}"
-            f"QTreeWidget::item {{ padding: 3px 4px; border-radius: 3px; }}"
-            f"QTreeWidget::item:hover {{ background-color: {'#313244' if is_dark else '#f1f5f9'}; }}"
-            f"QTreeWidget::item:selected {{ background-color: {'#45475a' if is_dark else '#e2e8f0'}; "
-            f"color: {'#ffffff' if is_dark else '#0f172a'}; }}"
+            f"QTreeWidget {{"
+            f"  background-color: {bg};"
+            f"  color: {fg};"
+            f"  border: 1px solid {border};"
+            f"  border-radius: 4px;"
+            f"  padding: 4px 2px;"
+            f"  outline: none;"
+            f"  show-decoration-selected: 0;"
+            f"}}"
+            f"QTreeWidget::item {{"
+            f"  padding: 4px 6px;"
+            f"  margin: 1px 2px;"
+            f"  border-radius: 4px;"
+            f"  border: none;"
+            f"  outline: none;"
+            f"}}"
+            f"QTreeWidget::item:hover {{"
+            f"  background-color: {'#313244' if is_dark else '#f1f5f9'};"
+            f"  border: none;"
+            f"  outline: none;"
+            f"}}"
+            f"QTreeWidget::item:selected {{"
+            f"  background-color: {'#45475a' if is_dark else '#e2e8f0'};"
+            f"  color: {'#ffffff' if is_dark else '#0f172a'};"
+            f"  font-weight: bold;"
+            f"  border: none;"
+            f"  outline: none;"
+            f"}}"
+            f"QTreeWidget::item:selected:active {{"
+            f"  background-color: {'#45475a' if is_dark else '#e2e8f0'};"
+            f"  color: {'#ffffff' if is_dark else '#0f172a'};"
+            f"  border: none;"
+            f"  outline: none;"
+            f"}}"
+            f"QTreeWidget::item:selected:!active {{"
+            f"  background-color: {'#45475a' if is_dark else '#e2e8f0'};"
+            f"  color: {'#ffffff' if is_dark else '#0f172a'};"
+            f"  border: none;"
+            f"  outline: none;"
+            f"}}"
+            f"QTreeWidget::item:focus {{"
+            f"  border: none;"
+            f"  outline: none;"
+            f"}}"
+            f"QTreeWidget::branch {{"
+            f"  background: transparent;"
+            f"  border: none;"
+            f"  outline: none;"
+            f"}}"
+            f"QTreeWidget::branch:selected {{"
+            f"  background: transparent;"
+            f"  border: none;"
+            f"  outline: none;"
+            f"}}"
         )
 
         # Reader title bar

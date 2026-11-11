@@ -1,28 +1,28 @@
 """
 Preferences and Settings Dialog for Algoo IDE.
 Features:
-- Tree View navigation on the left.
-- Theme Mode: Dark, Light, or System mode (auto-detect OS).
-- Global theme palette options and accents.
+- Tree View navigation on the left (Thème, Éditeur de code).
+- Theme Mode: Dark, Light, or System mode with dedicated crisp vector icons.
 - Code Editor settings: Font family, size, tab width, line numbers, highlight current line.
-- Full syntax highlighting color customizer with interactive live code preview.
+- Syntax Highlighting Presets: Beautiful curated color palettes applying to both Dark and Light modes.
+- Interactive live code preview for both dark and light modes.
 """
 
-import os
 from typing import Dict, Any, Optional
 
 from PyQt5.QtWidgets import (
     QDialog, QWidget, QVBoxLayout, QHBoxLayout, QLabel, QPushButton,
     QTreeWidget, QTreeWidgetItem, QStackedWidget, QRadioButton, QButtonGroup,
-    QComboBox, QSpinBox, QCheckBox, QColorDialog, QFrame, QSplitter,
-    QScrollArea, QGridLayout, QMessageBox, QGroupBox
+    QComboBox, QSpinBox, QCheckBox, QFrame, QSplitter,
+    QScrollArea, QGridLayout, QMessageBox, QGroupBox,
+    QStyledItemDelegate, QStyleOptionViewItem, QStyle
 )
 from PyQt5.QtGui import QFont, QIcon, QPixmap, QColor
-from PyQt5.QtCore import Qt, pyqtSignal
+from PyQt5.QtCore import Qt, pyqtSignal, QSize
 
 from database import get_database, DatabaseManager
 from ui.editor import (
-    AlgoCodeEditor, DEFAULT_SYNTAX_COLORS_DARK, DEFAULT_SYNTAX_COLORS_LIGHT
+    AlgoCodeEditor, SYNTAX_PRESETS, DEFAULT_SYNTAX_COLORS_DARK, DEFAULT_SYNTAX_COLORS_LIGHT
 )
 from ui.icons import create_icon
 from ui.styles import DARK_THEME, LIGHT_THEME
@@ -30,7 +30,7 @@ from ui.theme_utils import detect_system_dark_mode
 
 
 SAMPLE_ALGO_CODE = """ALGORITHME ExemplePreferences
-// Aperçu en temps réel de vos polices et couleurs
+// Aperçu en temps réel de votre jeu de couleurs
 DEBUT
     Pour i de 1 à 5 Faire
         Si i Mod 2 = 0 Alors
@@ -46,58 +46,16 @@ i       Entier
 """
 
 
-class ColorButton(QPushButton):
-    """Button showing a color swatch and hex code, opening QColorDialog on click."""
-    color_changed = pyqtSignal(str)
-
-    def __init__(self, color_hex: str, parent=None):
-        super().__init__(parent)
-        self._color_hex = color_hex
-        self.setFixedHeight(28)
-        self.setMinimumWidth(110)
-        self.setCursor(Qt.PointingHandCursor)
-        self.clicked.connect(self._pick_color)
-        self._update_appearance()
-
-    def color(self) -> str:
-        return self._color_hex
-
-    def set_color(self, hex_val: str):
-        self._color_hex = hex_val
-        self._update_appearance()
-
-    def _update_appearance(self):
-        c = QColor(self._color_hex)
-        # Determine contrast text color
-        brightness = (c.red() * 299 + c.green() * 587 + c.blue() * 114) / 1000
-        text_color = "#000000" if brightness > 140 else "#ffffff"
-
-        self.setText(self._color_hex.upper())
-        self.setStyleSheet(
-            f"QPushButton {{"
-            f"  background-color: {self._color_hex};"
-            f"  color: {text_color};"
-            f"  font-family: monospace;"
-            f"  font-weight: bold;"
-            f"  border: 1px solid rgba(0,0,0,0.25);"
-            f"  border-radius: 4px;"
-            f"  padding: 2px 8px;"
-            f"}}"
-            f"QPushButton:hover {{"
-            f"  border: 2px solid #89b4fa;"
-            f"}}"
-        )
-
-    def _pick_color(self):
-        initial = QColor(self._color_hex)
-        chosen = QColorDialog.getColor(initial, self, "Choisir une couleur")
-        if chosen.isValid():
-            self.set_color(chosen.name())
-            self.color_changed.emit(chosen.name())
+class NoFocusDelegate(QStyledItemDelegate):
+    """Prevents Qt from drawing dotted or rectangular focus artifacts on tree items."""
+    def paint(self, painter, option, index):
+        opt = QStyleOptionViewItem(option)
+        opt.state &= ~QStyle.State_HasFocus
+        super().paint(painter, opt, index)
 
 
 class PreferencesDialog(QDialog):
-    """Modern Preferences dialog with TreeView navigation and live code preview."""
+    """Modern Preferences dialog with TreeView navigation, theme modes, and syntax presets."""
 
     settings_applied = pyqtSignal()
 
@@ -113,57 +71,84 @@ class PreferencesDialog(QDialog):
         self.setWindowIcon(QIcon(empty_pm))
 
         self.setWindowFlags(self.windowFlags() | Qt.WindowMinMaxButtonsHint)
-        self.resize(920, 640)
-        self.setMinimumSize(780, 520)
+        self.resize(1080, 720)
+        self.setMinimumSize(900, 600)
 
         # Load current preferences from DB
         self.current_theme_mode = self.db.get_theme_mode(default="system")
-        self.current_global_theme = self.db.get_global_theme(default="catppuccin")
+        self.current_syntax_preset = self.db.get_syntax_preset(default="Algoo")
         self.editor_settings = self.db.get_editor_settings()
-        self.colors_dark = dict(DEFAULT_SYNTAX_COLORS_DARK)
-        self.colors_dark.update(self.db.get_syntax_colors(is_dark=True))
-        self.colors_light = dict(DEFAULT_SYNTAX_COLORS_LIGHT)
-        self.colors_light.update(self.db.get_syntax_colors(is_dark=False))
 
         self._setup_ui()
         self._load_values()
         self.set_dark_mode(self.is_dark)
 
+    def _create_header(self, title: str, description: str) -> QWidget:
+        """Helper to create a unified, elegant header block for each settings page."""
+        w = QWidget()
+        lay = QVBoxLayout(w)
+        lay.setContentsMargins(0, 0, 0, 8)
+        lay.setSpacing(6)
+
+        lbl_title = QLabel(title)
+        lbl_title.setFont(QFont("SansSerif", 13, QFont.Bold))
+        lay.addWidget(lbl_title)
+
+        lbl_desc = QLabel(description)
+        lbl_desc.setWordWrap(True)
+        lbl_desc.setObjectName("pref_desc")
+        lbl_desc.setFont(QFont("SansSerif", 9))
+        lay.addWidget(lbl_desc)
+
+        sep = QFrame()
+        sep.setFrameShape(QFrame.HLine)
+        sep.setObjectName("pref_separator")
+        lay.addWidget(sep)
+
+        return w
+
     def _setup_ui(self):
         main_layout = QVBoxLayout(self)
-        main_layout.setContentsMargins(12, 12, 12, 12)
-        main_layout.setSpacing(10)
+        main_layout.setContentsMargins(14, 14, 14, 14)
+        main_layout.setSpacing(12)
 
         # Main splitter (Tree view on left, Pages on right)
         self.splitter = QSplitter(Qt.Horizontal)
+        self.splitter.setChildrenCollapsible(False)
+        self.splitter.setHandleWidth(6)
 
         # -------------------------------------------------------------
         # Left Panel: Tree View
         # -------------------------------------------------------------
         self.tree = QTreeWidget()
+        self.tree.setItemDelegate(NoFocusDelegate(self.tree))
         self.tree.setHeaderHidden(True)
-        self.tree.setFixedWidth(230)
         self.tree.setAnimated(True)
+        self.tree.setIndentation(12)
+        self.tree.setRootIsDecorated(False)
+        self.tree.setIconSize(QSize(22, 22))
+        self.tree.setHorizontalScrollBarPolicy(Qt.ScrollBarAlwaysOff)
+        self.tree.setFocusPolicy(Qt.NoFocus)
+        self.tree.setMinimumWidth(200)
+        self.tree.setMaximumWidth(320)
 
-        # Category 1: Apparence & Thème
-        cat_app = QTreeWidgetItem(self.tree, ["Apparence & Thème"])
-        cat_app.setFont(0, QFont("SansSerif", 10, QFont.Bold))
-        cat_app.setIcon(0, create_icon("theme", size=18))
-
-        self.item_theme = QTreeWidgetItem(cat_app, ["Mode de thème"])
+        # Category 1: Thème
+        self.item_theme = QTreeWidgetItem(self.tree, ["Thème"])
         self.item_theme.setData(0, Qt.UserRole, 0)
-        self.item_palette = QTreeWidgetItem(cat_app, ["Thème global & Palette"])
-        self.item_palette.setData(0, Qt.UserRole, 1)
+        self.item_theme.setSizeHint(0, QSize(0, 38))
 
         # Category 2: Éditeur de code
-        cat_ed = QTreeWidgetItem(self.tree, ["Éditeur de code"])
-        cat_ed.setFont(0, QFont("SansSerif", 10, QFont.Bold))
-        cat_ed.setIcon(0, create_icon("doc", size=18))
+        self.cat_ed = QTreeWidgetItem(self.tree, ["Éditeur de code"])
+        self.cat_ed.setFont(0, QFont("SansSerif", 10, QFont.Bold))
+        self.cat_ed.setSizeHint(0, QSize(0, 38))
 
-        self.item_font = QTreeWidgetItem(cat_ed, ["Police & Affichage"])
-        self.item_font.setData(0, Qt.UserRole, 2)
-        self.item_colors = QTreeWidgetItem(cat_ed, ["Couleurs de syntaxe"])
-        self.item_colors.setData(0, Qt.UserRole, 3)
+        self.item_font = QTreeWidgetItem(self.cat_ed, ["Police & Affichage"])
+        self.item_font.setData(0, Qt.UserRole, 1)
+        self.item_font.setSizeHint(0, QSize(0, 36))
+
+        self.item_colors = QTreeWidgetItem(self.cat_ed, ["Couleurs de syntaxe"])
+        self.item_colors.setData(0, Qt.UserRole, 2)
+        self.item_colors.setSizeHint(0, QSize(0, 36))
 
         self.tree.expandAll()
         self.tree.currentItemChanged.connect(self._on_tree_item_changed)
@@ -173,44 +158,58 @@ class PreferencesDialog(QDialog):
         # Right Panel: Stacked Pages
         # -------------------------------------------------------------
         self.pages = QStackedWidget()
+        self.pages.setMinimumWidth(560)
 
         self.page_theme = self._create_page_theme()
-        self.page_palette = self._create_page_palette()
         self.page_editor = self._create_page_editor()
         self.page_colors = self._create_page_colors()
 
-        self.pages.addWidget(self.page_theme)    # Index 0
-        self.pages.addWidget(self.page_palette)  # Index 1
-        self.pages.addWidget(self.page_editor)   # Index 2
-        self.pages.addWidget(self.page_colors)   # Index 3
+        self.pages.addWidget(self.page_theme)   # Index 0
+        self.pages.addWidget(self.page_editor)  # Index 1
+        self.pages.addWidget(self.page_colors)  # Index 2
 
         self.splitter.addWidget(self.pages)
-        self.splitter.setStretchFactor(0, 1)
-        self.splitter.setStretchFactor(1, 3)
+        self.splitter.setStretchFactor(0, 0)
+        self.splitter.setStretchFactor(1, 1)
+        self.splitter.setSizes([240, 840])
         main_layout.addWidget(self.splitter, 1)
 
         # -------------------------------------------------------------
         # Bottom Buttons
         # -------------------------------------------------------------
+        btn_sep = QFrame()
+        btn_sep.setFrameShape(QFrame.HLine)
+        btn_sep.setObjectName("pref_separator")
+        main_layout.addWidget(btn_sep)
+
         bottom_layout = QHBoxLayout()
-        bottom_layout.setSpacing(8)
+        bottom_layout.setContentsMargins(4, 2, 4, 2)
+        bottom_layout.setSpacing(10)
 
         self.btn_defaults = QPushButton("Rétablir par défaut")
+        self.btn_defaults.setCursor(Qt.PointingHandCursor)
+        self.btn_defaults.setIconSize(QSize(18, 18))
         self.btn_defaults.clicked.connect(self._on_reset_defaults)
         bottom_layout.addWidget(self.btn_defaults)
 
         bottom_layout.addStretch()
 
         self.btn_apply = QPushButton("Appliquer")
+        self.btn_apply.setCursor(Qt.PointingHandCursor)
+        self.btn_apply.setIconSize(QSize(18, 18))
         self.btn_apply.clicked.connect(self.apply_preferences)
         bottom_layout.addWidget(self.btn_apply)
 
         self.btn_cancel = QPushButton("Annuler")
+        self.btn_cancel.setCursor(Qt.PointingHandCursor)
+        self.btn_cancel.setIconSize(QSize(18, 18))
         self.btn_cancel.clicked.connect(self.reject)
         bottom_layout.addWidget(self.btn_cancel)
 
         self.btn_ok = QPushButton("OK")
-        self.btn_ok.setStyleSheet("font-weight: bold;")
+        self.btn_ok.setCursor(Qt.PointingHandCursor)
+        self.btn_ok.setIconSize(QSize(18, 18))
+        self.btn_ok.setStyleSheet("font-weight: bold; min-width: 75px;")
         self.btn_ok.clicked.connect(self._on_ok_clicked)
         bottom_layout.addWidget(self.btn_ok)
 
@@ -225,39 +224,40 @@ class PreferencesDialog(QDialog):
     def _create_page_theme(self) -> QWidget:
         page = QWidget()
         layout = QVBoxLayout(page)
-        layout.setContentsMargins(16, 12, 16, 12)
-        layout.setSpacing(14)
+        layout.setContentsMargins(18, 14, 18, 14)
+        layout.setSpacing(16)
 
-        header = QLabel("Mode de Thème (Thème Global)")
-        header.setFont(QFont("SansSerif", 13, QFont.Bold))
-        layout.addWidget(header)
-
-        desc = QLabel(
+        layout.addWidget(self._create_header(
+            "Thème de l'interface",
             "Choisissez le mode d'affichage de l'environnement de développement. "
             "Le mode Système s'adapte automatiquement aux réglages de votre système d'exploitation."
-        )
-        desc.setWordWrap(True)
-        desc.setStyleSheet("color: #6c7086;" if self.is_dark else "color: #64748b;")
-        layout.addWidget(desc)
+        ))
 
-        box = QGroupBox("Sélectionnez le mode :")
+        box = QGroupBox("Mode d'affichage :")
         box_layout = QVBoxLayout(box)
-        box_layout.setSpacing(12)
+        box_layout.setContentsMargins(16, 18, 16, 16)
+        box_layout.setSpacing(14)
 
         self.btn_group_mode = QButtonGroup(self)
 
-        self.rb_system = QRadioButton("💻  Système (Automatique)")
+        self.rb_system = QRadioButton("Système (Automatique)")
         self.rb_system.setToolTip("Suit automatiquement le thème clair/sombre de votre système d'exploitation")
+        self.rb_system.setStyleSheet("font-size: 11pt; padding: 4px 6px;")
+        self.rb_system.setIconSize(QSize(24, 24))
         self.btn_group_mode.addButton(self.rb_system, 0)
         box_layout.addWidget(self.rb_system)
 
-        self.rb_light = QRadioButton("☀️  Mode Clair (Light)")
-        self.rb_light.setToolTip("Active en permanence le thème clair style Thonny / Slate")
+        self.rb_light = QRadioButton("Mode Clair (Light)")
+        self.rb_light.setToolTip("Active en permanence le thème clair épuré")
+        self.rb_light.setStyleSheet("font-size: 11pt; padding: 4px 6px;")
+        self.rb_light.setIconSize(QSize(24, 24))
         self.btn_group_mode.addButton(self.rb_light, 1)
         box_layout.addWidget(self.rb_light)
 
-        self.rb_dark = QRadioButton("🌙  Mode Sombre (Dark)")
-        self.rb_dark.setToolTip("Active en permanence le thème sombre moderne Catppuccin Mocha")
+        self.rb_dark = QRadioButton("Mode Sombre (Dark)")
+        self.rb_dark.setToolTip("Active en permanence le thème sombre moderne")
+        self.rb_dark.setStyleSheet("font-size: 11pt; padding: 4px 6px;")
+        self.rb_dark.setIconSize(QSize(24, 24))
         self.btn_group_mode.addButton(self.rb_dark, 2)
         box_layout.addWidget(self.rb_dark)
 
@@ -266,67 +266,30 @@ class PreferencesDialog(QDialog):
         # System detection info card
         sys_detected = "Sombre (Dark)" if detect_system_dark_mode() else "Clair (Light)"
         self.lbl_sys_info = QLabel(f"ℹ️  Thème système actuellement détecté : <b>{sys_detected}</b>")
-        self.lbl_sys_info.setStyleSheet("padding: 8px; border-radius: 6px; background-color: rgba(137, 180, 250, 0.12);")
+        self.lbl_sys_info.setObjectName("pref_sys_info")
         layout.addWidget(self.lbl_sys_info)
 
-        layout.addStretch()
-        return page
-
-    def _create_page_palette(self) -> QWidget:
-        page = QWidget()
-        layout = QVBoxLayout(page)
-        layout.setContentsMargins(16, 12, 16, 12)
-        layout.setSpacing(14)
-
-        header = QLabel("Thème global & Variantes de Palette")
-        header.setFont(QFont("SansSerif", 13, QFont.Bold))
-        layout.addWidget(header)
-
-        desc = QLabel("Personnalisez le style visuel de l'interface et les teintes d'accentuation.")
-        desc.setWordWrap(True)
-        layout.addWidget(desc)
-
-        form_frame = QFrame()
-        form_layout = QGridLayout(form_frame)
-        form_layout.setSpacing(12)
-
-        form_layout.addWidget(QLabel("Palette visuelle globale :"), 0, 0)
-        self.combo_global_theme = QComboBox()
-        self.combo_global_theme.addItems([
-            "Catppuccin (Mocha & Latte)",
-            "Slate Moderne (Épuré)",
-            "Nordic Minimal"
-        ])
-        form_layout.addWidget(self.combo_global_theme, 0, 1)
-
-        form_layout.addWidget(QLabel("Couleur d'accentuation :"), 1, 0)
-        self.combo_accent = QComboBox()
-        self.combo_accent.addItems([
-            "Bleu Algoo (#89b4fa / #2563eb)",
-            "Mauve / Lavande (#cba6f7)",
-            "Émeraude (#a6e3a1)",
-            "Flamme / Corail (#fab387)"
-        ])
-        form_layout.addWidget(self.combo_accent, 1, 1)
-
-        layout.addWidget(form_frame)
         layout.addStretch()
         return page
 
     def _create_page_editor(self) -> QWidget:
         page = QWidget()
         layout = QVBoxLayout(page)
-        layout.setContentsMargins(16, 12, 16, 12)
-        layout.setSpacing(12)
+        layout.setContentsMargins(18, 14, 18, 14)
+        layout.setSpacing(16)
 
-        header = QLabel("Paramètres de l'Éditeur de code")
-        header.setFont(QFont("SansSerif", 13, QFont.Bold))
-        layout.addWidget(header)
+        layout.addWidget(self._create_header(
+            "Paramètres de l'Éditeur de code",
+            "Configurez la police, la taille du texte, les tabulations et le confort visuel de saisie."
+        ))
 
-        # Font and Tabs
+        # Font and Tabs frame
         grid_frame = QFrame()
+        grid_frame.setObjectName("pref_card")
         grid = QGridLayout(grid_frame)
-        grid.setSpacing(10)
+        grid.setContentsMargins(16, 16, 16, 16)
+        grid.setHorizontalSpacing(16)
+        grid.setVerticalSpacing(14)
 
         grid.addWidget(QLabel("Police de caractères :"), 0, 0)
         self.combo_font_family = QComboBox()
@@ -346,7 +309,7 @@ class PreferencesDialog(QDialog):
         self.spin_font_size.setValue(11)
         grid.addWidget(self.spin_font_size, 1, 1)
 
-        grid.addWidget(QLabel("Taille de tabulation :"), 2, 0)
+        grid.addWidget(QLabel("Taille de tabulation (espaces) :"), 2, 0)
         self.spin_tab_size = QSpinBox()
         self.spin_tab_size.setRange(2, 8)
         self.spin_tab_size.setSingleStep(2)
@@ -358,18 +321,22 @@ class PreferencesDialog(QDialog):
         # Checkboxes
         box = QGroupBox("Affichage et comportement")
         box_layout = QVBoxLayout(box)
-        box_layout.setSpacing(8)
+        box_layout.setContentsMargins(16, 18, 16, 16)
+        box_layout.setSpacing(12)
 
-        self.chk_line_numbers = QCheckBox("Afficher les numéros de ligne")
+        self.chk_line_numbers = QCheckBox("Afficher les numéros de ligne dans la marge gauche")
         self.chk_line_numbers.setChecked(True)
+        self.chk_line_numbers.setStyleSheet("padding: 2px 0px;")
         box_layout.addWidget(self.chk_line_numbers)
 
-        self.chk_highlight_line = QCheckBox("Surligner la ligne courante")
+        self.chk_highlight_line = QCheckBox("Surligner la ligne courante active du curseur")
         self.chk_highlight_line.setChecked(True)
+        self.chk_highlight_line.setStyleSheet("padding: 2px 0px;")
         box_layout.addWidget(self.chk_highlight_line)
 
-        self.chk_auto_indent = QCheckBox("Indentation automatique après une structure (Si, Pour, etc.)")
+        self.chk_auto_indent = QCheckBox("Indentation automatique après une structure (Si, Pour, TantQue...)")
         self.chk_auto_indent.setChecked(True)
+        self.chk_auto_indent.setStyleSheet("padding: 2px 0px;")
         box_layout.addWidget(self.chk_auto_indent)
 
         layout.addWidget(box)
@@ -377,77 +344,106 @@ class PreferencesDialog(QDialog):
         return page
 
     def _create_page_colors(self) -> QWidget:
-        page = QWidget()
-        layout = QVBoxLayout(page)
-        layout.setContentsMargins(16, 12, 16, 12)
-        layout.setSpacing(10)
+        scroll = QScrollArea()
+        scroll.setWidgetResizable(True)
+        scroll.setFrameShape(QFrame.NoFrame)
+        scroll.setStyleSheet("background: transparent;")
 
-        header = QLabel("Couleurs de Syntaxe du Code")
-        header.setFont(QFont("SansSerif", 13, QFont.Bold))
-        layout.addWidget(header)
+        container = QWidget()
+        container.setStyleSheet("background: transparent;")
+        layout = QVBoxLayout(container)
+        layout.setContentsMargins(18, 14, 18, 14)
+        layout.setSpacing(14)
 
-        desc = QLabel(
-            "Personnalisez les couleurs de chaque élément syntaxique pour vos algorithmes. "
-            "Les modifications s'affichent instantanément dans l'aperçu ci-dessous."
-        )
-        desc.setWordWrap(True)
-        layout.addWidget(desc)
+        layout.addWidget(self._create_header(
+            "Couleurs de Syntaxe du Code",
+            "Choisissez un jeu de couleurs prédéfini (Preset) pour vos algorithmes. "
+            "Chaque preset s'applique automatiquement et harmonieusement en mode sombre et en mode clair."
+        ))
 
-        # Mode selector for color palette
-        mode_bar = QHBoxLayout()
-        mode_bar.addWidget(QLabel("Modifier les couleurs pour :"))
-        self.combo_color_palette_mode = QComboBox()
-        self.combo_color_palette_mode.addItems(["Thème Sombre (Dark)", "Thème Clair (Light)"])
-        self.combo_color_palette_mode.currentIndexChanged.connect(self._on_color_palette_mode_changed)
-        mode_bar.addWidget(self.combo_color_palette_mode)
-        mode_bar.addStretch()
+        # Preset selection frame
+        card = QFrame()
+        card.setObjectName("pref_card")
+        card_layout = QVBoxLayout(card)
+        card_layout.setContentsMargins(16, 14, 16, 14)
+        card_layout.setSpacing(12)
 
-        self.btn_reset_colors = QPushButton("Réinitialiser couleurs")
-        self.btn_reset_colors.clicked.connect(self._reset_syntax_colors)
-        mode_bar.addWidget(self.btn_reset_colors)
-        layout.addLayout(mode_bar)
+        top_row = QHBoxLayout()
+        top_row.setSpacing(12)
+        lbl_preset = QLabel("Jeu de couleurs (Preset) :")
+        lbl_preset.setFont(QFont("SansSerif", 10, QFont.Bold))
+        top_row.addWidget(lbl_preset)
 
-        # Color Grid
-        color_frame = QFrame()
-        self.color_grid = QGridLayout(color_frame)
-        self.color_grid.setSpacing(8)
+        self.combo_syntax_preset = QComboBox()
+        self.combo_syntax_preset.addItems(list(SYNTAX_PRESETS.keys()))
+        self.combo_syntax_preset.currentIndexChanged.connect(self._on_syntax_preset_changed)
+        top_row.addWidget(self.combo_syntax_preset, 1)
 
-        # Color items
-        self.color_buttons: Dict[str, ColorButton] = {}
-        tokens = [
-            ("keyword", "Mots-clés (ALGORITHME, DEBUT, FIN)", 0, 0),
-            ("control", "Structures de contrôle (Si, Pour, TantQue)", 0, 1),
-            ("type", "Types de données (Entier, Réel, Tableau)", 1, 0),
-            ("builtin", "Fonctions prédéfinies (Lire, Ecrire)", 1, 1),
-            ("operator", "Opérateurs (←, Div, Mod, Et, Ou)", 2, 0),
-            ("string", "Chaînes de caractères (\"...\")", 2, 1),
-            ("literal", "Nombres & Booléens (42, Vrai, Faux)", 3, 0),
-            ("comment", "Commentaires (// ...)", 3, 1),
+        card_layout.addLayout(top_row)
+
+        self.lbl_preset_desc = QLabel()
+        self.lbl_preset_desc.setObjectName("pref_desc")
+        self.lbl_preset_desc.setFont(QFont("SansSerif", 9))
+        self.lbl_preset_desc.setWordWrap(True)
+        card_layout.addWidget(self.lbl_preset_desc)
+
+        # Color chips preview row (showing the 8 palette tokens)
+        self.chips_layout = QHBoxLayout()
+        self.chips_layout.setSpacing(6)
+        self.chip_labels = []
+        token_names = [
+            ("keyword", "Mots-clés"),
+            ("control", "Contrôle"),
+            ("type", "Types"),
+            ("builtin", "Fonctions"),
+            ("operator", "Opérateurs"),
+            ("string", "Chaînes"),
+            ("literal", "Littéraux"),
+            ("comment", "Commentaires"),
         ]
+        for token_key, token_label in token_names:
+            chip = QLabel(token_label)
+            chip.setAlignment(Qt.AlignCenter)
+            chip.setFixedHeight(26)
+            chip.setStyleSheet("border-radius: 4px; font-weight: bold; font-size: 8.5pt; padding: 2px 6px;")
+            self.chips_layout.addWidget(chip)
+            self.chip_labels.append((token_key, chip))
 
-        for token, label_text, r, c in tokens:
-            col_idx = c * 2
-            lbl = QLabel(label_text)
-            btn = ColorButton("#89b4fa")
-            btn.color_changed.connect(lambda hex_val, t=token: self._on_token_color_changed(t, hex_val))
-            self.color_buttons[token] = btn
-            self.color_grid.addWidget(lbl, r, col_idx)
-            self.color_grid.addWidget(btn, r, col_idx + 1)
+        card_layout.addLayout(self.chips_layout)
+        layout.addWidget(card)
 
-        layout.addWidget(color_frame)
+        # Preview mode bar
+        preview_bar = QHBoxLayout()
+        preview_bar.setSpacing(14)
+        lbl_preview = QLabel("Aperçu en temps réel :")
+        lbl_preview.setFont(QFont("SansSerif", 10, QFont.Bold))
+        preview_bar.addWidget(lbl_preview)
 
-        # Live Code Preview
-        lbl_preview = QLabel("Aperçu du code en temps réel :")
-        lbl_preview.setFont(QFont("SansSerif", 9, QFont.Bold))
-        layout.addWidget(lbl_preview)
+        self.btn_preview_group = QButtonGroup(self)
+        self.rb_preview_dark = QRadioButton("🌙 Mode Sombre")
+        self.rb_preview_dark.setIconSize(QSize(18, 18))
+        self.rb_preview_light = QRadioButton("☀️ Mode Clair")
+        self.rb_preview_light.setIconSize(QSize(18, 18))
+        self.btn_preview_group.addButton(self.rb_preview_dark, 0)
+        self.btn_preview_group.addButton(self.rb_preview_light, 1)
 
+        self.rb_preview_dark.toggled.connect(self._update_chips_and_preview)
+        self.rb_preview_light.toggled.connect(self._update_chips_and_preview)
+
+        preview_bar.addWidget(self.rb_preview_dark)
+        preview_bar.addWidget(self.rb_preview_light)
+        preview_bar.addStretch()
+        layout.addLayout(preview_bar)
+
+        # Live Code Preview Editor
         self.preview_editor = AlgoCodeEditor(is_dark=self.is_dark)
         self.preview_editor.setReadOnly(True)
-        self.preview_editor.setFixedHeight(150)
+        self.preview_editor.setMinimumHeight(320)
         self.preview_editor.setPlainText(SAMPLE_ALGO_CODE)
-        layout.addWidget(self.preview_editor)
+        layout.addWidget(self.preview_editor, 1)
 
-        return page
+        scroll.setWidget(container)
+        return scroll
 
     # -----------------------------------------------------------------
     # Navigation & Value Synchronization
@@ -458,6 +454,8 @@ class PreferencesDialog(QDialog):
         page_idx = current.data(0, Qt.UserRole)
         if page_idx is not None:
             self.pages.setCurrentIndex(page_idx)
+        elif current.childCount() > 0:
+            self.tree.setCurrentItem(current.child(0))
 
     def _load_values(self):
         # 1. Mode
@@ -480,49 +478,56 @@ class PreferencesDialog(QDialog):
         self.chk_highlight_line.setChecked(ed.get("highlight_current_line", True))
         self.chk_auto_indent.setChecked(ed.get("auto_indent", True))
 
-        # 3. Colors
+        # 3. Syntax preset
+        saved_preset = self.current_syntax_preset
+        idx = self.combo_syntax_preset.findText(saved_preset)
+        if idx >= 0:
+            self.combo_syntax_preset.setCurrentIndex(idx)
+        else:
+            self.combo_syntax_preset.setCurrentIndex(0)
+
+        # Set preview mode initial state matching current effective mode
         is_dark_active = (self.current_theme_mode == "dark") or (
             self.current_theme_mode == "system" and detect_system_dark_mode()
         )
-        self.combo_color_palette_mode.setCurrentIndex(0 if is_dark_active else 1)
-        self._sync_color_buttons()
-        self._update_preview()
-
-    def _on_color_palette_mode_changed(self, idx: int):
-        self._sync_color_buttons()
-        self._update_preview()
-
-    def _sync_color_buttons(self):
-        is_dark_palette = (self.combo_color_palette_mode.currentIndex() == 0)
-        active_colors = self.colors_dark if is_dark_palette else self.colors_light
-        for token, btn in self.color_buttons.items():
-            if token in active_colors:
-                btn.set_color(active_colors[token])
-
-    def _on_token_color_changed(self, token: str, hex_val: str):
-        is_dark_palette = (self.combo_color_palette_mode.currentIndex() == 0)
-        if is_dark_palette:
-            self.colors_dark[token] = hex_val
+        if is_dark_active:
+            self.rb_preview_dark.setChecked(True)
         else:
-            self.colors_light[token] = hex_val
-        self._update_preview()
+            self.rb_preview_light.setChecked(True)
 
-    def _reset_syntax_colors(self):
-        is_dark_palette = (self.combo_color_palette_mode.currentIndex() == 0)
-        if is_dark_palette:
-            self.colors_dark = dict(DEFAULT_SYNTAX_COLORS_DARK)
-        else:
-            self.colors_light = dict(DEFAULT_SYNTAX_COLORS_LIGHT)
-        self._sync_color_buttons()
-        self._update_preview()
+        self._on_syntax_preset_changed()
 
-    def _update_preview(self):
-        is_dark_palette = (self.combo_color_palette_mode.currentIndex() == 0)
-        active_colors = self.colors_dark if is_dark_palette else self.colors_light
+    def _on_syntax_preset_changed(self, _=None):
+        preset_name = self.combo_syntax_preset.currentText()
+        preset = SYNTAX_PRESETS.get(preset_name, SYNTAX_PRESETS["Algoo"])
+        self.lbl_preset_desc.setText(preset.get("description", ""))
+        self._update_chips_and_preview()
 
-        self.preview_editor.set_dark_mode(is_dark_palette, active_colors)
+    def _update_chips_and_preview(self, _=None):
+        preset_name = self.combo_syntax_preset.currentText()
+        preset = SYNTAX_PRESETS.get(preset_name, SYNTAX_PRESETS["Algoo"])
+        is_dark_preview = self.rb_preview_dark.isChecked()
+        colors = preset["dark"] if is_dark_preview else preset["light"]
+
+        # Update color chips
+        for token_key, chip in self.chip_labels:
+            color_hex = colors.get(token_key, "#888888")
+            c = QColor(color_hex)
+            brightness = (c.red() * 299 + c.green() * 587 + c.blue() * 114) / 1000
+            text_color = "#000000" if brightness > 140 else "#ffffff"
+            chip.setStyleSheet(
+                f"background-color: {color_hex};"
+                f"color: {text_color};"
+                f"border-radius: 4px;"
+                f"font-weight: bold;"
+                f"font-size: 8.5pt;"
+                f"padding: 2px 6px;"
+            )
+
+        # Update preview editor
+        self.preview_editor.set_dark_mode(is_dark_preview, colors)
         ed_settings = self._collect_editor_settings()
-        self.preview_editor.apply_settings(ed_settings, active_colors)
+        self.preview_editor.apply_settings(ed_settings, colors)
 
     def _collect_editor_settings(self) -> Dict[str, Any]:
         return {
@@ -538,23 +543,21 @@ class PreferencesDialog(QDialog):
         res = QMessageBox.question(
             self,
             "Rétablir par défaut",
-            "Voulez-vous réinitialiser toutes les préférences (mode système, polices et couleurs) ?",
+            "Voulez-vous réinitialiser toutes les préférences (mode système, police et preset Algoo) ?",
             QMessageBox.Yes | QMessageBox.No
         )
         if res == QMessageBox.Yes:
             self.rb_system.setChecked(True)
-            self.combo_global_theme.setCurrentIndex(0)
-            self.combo_accent.setCurrentIndex(0)
             self.combo_font_family.setCurrentIndex(0)
             self.spin_font_size.setValue(11)
             self.spin_tab_size.setValue(4)
             self.chk_line_numbers.setChecked(True)
             self.chk_highlight_line.setChecked(True)
             self.chk_auto_indent.setChecked(True)
-            self.colors_dark = dict(DEFAULT_SYNTAX_COLORS_DARK)
-            self.colors_light = dict(DEFAULT_SYNTAX_COLORS_LIGHT)
-            self._sync_color_buttons()
-            self._update_preview()
+            idx = self.combo_syntax_preset.findText("Algoo")
+            if idx >= 0:
+                self.combo_syntax_preset.setCurrentIndex(idx)
+            self._on_syntax_preset_changed()
 
     def apply_preferences(self):
         """Saves settings to database and notifies parent to apply them immediately."""
@@ -568,16 +571,16 @@ class PreferencesDialog(QDialog):
 
         self.db.set_theme_mode(chosen_mode)
 
-        # 2. Global theme and accent
-        self.db.set_global_theme(self.combo_global_theme.currentText())
-
-        # 3. Editor settings
+        # 2. Editor settings
         ed = self._collect_editor_settings()
         self.db.set_editor_settings(ed)
 
-        # 4. Custom colors
-        self.db.set_syntax_colors(self.colors_dark, is_dark=True)
-        self.db.set_syntax_colors(self.colors_light, is_dark=False)
+        # 3. Syntax preset & colors (applies to both dark and light modes)
+        preset_name = self.combo_syntax_preset.currentText()
+        preset = SYNTAX_PRESETS.get(preset_name, SYNTAX_PRESETS["Algoo"])
+        self.db.set_syntax_preset(preset_name)
+        self.db.set_syntax_colors(preset["dark"], is_dark=True)
+        self.db.set_syntax_colors(preset["light"], is_dark=False)
 
         # Calculate effective dark mode
         if chosen_mode == "system":
@@ -598,11 +601,174 @@ class PreferencesDialog(QDialog):
         self.is_dark = is_dark
         self.setStyleSheet(DARK_THEME if is_dark else LIGHT_THEME)
 
-        icon_color = "#cdd6f4" if is_dark else "#475569"
+        if is_dark:
+            tree_bg = "#181825"
+            tree_border = "#313244"
+            item_fg = "#cdd6f4"
+            item_hover = "rgba(205, 214, 244, 0.08)"
+            sel_bg = "#313244"
+            sel_fg = "#89b4fa"
+            icon_color = "#cdd6f4"
+            sub_icon_color = "#89b4fa"
+            handle_bg = "#45475a"
+            card_bg = "#181825"
+            card_border = "#313244"
+            desc_fg = "#a6adc8"
+            sep_color = "#313244"
+            sys_card_bg = "rgba(137, 180, 250, 0.12)"
+            sys_card_border = "rgba(137, 180, 250, 0.25)"
+        else:
+            tree_bg = "#f8fafc"
+            tree_border = "#cbd5e1"
+            item_fg = "#334155"
+            item_hover = "#f1f5f9"
+            sel_bg = "#e0e7ff"
+            sel_fg = "#1d4ed8"
+            icon_color = "#475569"
+            sub_icon_color = "#2563eb"
+            handle_bg = "#cbd5e1"
+            card_bg = "#ffffff"
+            card_border = "#e2e8f0"
+            desc_fg = "#64748b"
+            sep_color = "#e2e8f0"
+            sys_card_bg = "rgba(37, 99, 235, 0.08)"
+            sys_card_border = "rgba(37, 99, 235, 0.2)"
+
+        # Style left tree view with minimal margin and NO square borders
         self.tree.setStyleSheet(
-            f"QTreeWidget {{ background-color: {'#181825' if is_dark else '#ffffff'}; "
-            f"border: 1px solid {'#313244' if is_dark else '#e2e8f0'}; border-radius: 6px; padding: 4px; }}"
+            f"QTreeWidget {{"
+            f"  background-color: {tree_bg};"
+            f"  border: 1px solid {tree_border};"
+            f"  border-radius: 8px;"
+            f"  padding: 4px 2px;"
+            f"  outline: none;"
+            f"  show-decoration-selected: 0;"
+            f"}}"
+            f"QTreeWidget::item {{"
+            f"  padding: 6px 6px;"
+            f"  margin: 1px 2px;"
+            f"  border-radius: 6px;"
+            f"  color: {item_fg};"
+            f"  border: none;"
+            f"  outline: none;"
+            f"}}"
+            f"QTreeWidget::item:hover {{"
+            f"  background-color: {item_hover};"
+            f"  border: none;"
+            f"  outline: none;"
+            f"}}"
+            f"QTreeWidget::item:selected {{"
+            f"  background-color: {sel_bg};"
+            f"  color: {sel_fg};"
+            f"  font-weight: bold;"
+            f"  border: none;"
+            f"  outline: none;"
+            f"}}"
+            f"QTreeWidget::item:selected:active {{"
+            f"  background-color: {sel_bg};"
+            f"  color: {sel_fg};"
+            f"  border: none;"
+            f"  outline: none;"
+            f"}}"
+            f"QTreeWidget::item:selected:!active {{"
+            f"  background-color: {sel_bg};"
+            f"  color: {sel_fg};"
+            f"  border: none;"
+            f"  outline: none;"
+            f"}}"
+            f"QTreeWidget::item:focus {{"
+            f"  border: none;"
+            f"  outline: none;"
+            f"}}"
+            f"QTreeWidget::branch {{"
+            f"  background: transparent;"
+            f"  border: none;"
+            f"  outline: none;"
+            f"}}"
+            f"QTreeWidget::branch:selected {{"
+            f"  background: transparent;"
+            f"  border: none;"
+            f"  outline: none;"
+            f"}}"
         )
-        self.btn_apply.setIcon(create_icon("step", icon_color, 14))
-        self.btn_cancel.setIcon(create_icon("close", icon_color, 14))
-        self.btn_defaults.setIcon(create_icon("refresh", icon_color, 14))
+
+        # Style splitter handle
+        self.splitter.setStyleSheet(
+            f"QSplitter::handle:horizontal {{"
+            f"  background-color: transparent;"
+            f"  width: 6px;"
+            f"}}"
+            f"QSplitter::handle:horizontal:hover {{"
+            f"  background-color: {handle_bg};"
+            f"  border-radius: 3px;"
+            f"}}"
+        )
+
+        # Style card containers, descriptions and separators inside pages
+        card_style = (
+            f"QFrame#pref_card {{"
+            f"  background-color: {card_bg};"
+            f"  border: 1px solid {card_border};"
+            f"  border-radius: 8px;"
+            f"}}"
+            f"QGroupBox {{"
+            f"  background-color: {card_bg};"
+            f"  border: 1px solid {card_border};"
+            f"  border-radius: 8px;"
+            f"  margin-top: 12px;"
+            f"  padding: 14px 14px 14px 14px;"
+            f"  font-weight: bold;"
+            f"}}"
+            f"QGroupBox::title {{"
+            f"  subcontrol-origin: margin;"
+            f"  left: 14px;"
+            f"  padding: 0 4px;"
+            f"  color: {sel_fg};"
+            f"}}"
+            f"QLabel#pref_desc {{"
+            f"  color: {desc_fg};"
+            f"}}"
+            f"QFrame#pref_separator {{"
+            f"  border: none;"
+            f"  background-color: {sep_color};"
+            f"  height: 1px;"
+            f"  max-height: 1px;"
+            f"}}"
+            f"QLabel#pref_sys_info {{"
+            f"  background-color: {sys_card_bg};"
+            f"  border: 1px solid {sys_card_border};"
+            f"  border-radius: 6px;"
+            f"  padding: 10px 14px;"
+            f"}}"
+        )
+        self.pages.setStyleSheet(card_style)
+
+        # Update icons on tree items
+        if hasattr(self, "item_theme"):
+            self.item_theme.setIcon(0, create_icon("theme", icon_color, size=24))
+        if hasattr(self, "cat_ed"):
+            self.cat_ed.setIcon(0, create_icon("settings", icon_color, size=24))
+        if hasattr(self, "item_font"):
+            self.item_font.setIcon(0, create_icon("font", sub_icon_color, size=22))
+        if hasattr(self, "item_colors"):
+            self.item_colors.setIcon(0, create_icon("syntax", sub_icon_color, size=22))
+
+        # Update icons on theme mode radio options
+        if hasattr(self, "rb_system"):
+            self.rb_system.setIcon(create_icon("system", icon_color, size=24))
+        if hasattr(self, "rb_light"):
+            self.rb_light.setIcon(create_icon("sun", "#f59e0b", size=24))
+        if hasattr(self, "rb_dark"):
+            self.rb_dark.setIcon(create_icon("moon", "#89b4fa" if is_dark else "#2563eb", size=24))
+
+        # Update preview mode icons
+        if hasattr(self, "rb_preview_dark"):
+            self.rb_preview_dark.setIcon(create_icon("moon", "#89b4fa" if is_dark else "#2563eb", size=18))
+        if hasattr(self, "rb_preview_light"):
+            self.rb_preview_light.setIcon(create_icon("sun", "#f59e0b", size=18))
+
+        # Update button icons and sizes
+        self.btn_apply.setIcon(create_icon("check", icon_color, size=20))
+        self.btn_cancel.setIcon(create_icon("close", icon_color, size=20))
+        self.btn_defaults.setIcon(create_icon("refresh", icon_color, size=20))
+        self.btn_ok.setIcon(create_icon("check", "#ffffff", size=20))
