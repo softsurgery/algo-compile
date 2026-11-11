@@ -129,12 +129,6 @@ class MainWindow(QMainWindow):
         self.assistant_view = AssistantView(self, is_dark=self.is_dark_mode)
         self.side_tabs.addTab(self.assistant_view, "Guide et Aide")
 
-        # 5. Snippets and Collections View (Tree View + Multi-tab viewer)
-        self.snippets_view = SnippetsWidget(self, is_dark=self.is_dark_mode)
-        self.snippets_view.insert_requested.connect(self._on_snippet_side_insert)
-        self.snippets_view.new_tab_requested.connect(self._on_snippet_side_new_tab)
-        self.side_tabs.addTab(self.snippets_view, "Extraits & Collections")
-
         self.side_tabs.currentChanged.connect(self._on_side_tab_changed)
 
         self.h_splitter.addWidget(self.side_tabs)
@@ -337,6 +331,13 @@ class MainWindow(QMainWindow):
         menu_view.addAction(act_zoom_reset)
         menu_view.addSeparator()
 
+        self.act_fullscreen = QAction("Plein écran\tF11", self)
+        self.act_fullscreen.setShortcut(QKeySequence("F11"))
+        self.act_fullscreen.setIcon(create_icon("fullscreen", "#475569" if not self.is_dark_mode else "#cdd6f4"))
+        self.act_fullscreen.triggered.connect(self.toggle_fullscreen)
+        menu_view.addAction(self.act_fullscreen)
+        menu_view.addSeparator()
+
         menu_view.addAction(self.act_theme)
 
         # Tools
@@ -508,6 +509,8 @@ class MainWindow(QMainWindow):
         self.act_zoom_in.setIcon(create_icon("zoom_in", color_hex))
         self.act_zoom_out.setIcon(create_icon("zoom_out", color_hex))
         self.act_theme.setIcon(create_icon("theme", color_hex))
+        if hasattr(self, "act_fullscreen"):
+            self.act_fullscreen.setIcon(create_icon("fullscreen", color_hex))
 
         # Propagate to sub-widgets
         if hasattr(self, "symbols_bar"):
@@ -589,15 +592,41 @@ class MainWindow(QMainWindow):
         self._update_window_title()
         return editor
 
+    def toggle_fullscreen(self):
+        """Toggles main window between full screen and normal window."""
+        if self.isFullScreen() or getattr(self, "_is_fullscreen", False):
+            self.showNormal()
+            self._is_fullscreen = False
+            if hasattr(self, "act_fullscreen"):
+                self.act_fullscreen.setText("Plein écran\tF11")
+        else:
+            self.showFullScreen()
+            self._is_fullscreen = True
+            if hasattr(self, "act_fullscreen"):
+                self.act_fullscreen.setText("Quitter plein écran\tF11")
+
+    def open_pdf_reader(self, path: str, start_fullscreen: bool = False):
+        """Opens a PDF file in the dedicated LightPdfViewer / PdfReaderWindow."""
+        from ui.pdf_viewer import PdfReaderWindow
+        self._pdf_window = PdfReaderWindow(path, parent=self, is_dark=self.is_dark_mode, start_fullscreen=start_fullscreen)
+        self._pdf_window.show()
+        self._pdf_window.raise_()
+        self._pdf_window.activateWindow()
+
     def open_file(self):
         path, _ = QFileDialog.getOpenFileName(
-            self, "Ouvrir un algorithme", "",
-            "Fichiers Algorithme (*.algo *.alg *.txt);;Tous les fichiers (*.*)"
+            self, "Ouvrir un fichier", "",
+            "Fichiers pris en charge (*.algo *.alg *.txt *.pdf);;Fichiers Algorithme (*.algo *.alg *.txt);;Fichiers PDF (*.pdf);;Tous les fichiers (*.*)"
         )
         if path:
             self.load_file(path)
 
     def load_file(self, path: str, record: bool = True):
+        # Open PDF files in the dedicated reader window
+        if path.lower().endswith(".pdf"):
+            self.open_pdf_reader(path)
+            return
+
         # Check if already open
         norm_target = os.path.abspath(path)
         for i in range(self.tab_widget.count()):

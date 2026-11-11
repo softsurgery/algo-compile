@@ -22,6 +22,7 @@ from PyQt5.QtCore import Qt, pyqtSignal, QUrl, QSize
 
 from ui.editor import AlgoCodeEditor
 from ui.icons import create_icon
+from ui.pdf_viewer import LightPdfViewer, PdfReaderWindow
 from ui.snippets_manager import (
     SnippetItem, CollectionNode, scan_snippets_tree, join_file_to_snippet,
     create_snippet_bundle, IMAGE_EXTENSIONS, MD_EXTENSIONS
@@ -422,6 +423,11 @@ class SnippetFilesViewer(QWidget):
         self.image_scroll.setWidget(self.lbl_image_preview)
         self.preview_stack.addWidget(self.image_scroll)
 
+        # Page 2: PDF Preview (Light PDF Viewer)
+        self.pdf_viewer = LightPdfViewer(self, is_dark=self.is_dark)
+        self.pdf_viewer.detach_requested.connect(self._open_pdf_detached)
+        self.preview_stack.addWidget(self.pdf_viewer)
+
         layout.addWidget(self.preview_stack, 2)
 
         # Bottom buttons
@@ -431,6 +437,11 @@ class SnippetFilesViewer(QWidget):
         self.btn_open_system = QPushButton("Ouvrir avec le système")
         self.btn_open_system.clicked.connect(self._open_in_system)
         btn_layout.addWidget(self.btn_open_system)
+
+        self.btn_open_pdf_fs = QPushButton("Lecteur PDF plein écran")
+        self.btn_open_pdf_fs.setVisible(False)
+        self.btn_open_pdf_fs.clicked.connect(self._on_open_pdf_fs_clicked)
+        btn_layout.addWidget(self.btn_open_pdf_fs)
 
         self.btn_insert_content = QPushButton("Insérer le contenu")
         self.btn_insert_content.clicked.connect(self._on_insert_clicked)
@@ -445,8 +456,15 @@ class SnippetFilesViewer(QWidget):
     def set_dark_mode(self, is_dark: bool):
         self.is_dark = is_dark
         icon_color = "#cdd6f4" if is_dark else "#475569"
-        self.btn_open_system.setIcon(create_icon("open", icon_color, 14))
-        self.btn_insert_content.setIcon(create_icon("step", icon_color, 14))
+        self.btn_open_system.setIcon(create_icon("open", icon_color, 16))
+        self.btn_open_pdf_fs.setIcon(create_icon("fullscreen", icon_color, 16))
+        self.btn_insert_content.setIcon(create_icon("step", icon_color, 16))
+        self.btn_open_system.setIconSize(QSize(16, 16))
+        self.btn_open_pdf_fs.setIconSize(QSize(16, 16))
+        self.btn_insert_content.setIconSize(QSize(16, 16))
+
+        if hasattr(self, "pdf_viewer"):
+            self.pdf_viewer.set_dark_mode(is_dark)
 
         bg = "#11111b" if is_dark else "#ffffff"
         fg = "#cdd6f4" if is_dark else "#1e293b"
@@ -482,6 +500,13 @@ class SnippetFilesViewer(QWidget):
 
             it_name = QTableWidgetItem(fname)
             it_name.setData(Qt.UserRole, p)
+            if ext == ".PDF":
+                it_name.setIcon(create_icon("pdf", "#ef4444", 16))
+            elif ext.lower() in IMAGE_EXTENSIONS:
+                it_name.setIcon(create_icon("image", "#10b981", 16))
+            else:
+                it_name.setIcon(create_icon("doc", "#89b4fa" if self.is_dark else "#2563eb", 16))
+
             it_type = QTableWidgetItem(ext)
             it_size = QTableWidgetItem(sz_str)
 
@@ -507,9 +532,24 @@ class SnippetFilesViewer(QWidget):
             self.lbl_image_preview.clear()
             self.preview_stack.setCurrentIndex(0)
             self.btn_insert_content.setEnabled(False)
+            self.btn_insert_content.setVisible(False)
+            self.btn_open_pdf_fs.setVisible(False)
             return
 
         ext = os.path.splitext(p)[1].lower()
+
+        # 1. PDF File
+        if ext == ".pdf":
+            self.preview_stack.setCurrentIndex(2)
+            self.pdf_viewer.load_pdf(p)
+            self.btn_insert_content.setEnabled(False)
+            self.btn_insert_content.setVisible(False)
+            self.btn_open_pdf_fs.setVisible(True)
+            return
+
+        self.btn_open_pdf_fs.setVisible(False)
+
+        # 2. Image File
         if ext in IMAGE_EXTENSIONS:
             self.preview_stack.setCurrentIndex(1)
             pix = QPixmap(p)
@@ -519,9 +559,12 @@ class SnippetFilesViewer(QWidget):
             else:
                 self.lbl_image_preview.setText("Impossible de charger l'image.")
             self.btn_insert_content.setEnabled(False)
+            self.btn_insert_content.setVisible(False)
             return
 
+        # 3. Text/Data File
         self.preview_stack.setCurrentIndex(0)
+        self.btn_insert_content.setVisible(True)
         self.btn_insert_content.setEnabled(True)
         try:
             with open(p, "r", encoding="utf-8") as f:
@@ -538,6 +581,24 @@ class SnippetFilesViewer(QWidget):
         except Exception as e:
             self.text_preview.setPlainText(f"Erreur lors de la lecture : {e}")
             self.btn_insert_content.setEnabled(False)
+
+    def _open_pdf_detached(self, pdf_path: str):
+        """Opens the PDF reader in a separate top-level window."""
+        parent_win = self.window() if self.window() else None
+        self._pdf_window = PdfReaderWindow(pdf_path, parent=parent_win, is_dark=self.is_dark, start_fullscreen=False)
+        self._pdf_window.show()
+        self._pdf_window.raise_()
+        self._pdf_window.activateWindow()
+
+    def _on_open_pdf_fs_clicked(self):
+        """Opens the selected PDF directly in a separate full-screen window."""
+        p = self._selected_path()
+        if p and p.lower().endswith(".pdf"):
+            parent_win = self.window() if self.window() else None
+            self._pdf_window = PdfReaderWindow(p, parent=parent_win, is_dark=self.is_dark, start_fullscreen=True)
+            self._pdf_window.show()
+            self._pdf_window.raise_()
+            self._pdf_window.activateWindow()
 
     def _open_in_system(self):
         p = self._selected_path()
@@ -883,7 +944,9 @@ class SnippetsWidget(QWidget):
 
         self.tabs.setTabIcon(0, create_icon("python", "#89b4fa" if is_dark else "#2563eb", 16))
         self.tabs.setTabIcon(1, create_icon("doc", icon_color, 16))
-        self.tabs.setTabIcon(2, create_icon("folder", icon_color, 16))
+        idx_files = self.tabs.indexOf(self.files_viewer)
+        if idx_files != -1:
+            self.tabs.setTabIcon(idx_files, create_icon("folder", icon_color, 16))
 
         self.tree_widget.set_dark_mode(is_dark)
         self.preview_editor.set_dark_mode(is_dark)
@@ -935,6 +998,14 @@ class SnippetsWidget(QWidget):
             top = self.tree_widget.topLevelItem(0)
             if top.childCount() > 0:
                 self.tree_widget.setCurrentItem(top.child(0))
+            else:
+                idx = self.tabs.indexOf(self.files_viewer)
+                if idx != -1:
+                    self.tabs.removeTab(idx)
+        else:
+            idx = self.tabs.indexOf(self.files_viewer)
+            if idx != -1:
+                self.tabs.removeTab(idx)
 
     def _on_search_changed(self, text: str):
         self.tree_widget.filter_tree(text)
@@ -972,8 +1043,18 @@ class SnippetsWidget(QWidget):
                 f"# {snippet.title}\n\n*Aucune documentation Markdown n'est associée à ce snippet.*"
             )
 
-        # Update Files tab (all companion and associated files)
-        self.files_viewer.set_files(snippet.companion_files)
+        # Update Files tab (only shown if companion/associated files exist)
+        if snippet.companion_files:
+            if self.tabs.indexOf(self.files_viewer) == -1:
+                self.tabs.addTab(self.files_viewer, "Fichiers associés")
+                icon_color = "#cdd6f4" if self.is_dark else "#475569"
+                idx = self.tabs.indexOf(self.files_viewer)
+                self.tabs.setTabIcon(idx, create_icon("folder", icon_color, 16))
+            self.files_viewer.set_files(snippet.companion_files)
+        else:
+            idx = self.tabs.indexOf(self.files_viewer)
+            if idx != -1:
+                self.tabs.removeTab(idx)
 
     def _on_snippet_double_clicked(self, snippet: SnippetItem):
         self.insert_requested.emit(snippet.code, snippet.title)

@@ -181,6 +181,32 @@ class TestSnippetsAndCollections(unittest.TestCase):
         widget.set_dark_mode(False)
         widget.close()
 
+    def test_file_tab_visibility_based_on_companion_files(self):
+        widget = SnippetsWidget(is_dark=False)
+        widget.show()
+        all_snips = [c.get_all_snippets() for c in widget._collections]
+        flat = [s for sub in all_snips for s in sub]
+
+        # Find a snippet with files and one without files
+        snip_with_files = next((s for s in flat if s.companion_files), None)
+        snip_without_files = next((s for s in flat if not s.companion_files), None)
+
+        self.assertIsNotNone(snip_with_files)
+        self.assertIsNotNone(snip_without_files)
+
+        # When selecting snippet with files, "Fichiers associés" tab must be present
+        widget._on_snippet_selected(snip_with_files)
+        self.assertNotEqual(widget.tabs.indexOf(widget.files_viewer), -1)
+
+        # When selecting snippet without files, "Fichiers associés" tab must NOT be shown
+        widget._on_snippet_selected(snip_without_files)
+        self.assertEqual(widget.tabs.indexOf(widget.files_viewer), -1)
+
+        # Switching back to snippet with files restores the tab
+        widget._on_snippet_selected(snip_with_files)
+        self.assertNotEqual(widget.tabs.indexOf(widget.files_viewer), -1)
+        widget.close()
+
     def test_insert_code_dialog_size_and_icons(self):
         dlg = InsertCodeDialog(None, is_dark=False)
         self.assertGreaterEqual(dlg.width(), 1150)
@@ -200,10 +226,9 @@ class TestSnippetsAndCollections(unittest.TestCase):
 
     def test_main_window_snippets_tab_and_insert(self):
         win = MainWindow()
-        # Verify "Extraits & Collections" tab exists in side panels
+        # Verify "Extraits & Collections" tab is removed from side panels
         tab_titles = [win.side_tabs.tabText(i) for i in range(win.side_tabs.count())]
-        self.assertIn("Extraits & Collections", tab_titles)
-        self.assertTrue(hasattr(win, "snippets_view"))
+        self.assertNotIn("Extraits & Collections", tab_titles)
 
         # Test side insertion
         test_code = "ALGORITHME TestInsert\nDEBUT\nEcrire(42)\nFIN\n"

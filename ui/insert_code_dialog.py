@@ -10,9 +10,9 @@ Features:
 import os
 from PyQt5.QtWidgets import (
     QDialog, QVBoxLayout, QHBoxLayout, QLabel, QPushButton, QListWidget,
-    QListWidgetItem, QWidget
+    QListWidgetItem, QWidget, QShortcut
 )
-from PyQt5.QtGui import QFont, QIcon, QPixmap
+from PyQt5.QtGui import QFont, QIcon, QPixmap, QKeySequence
 from PyQt5.QtCore import Qt
 
 from ui.editor import AlgoCodeEditor
@@ -33,8 +33,13 @@ class InsertCodeDialog(QDialog):
         transparent_pixmap = QPixmap(1, 1)
         transparent_pixmap.fill(Qt.transparent)
         self.setWindowIcon(QIcon(transparent_pixmap))
+
+        # Enable maximize, minimize and fullscreen buttons
+        self.setWindowFlags(self.windowFlags() | Qt.WindowMinMaxButtonsHint)
+
         self.resize(1180, 750)
         self.setMinimumSize(950, 580)
+        self._is_fullscreen = False
 
         # Apply global theme to dialog window
         self.setStyleSheet(DARK_THEME if self.is_dark else LIGHT_THEME)
@@ -46,6 +51,9 @@ class InsertCodeDialog(QDialog):
         self._setup_ui()
         self._apply_compat_styles()
         self._sync_compatibility_list()
+
+        # Keyboard shortcut for full screen
+        QShortcut(QKeySequence(Qt.Key_F11), self, self.toggle_fullscreen)
 
     def _setup_ui(self):
         main_layout = QVBoxLayout(self)
@@ -109,6 +117,13 @@ class InsertCodeDialog(QDialog):
         self.btn_copy.clicked.connect(self.snippets_widget._copy_code)
         bottom_layout.addWidget(self.btn_copy)
 
+        self.btn_fullscreen = QPushButton("Plein écran")
+        self.btn_fullscreen.setStyleSheet(btn_sec_style)
+        self.btn_fullscreen.setIcon(create_icon("fullscreen", icon_color, 14))
+        self.btn_fullscreen.setToolTip("Basculer la boîte de dialogue en plein écran (F11)")
+        self.btn_fullscreen.clicked.connect(self.toggle_fullscreen)
+        bottom_layout.addWidget(self.btn_fullscreen)
+
         bottom_layout.addStretch()
 
         self.btn_cancel = QPushButton("Annuler")
@@ -141,6 +156,8 @@ class InsertCodeDialog(QDialog):
         icon_color = "#cdd6f4" if self.is_dark else "#475569"
         if hasattr(self, "btn_copy"):
             self.btn_copy.setIcon(create_icon("copy", icon_color, 14))
+        if hasattr(self, "btn_fullscreen"):
+            self.btn_fullscreen.setIcon(create_icon("fullscreen", icon_color, 14))
         if hasattr(self, "btn_cancel"):
             self.btn_cancel.setIcon(create_icon("close", icon_color, 14))
         if hasattr(self, "btn_new_tab"):
@@ -282,3 +299,22 @@ class InsertCodeDialog(QDialog):
 
         self.action_mode = 'new_tab'
         self.accept()
+
+    def toggle_fullscreen(self):
+        """Toggles dialog between full screen and normal window."""
+        if self.isFullScreen():
+            self.showNormal()
+            self._is_fullscreen = False
+            if hasattr(self, "btn_fullscreen"):
+                self.btn_fullscreen.setText("Plein écran")
+        else:
+            self.showFullScreen()
+            self._is_fullscreen = True
+            if hasattr(self, "btn_fullscreen"):
+                self.btn_fullscreen.setText("Quitter plein écran")
+
+    def keyPressEvent(self, event):
+        if event.key() == Qt.Key_Escape and self.isFullScreen():
+            self.toggle_fullscreen()
+            return
+        super().keyPressEvent(event)
