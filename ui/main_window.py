@@ -1,5 +1,5 @@
 """
-Main Application Window (Algoo - Modern IDE for Algerian & Tunisian Algorithm Conventions).
+Main Application Window (Algoo - Modern IDE for Algorithmic Development).
 Developed by softsurgery (https://github.com/softsurgery/algoo).
 Built with PyQt5 and modern design standards.
 """
@@ -11,37 +11,52 @@ from PyQt5.QtWidgets import (
     QTabWidget, QToolBar, QAction, QFileDialog, QMessageBox,
     QStatusBar, QLabel, QMenu, QToolButton, QApplication, QDialog
 )
-from PyQt5.QtGui import QIcon, QFont, QKeySequence, QDesktopServices
+from PyQt5.QtGui import QIcon, QFont, QKeySequence, QDesktopServices, QPixmap
 from PyQt5.QtCore import Qt, QFileInfo, QUrl, QSettings
 
 from compiler.transpiler import AlgoTranspiler, CompileError
 from ui.editor import AlgoCodeEditor
 from ui.console import AlgoConsole
 from ui.python_view import PythonView
-from ui.variables_view import VariablesView
 from ui.tdo_view import TDOView
+from ui.tdnt_view import TDNTView
 from ui.assistant_view import AssistantView
 from ui.symbols_bar import SymbolsBar
-from ui.icons import create_icon
+from ui.icons import create_icon, get_app_icon
 from ui.styles import (
     LIGHT_THEME, DARK_THEME,
     detect_system_dark_mode, apply_os_window_theme
 )
 from ui.insert_code_dialog import InsertCodeDialog
+from ui.snippets_view import SnippetsWidget
+from ui.about_dialog import AboutDialog
+from database import get_database, DatabaseManager
+from typing import Optional
 
 
 class MainWindow(QMainWindow):
-    def __init__(self):
+    def __init__(self, db: Optional[DatabaseManager] = None):
         super().__init__()
-        self.setWindowTitle("Algoo - Conventions Algorithmiques 2024/2025")
+        self.setWindowTitle("Algoo - IDE Algorithmique")
+        # Do not display icon in window header at top left
+        empty_icon_pixmap = QPixmap(1, 1)
+        empty_icon_pixmap.fill(Qt.transparent)
+        self.setWindowIcon(QIcon(empty_icon_pixmap))
         self.resize(1200, 800)
 
-        # Check saved setting or detect system preference
+        # Database initialization & theme preference
+        self.db = db or get_database()
         self.settings = QSettings("softsurgery", "Algoo")
-        if self.settings.contains("dark_mode"):
+
+        saved_dark = self.db.is_dark_mode()
+        if saved_dark is not None:
+            self.is_dark_mode = saved_dark
+        elif self.settings.contains("dark_mode"):
             self.is_dark_mode = self.settings.value("dark_mode", type=bool)
+            self.db.set_dark_mode(self.is_dark_mode)
         else:
             self.is_dark_mode = detect_system_dark_mode()
+            self.db.set_dark_mode(self.is_dark_mode)
 
         self.transpiler = AlgoTranspiler()
 
@@ -51,8 +66,8 @@ class MainWindow(QMainWindow):
         self._setup_statusbar()
         self.apply_theme(recreate_native=False)
 
-        # Open initial starter tab
-        self._open_default_example()
+        # Restore latest opened files or open starter default example
+        self._restore_opened_files()
 
     def _setup_ui(self):
         central_widget = QWidget(self)
@@ -102,17 +117,19 @@ class MainWindow(QMainWindow):
         self.python_view = PythonView(self, is_dark=self.is_dark_mode)
         self.side_tabs.addTab(self.python_view, "Code Python")
 
-        # 2. Variables View
-        self.variables_view = VariablesView(self, is_dark=self.is_dark_mode)
-        self.side_tabs.addTab(self.variables_view, "Variables")
-
-        # 3. TDO View
+        # 2. TDO View (Separate TDOG and TDOL tables)
         self.tdo_view = TDOView(self, is_dark=self.is_dark_mode)
         self.side_tabs.addTab(self.tdo_view, "Tableau T.D.O.")
 
-        # 4. Assistant & Conventions View
+        # 3. TDNT View
+        self.tdnt_view = TDNTView(self, is_dark=self.is_dark_mode)
+        self.side_tabs.addTab(self.tdnt_view, "Tableau T.D.N.T.")
+
+        # 4. Guide & Assistant View
         self.assistant_view = AssistantView(self, is_dark=self.is_dark_mode)
         self.side_tabs.addTab(self.assistant_view, "Guide et Aide")
+
+        self.side_tabs.currentChanged.connect(self._on_side_tab_changed)
 
         self.h_splitter.addWidget(self.side_tabs)
 
@@ -132,7 +149,7 @@ class MainWindow(QMainWindow):
         self.act_new = QAction(create_icon("new"), "Nouveau", self)
         self.act_new.setShortcut(QKeySequence.New)
         self.act_new.setToolTip("Nouveau fichier algorithmique (Ctrl+N)")
-        self.act_new.triggered.connect(self.new_file)
+        self.act_new.triggered.connect(lambda checked=False: self.new_file())
         self.toolbar.addAction(self.act_new)
 
         # Open file
@@ -218,6 +235,11 @@ class MainWindow(QMainWindow):
         menu_file = menubar.addMenu("&Fichier")
         menu_file.addAction(self.act_new)
         menu_file.addAction(self.act_open)
+
+        # Fichiers récents
+        self.menu_recent = menu_file.addMenu("Fichiers récents")
+        self._populate_recent_files_menu()
+
         menu_file.addAction(self.act_save)
         
         act_save_as = QAction("Enregistrer sous...", self)
@@ -263,6 +285,13 @@ class MainWindow(QMainWindow):
         act_paste.setShortcut(QKeySequence.Paste)
         act_paste.triggered.connect(lambda: self.current_editor().paste() if self.current_editor() else None)
         menu_edit.addAction(act_paste)
+        menu_edit.addSeparator()
+
+        act_comment = QAction("Commenter / Décommenter\tCtrl+/", self)
+        act_comment.setShortcut(QKeySequence("Ctrl+/"))
+        act_comment.setToolTip("Commenter ou décommenter la ligne actuelle (Ctrl+/)")
+        act_comment.triggered.connect(lambda: self.current_editor().toggle_comment() if self.current_editor() else None)
+        menu_edit.addAction(act_comment)
 
         # Exécuter
         menu_run = menubar.addMenu("&Exécuter")
@@ -281,15 +310,15 @@ class MainWindow(QMainWindow):
         act_show_py.triggered.connect(lambda: self.side_tabs.setCurrentWidget(self.python_view))
         menu_view.addAction(act_show_py)
 
-        act_show_var = QAction("Variables", self)
-        act_show_var.triggered.connect(lambda: self.side_tabs.setCurrentWidget(self.variables_view))
-        menu_view.addAction(act_show_var)
-
         act_show_tdo = QAction("Tableau T.D.O.", self)
         act_show_tdo.triggered.connect(lambda: self.side_tabs.setCurrentWidget(self.tdo_view))
         menu_view.addAction(act_show_tdo)
 
-        act_show_guide = QAction("Assistant & Conventions", self)
+        act_show_tdnt = QAction("Tableau T.D.N.T.", self)
+        act_show_tdnt.triggered.connect(lambda: self.side_tabs.setCurrentWidget(self.tdnt_view))
+        menu_view.addAction(act_show_tdnt)
+
+        act_show_guide = QAction("Guide et Aide", self)
         act_show_guide.triggered.connect(lambda: self.side_tabs.setCurrentWidget(self.assistant_view))
         menu_view.addAction(act_show_guide)
         menu_view.addSeparator()
@@ -300,6 +329,13 @@ class MainWindow(QMainWindow):
         act_zoom_reset.setShortcut(QKeySequence("Ctrl+0"))
         act_zoom_reset.triggered.connect(self.reset_zoom)
         menu_view.addAction(act_zoom_reset)
+        menu_view.addSeparator()
+
+        self.act_fullscreen = QAction("Plein écran\tF11", self)
+        self.act_fullscreen.setShortcut(QKeySequence("F11"))
+        self.act_fullscreen.setIcon(create_icon("fullscreen", "#475569" if not self.is_dark_mode else "#cdd6f4"))
+        self.act_fullscreen.triggered.connect(self.toggle_fullscreen)
+        menu_view.addAction(self.act_fullscreen)
         menu_view.addSeparator()
 
         menu_view.addAction(self.act_theme)
@@ -331,7 +367,7 @@ class MainWindow(QMainWindow):
 
         self.lbl_cursor = QLabel("Ligne: 1, Col: 1")
         self.lbl_status = QLabel("Prêt")
-        self.lbl_backend = QLabel("Conventions 2024/2025 | Python 3 + NumPy")
+        self.lbl_backend = QLabel("Algorithmique | Python 3 + NumPy")
 
         self.status_bar.addWidget(self.lbl_status, 1)
         self.status_bar.addPermanentWidget(self.lbl_cursor)
@@ -375,6 +411,27 @@ class MainWindow(QMainWindow):
                         editor.setTextCursor(cursor)
                 self.lbl_status.setText(f"Code inséré : {dlg.selected_title}")
 
+    def _on_snippet_side_insert(self, code: str, title: str):
+        if not code:
+            return
+        editor = self.current_editor()
+        if not editor:
+            self.new_file(title, code)
+        else:
+            if not editor.toPlainText().strip():
+                editor.setPlainText(code)
+            else:
+                cursor = editor.textCursor()
+                cursor.insertText(code)
+                editor.setTextCursor(cursor)
+        self.lbl_status.setText(f"Code inséré : {title}")
+
+    def _on_snippet_side_new_tab(self, code: str, title: str):
+        if not code:
+            return
+        self.new_file(title, code)
+        self.lbl_status.setText(f"Extrait ouvert dans un nouvel onglet : {title}")
+
     def _is_console_focused(self) -> bool:
         focus_w = self.focusWidget() or QApplication.focusWidget()
         if not focus_w:
@@ -389,29 +446,45 @@ class MainWindow(QMainWindow):
     def zoom_in(self):
         if self._is_console_focused():
             self.console.zoom_in()
+        elif hasattr(self, 'assistant_view') and hasattr(self.assistant_view, 'browser') and self.assistant_view.browser.hasFocus():
+            self.assistant_view.zoom_in()
         else:
             editor = self.current_editor()
             if editor:
                 editor.zoom_in()
             self.python_view.zoom_in()
+            if hasattr(self, 'assistant_view'):
+                self.assistant_view.zoom_in()
+            if hasattr(self, 'snippets_view'):
+                self.snippets_view.zoom_in()
 
     def zoom_out(self):
         if self._is_console_focused():
             self.console.zoom_out()
+        elif hasattr(self, 'assistant_view') and hasattr(self.assistant_view, 'browser') and self.assistant_view.browser.hasFocus():
+            self.assistant_view.zoom_out()
         else:
             editor = self.current_editor()
             if editor:
                 editor.zoom_out()
             self.python_view.zoom_out()
+            if hasattr(self, 'assistant_view'):
+                self.assistant_view.zoom_out()
+            if hasattr(self, 'snippets_view'):
+                self.snippets_view.zoom_out()
 
     def reset_zoom(self):
         if self._is_console_focused():
             self.console.reset_zoom()
+        elif hasattr(self, 'assistant_view') and hasattr(self.assistant_view, 'browser') and self.assistant_view.browser.hasFocus():
+            self.assistant_view.reset_zoom()
         else:
             editor = self.current_editor()
             if editor:
                 editor.reset_zoom()
             self.python_view.reset_zoom()
+            if hasattr(self, 'assistant_view'):
+                self.assistant_view.reset_zoom()
 
     def apply_theme(self, recreate_native: bool = False):
         if self.is_dark_mode:
@@ -436,6 +509,8 @@ class MainWindow(QMainWindow):
         self.act_zoom_in.setIcon(create_icon("zoom_in", color_hex))
         self.act_zoom_out.setIcon(create_icon("zoom_out", color_hex))
         self.act_theme.setIcon(create_icon("theme", color_hex))
+        if hasattr(self, "act_fullscreen"):
+            self.act_fullscreen.setIcon(create_icon("fullscreen", color_hex))
 
         # Propagate to sub-widgets
         if hasattr(self, "symbols_bar"):
@@ -444,12 +519,14 @@ class MainWindow(QMainWindow):
             self.console.set_dark_mode(self.is_dark_mode)
         if hasattr(self, "python_view"):
             self.python_view.set_dark_mode(self.is_dark_mode)
-        if hasattr(self, "variables_view"):
-            self.variables_view.set_dark_mode(self.is_dark_mode)
         if hasattr(self, "tdo_view"):
             self.tdo_view.set_dark_mode(self.is_dark_mode)
+        if hasattr(self, "tdnt_view"):
+            self.tdnt_view.set_dark_mode(self.is_dark_mode)
         if hasattr(self, "assistant_view"):
             self.assistant_view.set_dark_mode(self.is_dark_mode)
+        if hasattr(self, "snippets_view"):
+            self.snippets_view.set_dark_mode(self.is_dark_mode)
 
         # Propagate to all open editors
         if hasattr(self, "tab_widget"):
@@ -474,6 +551,8 @@ class MainWindow(QMainWindow):
 
     def toggle_theme(self):
         self.is_dark_mode = not self.is_dark_mode
+        if hasattr(self, "db") and self.db:
+            self.db.set_dark_mode(self.is_dark_mode)
         if hasattr(self, "settings"):
             self.settings.setValue("dark_mode", self.is_dark_mode)
         self.apply_theme(recreate_native=True)
@@ -489,7 +568,9 @@ class MainWindow(QMainWindow):
             return w
         return None
 
-    def new_file(self, title: str = "Sans-titre.algo", content: str = ""):
+    def new_file(self, title: str = "Nouveau Script", content: str = ""):
+        if isinstance(title, bool) or not title:
+            title = "Nouveau Script"
         editor = AlgoCodeEditor(self, is_dark=self.is_dark_mode)
         
         default_content = content or (
@@ -497,7 +578,7 @@ class MainWindow(QMainWindow):
             "DEBUT\n"
             "  Ecrire_nl(\"Bonjour le monde !\")\n"
             "FIN\n"
-            "Déclaration des objets\n"
+            "Tableau de déclaration des objets globaux\n"
             "Objet          Type / Nature\n"
         )
         editor.setPlainText(default_content)
@@ -508,22 +589,54 @@ class MainWindow(QMainWindow):
         self.tab_widget.setCurrentIndex(idx)
         editor.setProperty("file_path", None)
         editor.setProperty("is_dirty", False)
+        self._update_window_title()
         return editor
+
+    def toggle_fullscreen(self):
+        """Toggles main window between full screen and normal window."""
+        if self.isFullScreen() or getattr(self, "_is_fullscreen", False):
+            self.showNormal()
+            self._is_fullscreen = False
+            if hasattr(self, "act_fullscreen"):
+                self.act_fullscreen.setText("Plein écran\tF11")
+        else:
+            self.showFullScreen()
+            self._is_fullscreen = True
+            if hasattr(self, "act_fullscreen"):
+                self.act_fullscreen.setText("Quitter plein écran\tF11")
+
+    def open_pdf_reader(self, path: str, start_fullscreen: bool = False):
+        """Opens a PDF file in the dedicated LightPdfViewer / PdfReaderWindow."""
+        from ui.pdf_viewer import PdfReaderWindow
+        self._pdf_window = PdfReaderWindow(path, parent=self, is_dark=self.is_dark_mode, start_fullscreen=start_fullscreen)
+        self._pdf_window.show()
+        self._pdf_window.raise_()
+        self._pdf_window.activateWindow()
 
     def open_file(self):
         path, _ = QFileDialog.getOpenFileName(
-            self, "Ouvrir un algorithme", "",
-            "Fichiers Algorithme (*.algo *.alg *.txt);;Tous les fichiers (*.*)"
+            self, "Ouvrir un fichier", "",
+            "Fichiers pris en charge (*.algo *.alg *.txt *.pdf);;Fichiers Algorithme (*.algo *.alg *.txt);;Fichiers PDF (*.pdf);;Tous les fichiers (*.*)"
         )
         if path:
             self.load_file(path)
 
-    def load_file(self, path: str):
+    def load_file(self, path: str, record: bool = True):
+        # Open PDF files in the dedicated reader window
+        if path.lower().endswith(".pdf"):
+            self.open_pdf_reader(path)
+            return
+
         # Check if already open
+        norm_target = os.path.abspath(path)
         for i in range(self.tab_widget.count()):
             ed = self.tab_widget.widget(i)
-            if ed.property("file_path") == path:
+            ed_path = ed.property("file_path")
+            if ed_path and os.path.abspath(ed_path) == norm_target:
                 self.tab_widget.setCurrentIndex(i)
+                if record and hasattr(self, "db") and self.db:
+                    self.db.record_file_opened(norm_target, is_open=True, is_active=True, tab_order=i)
+                    self._populate_recent_files_menu()
                 return
 
         try:
@@ -535,9 +648,16 @@ class MainWindow(QMainWindow):
 
         filename = os.path.basename(path)
         editor = self.new_file(filename, content)
-        editor.setProperty("file_path", path)
+        editor.setProperty("file_path", norm_target)
         editor.setProperty("is_dirty", False)
         self.lbl_status.setText(f"Fichier ouvert : {filename}")
+        self.update_inspectors(content)
+
+        if record and hasattr(self, "db") and self.db:
+            idx = self.tab_widget.currentIndex()
+            self.db.record_file_opened(norm_target, is_open=True, is_active=True, tab_order=idx)
+            self._sync_tabs_to_db()
+            self._populate_recent_files_menu()
 
     def save_file(self) -> bool:
         editor = self.current_editor()
@@ -554,7 +674,14 @@ class MainWindow(QMainWindow):
             editor.setProperty("is_dirty", False)
             idx = self.tab_widget.currentIndex()
             self.tab_widget.setTabText(idx, f" {os.path.basename(path)} ")
+            self._update_window_title()
             self.lbl_status.setText(f"Enregistré : {os.path.basename(path)}")
+            if hasattr(self, "db") and self.db:
+                norm_path = os.path.abspath(path)
+                editor.setProperty("file_path", norm_path)
+                self.db.record_file_opened(norm_path, is_open=True, is_active=True, tab_order=idx)
+                self._sync_tabs_to_db()
+                self._populate_recent_files_menu()
             return True
         except Exception as e:
             QMessageBox.critical(self, "Erreur d'enregistrement", str(e))
@@ -570,14 +697,14 @@ class MainWindow(QMainWindow):
             "Fichiers Algorithme (*.algo);;Tous les fichiers (*.*)"
         )
         if path:
-            editor.setProperty("file_path", path)
+            editor.setProperty("file_path", os.path.abspath(path))
             return self.save_file()
         return False
 
     def _on_close_tab(self, index):
         editor = self.tab_widget.widget(index)
-        if editor.property("is_dirty"):
-            fname = self.tab_widget.tabText(index).replace("*", "")
+        if editor.property("is_dirty") and QApplication.platformName() != "offscreen":
+            fname = self.tab_widget.tabText(index).replace("*", "").strip()
             res = QMessageBox.question(
                 self, "Modifications non enregistrées",
                 f"Voulez-vous enregistrer les modifications apportées à '{fname}' ?",
@@ -590,12 +717,41 @@ class MainWindow(QMainWindow):
             elif res == QMessageBox.Cancel:
                 return
 
+        file_path = editor.property("file_path")
+        if file_path and hasattr(self, "db") and self.db:
+            self.db.record_file_closed(file_path)
+
         self.tab_widget.removeTab(index)
+        self._sync_tabs_to_db()
+        self._populate_recent_files_menu()
+
         if self.tab_widget.count() == 0:
             self.new_file()
+        else:
+            self._update_window_title()
+
+    def _update_window_title(self):
+        idx = self.tab_widget.currentIndex()
+        if idx >= 0:
+            tab_text = self.tab_widget.tabText(idx).strip()
+            self.setWindowTitle(f"{tab_text} — Algoo - IDE Algorithmique")
+        else:
+            self.setWindowTitle("Algoo - IDE Algorithmique")
 
     def _on_tab_changed(self, index):
         self._on_cursor_position_changed()
+        self._update_window_title()
+        self.update_inspectors()
+        if hasattr(self, "db") and self.db:
+            editor = self.current_editor()
+            if editor and editor.property("file_path"):
+                self.db.set_active_file(editor.property("file_path"))
+
+    def _on_side_tab_changed(self, index):
+        cur = self.side_tabs.widget(index)
+        if cur in (getattr(self, "tdo_view", None),
+                   getattr(self, "tdnt_view", None)):
+            self.update_inspectors()
 
     def _on_cursor_position_changed(self):
         editor = self.current_editor()
@@ -613,12 +769,147 @@ class MainWindow(QMainWindow):
             title = self.tab_widget.tabText(idx)
             if not title.endswith("*"):
                 self.tab_widget.setTabText(idx, title + "*")
+            self._update_window_title()
 
     def _on_insert_symbol(self, text: str):
         editor = self.current_editor()
         if editor:
             editor.insertPlainText(text)
             editor.setFocus()
+
+    def _sync_tabs_to_db(self):
+        """Synchronizes open tabs and their active state to the SQLite database."""
+        if not hasattr(self, "db") or not self.db:
+            return
+        tabs = []
+        current_idx = self.tab_widget.currentIndex()
+        for i in range(self.tab_widget.count()):
+            ed = self.tab_widget.widget(i)
+            if isinstance(ed, AlgoCodeEditor):
+                p = ed.property("file_path")
+                if p:
+                    tabs.append({
+                        "file_path": p,
+                        "tab_order": i,
+                        "is_active": (i == current_idx)
+                    })
+        self.db.sync_open_tabs(tabs)
+
+    def _populate_recent_files_menu(self):
+        """Populates the recent files submenu from the SQLite database."""
+        if not hasattr(self, "menu_recent") or not hasattr(self, "db") or not self.db:
+            return
+        self.menu_recent.clear()
+
+        act_open_latest = QAction("Ouvrir les derniers fichiers ouverts", self)
+        act_open_latest.setToolTip("Rouvrir les fichiers récemment ouverts")
+        act_open_latest.triggered.connect(lambda: self.open_latest_opened_files(5))
+        self.menu_recent.addAction(act_open_latest)
+        self.menu_recent.addSeparator()
+
+        recent_files = self.db.get_latest_opened_files(limit=10)
+        valid_files = [f for f in recent_files if os.path.exists(f)]
+
+        if valid_files:
+            for path in valid_files:
+                fname = os.path.basename(path)
+                act = QAction(fname, self)
+                act.setToolTip(path)
+                act.triggered.connect(lambda _, p=path: self.load_file(p))
+                self.menu_recent.addAction(act)
+
+            self.menu_recent.addSeparator()
+            act_clear = QAction("Effacer l'historique", self)
+            act_clear.triggered.connect(self._clear_recent_files_history)
+            self.menu_recent.addAction(act_clear)
+        else:
+            act_empty = QAction("(Aucun fichier récent)", self)
+            act_empty.setEnabled(False)
+            self.menu_recent.addAction(act_empty)
+
+    def _clear_recent_files_history(self):
+        """Clears recent file history in SQLite database."""
+        if hasattr(self, "db") and self.db:
+            self.db.clear_recent_files()
+            self._populate_recent_files_menu()
+            self.lbl_status.setText("Historique des fichiers récents effacé")
+
+    def open_latest_opened_files(self, limit: int = 5):
+        """Opens the most recently opened files from SQLite database."""
+        if not hasattr(self, "db") or not self.db:
+            return
+        latest_files = self.db.get_latest_opened_files(limit=limit)
+        opened_count = 0
+        for path in latest_files:
+            if os.path.exists(path):
+                self.load_file(path)
+                opened_count += 1
+        if opened_count > 0:
+            self.lbl_status.setText(f"{opened_count} fichier(s) récent(s) ouvert(s)")
+        else:
+            self.lbl_status.setText("Aucun fichier récent à ouvrir")
+
+    def _restore_opened_files(self):
+        """Restores previously open tabs from SQLite database or latest opened files."""
+        opened_any = False
+        target_tab_index = 0
+
+        if hasattr(self, "db") and self.db:
+            open_files = self.db.get_open_files()
+            active_file = self.db.get_active_file()
+
+            if open_files:
+                for path in open_files:
+                    if os.path.exists(path):
+                        self.load_file(path, record=False)
+                        opened_any = True
+                        if active_file and os.path.abspath(path) == os.path.abspath(active_file):
+                            target_tab_index = self.tab_widget.count() - 1
+
+                if opened_any and self.tab_widget.count() > 0:
+                    self.tab_widget.setCurrentIndex(target_tab_index)
+
+            # If no open tabs were restored, open the latest opened file
+            if not opened_any:
+                latest_files = self.db.get_latest_opened_files(limit=1)
+                for path in latest_files:
+                    if os.path.exists(path):
+                        self.load_file(path, record=True)
+                        opened_any = True
+                        break
+
+        # If nothing could be restored, fall back to default example
+        if not opened_any:
+            self._open_default_example()
+        else:
+            self._sync_tabs_to_db()
+            self._populate_recent_files_menu()
+
+    def closeEvent(self, event):
+        """Handles window closing: prompts for unsaved changes and saves session to DB."""
+        if self.isVisible() and QApplication.platformName() != "offscreen":
+            for i in range(self.tab_widget.count()):
+                editor = self.tab_widget.widget(i)
+                if editor and editor.property("is_dirty"):
+                    fname = self.tab_widget.tabText(i).replace("*", "").strip()
+                    res = QMessageBox.question(
+                        self, "Modifications non enregistrées",
+                        f"Voulez-vous enregistrer les modifications apportées à '{fname}' ?",
+                        QMessageBox.Save | QMessageBox.Discard | QMessageBox.Cancel,
+                        QMessageBox.Cancel
+                    )
+                    if res == QMessageBox.Save:
+                        self.tab_widget.setCurrentIndex(i)
+                        if not self.save_file():
+                            event.ignore()
+                            return
+                    elif res == QMessageBox.Cancel:
+                        event.ignore()
+                        return
+
+        self._sync_tabs_to_db()
+        event.accept()
+        super().closeEvent(event)
 
     def _open_default_example(self):
         example_path = os.path.join(
@@ -629,6 +920,20 @@ class MainWindow(QMainWindow):
             self.load_file(example_path)
         else:
             self.new_file()
+
+    def update_inspectors(self, algo_code: str = None):
+        """Extracts and populates Variables, TDO, and TDNT views with all symbols."""
+        if algo_code is None:
+            editor = self.current_editor()
+            if not editor:
+                return
+            algo_code = editor.toPlainText()
+
+        symbols = self.transpiler.extract_symbols(algo_code)
+        if hasattr(self, "tdo_view"):
+            self.tdo_view.update_tdo(symbols.get('tdo_tables', []))
+        if hasattr(self, "tdnt_view"):
+            self.tdnt_view.update_tdnt(symbols.get('custom_types', {}))
 
     # -------------------------------------------------------------------------
     # Compilation and Execution
@@ -642,20 +947,22 @@ class MainWindow(QMainWindow):
         editor.set_error_line(None)
         algo_code = editor.toPlainText()
 
+        # Update inspectors immediately
+        self.update_inspectors(algo_code)
+
         try:
             py_code = self.transpiler.compile(algo_code)
             self.python_view.set_python_code(py_code)
-
-            # Update declared objects in TDO and Variables views
-            self.tdo_view.update_tdo(self.transpiler.declared_objects)
-            self.variables_view.update_declared_variables(self.transpiler.declared_objects)
 
             self.side_tabs.setCurrentWidget(self.python_view)
             self.lbl_status.setText("Traduction Python terminée avec succès")
             return py_code
         except Exception as e:
             self.lbl_status.setText("Erreur de compilation")
-            self.assistant_view.show_error_advice(str(e))
+            line_no = getattr(e, 'line_num', None)
+            if line_no and editor:
+                editor.set_error_line(line_no)
+            self.assistant_view.show_error_advice(str(e), line_no=line_no)
             self.side_tabs.setCurrentWidget(self.assistant_view)
             QMessageBox.warning(self, "Erreur de compilation", str(e))
             return ""
@@ -668,18 +975,23 @@ class MainWindow(QMainWindow):
 
         editor.set_error_line(None)
         algo_code = editor.toPlainText()
+        algo_file_path = editor.property("file_path")
+
+        # Update inspectors immediately
+        self.update_inspectors(algo_code)
 
         try:
             py_code = self.transpiler.compile(algo_code)
             self.python_view.set_python_code(py_code)
-            self.tdo_view.update_tdo(self.transpiler.declared_objects)
-            self.variables_view.update_declared_variables(self.transpiler.declared_objects)
 
             self.lbl_status.setText("Exécution en cours...")
-            self.console.run_python_code(py_code)
+            self.console.run_python_code(py_code, algo_file_path=algo_file_path)
         except Exception as e:
             self.lbl_status.setText("Erreur de compilation")
-            self.assistant_view.show_error_advice(str(e))
+            line_no = getattr(e, 'line_num', None)
+            if line_no and editor:
+                editor.set_error_line(line_no)
+            self.assistant_view.show_error_advice(str(e), line_no=line_no)
             self.side_tabs.setCurrentWidget(self.assistant_view)
             self.console.output_text.append(f"<span style='color: #ef4444; font-weight: bold;'>Erreur de compilation : {e}</span>")
 
@@ -693,17 +1005,5 @@ class MainWindow(QMainWindow):
             editor.set_error_line(line_num)
 
     def _show_about_dialog(self):
-        QMessageBox.about(
-            self,
-            "À propos d'Algoo",
-            "<h3>Algoo</h3>"
-            "<p>Environnement de développement moderne et pédagogique pour l'Algorithmique scolaire et universitaire.</p>"
-            "<p><b>Développeur :</b> softsurgery</p>"
-            "<p><b>Code source & GitHub :</b> <a href='https://github.com/softsurgery/algoo'>https://github.com/softsurgery/algoo</a></p>"
-            "<p><b>Conformité stricte :</b></p>"
-            "<ul>"
-            "  <li><i>Les Conventions Algorithmiques (Septembre 2024)</i></li>"
-            "  <li><i>Implémentation en Python des Conventions Algorithmiques (2024/2025)</i></li>"
-            "</ul>"
-            "<p>Développé avec <b>PyQt5</b> et <b>NumPy</b> sous Linux.</p>"
-        )
+        dlg = AboutDialog(self, is_dark=self.is_dark_mode)
+        dlg.exec_()

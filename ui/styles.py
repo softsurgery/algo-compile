@@ -2,7 +2,19 @@
 Modern stylesheets for the IDE: Light (Thonny style) and Modern Dark themes.
 """
 
-LIGHT_THEME = """
+import os
+from PyQt5.QtGui import QImageReader
+
+_BASE_DIR = os.path.dirname(os.path.abspath(__file__))
+_ASSETS_DIR = os.path.join(_BASE_DIR, "assets")
+
+_EXT = "svg" if b"svg" in QImageReader.supportedImageFormats() else "png"
+_TAB_CLOSE_LIGHT = os.path.join(_ASSETS_DIR, f"tab_close_light.{_EXT}").replace("\\", "/")
+_TAB_CLOSE_LIGHT_HOVER = os.path.join(_ASSETS_DIR, f"tab_close_light_hover.{_EXT}").replace("\\", "/")
+_TAB_CLOSE_DARK = os.path.join(_ASSETS_DIR, f"tab_close_dark.{_EXT}").replace("\\", "/")
+_TAB_CLOSE_DARK_HOVER = os.path.join(_ASSETS_DIR, f"tab_close_dark_hover.{_EXT}").replace("\\", "/")
+
+_LIGHT_THEME_TEMPLATE = """
 /* Global Window and Base Controls */
 QMainWindow, QDialog {
     background-color: #f7f9fa;
@@ -92,7 +104,7 @@ QTabWidget::tab-bar {
 QTabWidget::pane {
     border: 1px solid #e2e8f0;
     background-color: #ffffff;
-    border-radius: 6px;
+    border-radius: 3px;
 }
 
 QTabBar::tab {
@@ -104,8 +116,8 @@ QTabBar::tab {
     padding-top: 6px;
     padding-bottom: 6px;
     margin-right: 4px;
-    border-top-left-radius: 6px;
-    border-top-right-radius: 6px;
+    border-top-left-radius: 3px;
+    border-top-right-radius: 3px;
     font-weight: 500;
 }
 
@@ -122,14 +134,20 @@ QTabBar::tab:hover:!selected {
 }
 
 QTabBar::close-button {
+    image: url("__TAB_CLOSE_LIGHT__");
     subcontrol-position: right;
     margin-left: 6px;
     padding: 2px;
 }
 
 QTabBar::close-button:hover {
+    image: url("__TAB_CLOSE_LIGHT_HOVER__");
     background-color: #fee2e2;
     border-radius: 3px;
+}
+
+QTabBar::close-button:pressed {
+    background-color: #fecaca;
 }
 
 /* Splitters */
@@ -205,25 +223,25 @@ QPushButton:pressed {
     background-color: #e2e8f0;
 }
 
-/* List Widgets */
-QListWidget {
+/* List & Tree Widgets */
+QListWidget, QTreeWidget, QTreeView {
     background-color: #ffffff;
     color: #1e293b;
     border: 1px solid #e2e8f0;
     border-radius: 6px;
 }
 
-QListWidget::item {
-    padding: 6px 8px;
+QListWidget::item, QTreeWidget::item, QTreeView::item {
+    padding: 5px 8px;
     border-radius: 4px;
     color: #1e293b;
 }
 
-QListWidget::item:hover {
+QListWidget::item:hover, QTreeWidget::item:hover, QTreeView::item:hover {
     background-color: #f1f5f9;
 }
 
-QListWidget::item:selected {
+QListWidget::item:selected, QTreeWidget::item:selected, QTreeView::item:selected {
     background-color: #e2e8f0;
     color: #0f172a;
 }
@@ -302,7 +320,7 @@ QScrollBar::add-page:horizontal, QScrollBar::sub-page:horizontal {
 }
 """
 
-DARK_THEME = """
+_DARK_THEME_TEMPLATE = """
 /* Global Window and Base Controls */
 QMainWindow, QDialog {
     background-color: #1e1e2e;
@@ -392,7 +410,7 @@ QTabWidget::tab-bar {
 QTabWidget::pane {
     border: 1px solid #313244;
     background-color: #181825;
-    border-radius: 6px;
+    border-radius: 3px;
 }
 
 QTabBar::tab {
@@ -404,8 +422,8 @@ QTabBar::tab {
     padding-top: 6px;
     padding-bottom: 6px;
     margin-right: 4px;
-    border-top-left-radius: 6px;
-    border-top-right-radius: 6px;
+    border-top-left-radius: 3px;
+    border-top-right-radius: 3px;
     font-weight: 500;
 }
 
@@ -422,14 +440,20 @@ QTabBar::tab:hover:!selected {
 }
 
 QTabBar::close-button {
+    image: url("__TAB_CLOSE_DARK__");
     subcontrol-position: right;
     margin-left: 6px;
     padding: 2px;
 }
 
 QTabBar::close-button:hover {
-    background-color: #fee2e2;
+    image: url("__TAB_CLOSE_DARK_HOVER__");
+    background-color: #313244;
     border-radius: 3px;
+}
+
+QTabBar::close-button:pressed {
+    background-color: #45475a;
 }
 
 /* Splitters */
@@ -505,25 +529,25 @@ QPushButton:pressed {
     background-color: #585b70;
 }
 
-/* List Widgets */
-QListWidget {
+/* List & Tree Widgets */
+QListWidget, QTreeWidget, QTreeView {
     background-color: #181825;
     color: #cdd6f4;
     border: 1px solid #313244;
     border-radius: 6px;
 }
 
-QListWidget::item {
-    padding: 6px 8px;
+QListWidget::item, QTreeWidget::item, QTreeView::item {
+    padding: 5px 8px;
     border-radius: 4px;
     color: #cdd6f4;
 }
 
-QListWidget::item:hover {
+QListWidget::item:hover, QTreeWidget::item:hover, QTreeView::item:hover {
     background-color: #313244;
 }
 
-QListWidget::item:selected {
+QListWidget::item:selected, QTreeWidget::item:selected, QTreeView::item:selected {
     background-color: #45475a;
     color: #ffffff;
 }
@@ -610,6 +634,16 @@ QScrollBar::add-page:horizontal, QScrollBar::sub-page:horizontal {
     background: none;
 }
 """
+
+LIGHT_THEME = (
+    _LIGHT_THEME_TEMPLATE.replace("__TAB_CLOSE_LIGHT__", _TAB_CLOSE_LIGHT)
+    .replace("__TAB_CLOSE_LIGHT_HOVER__", _TAB_CLOSE_LIGHT_HOVER)
+)
+
+DARK_THEME = (
+    _DARK_THEME_TEMPLATE.replace("__TAB_CLOSE_DARK__", _TAB_CLOSE_DARK)
+    .replace("__TAB_CLOSE_DARK_HOVER__", _TAB_CLOSE_DARK_HOVER)
+)
 
 from ui.theme_utils import (
     detect_system_dark_mode,

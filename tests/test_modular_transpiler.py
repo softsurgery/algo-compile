@@ -135,6 +135,29 @@ class TestModularCompiler(unittest.TestCase):
         call_code = stmt.translate_single_statement("swap(x, y)")
         self.assertEqual(call_code, "x, y = swap(x, y)")
 
+    def test_string_array_and_input(self):
+        import io, sys
+        from compiler.runtime import _lire_valeur
+
+        th = TypeHandler()
+        tdo = [
+            (1, "IDENT : Tableau de 50 Chaine"),
+            (2, "M : Tableau de 3 lignes * 3 colonnes Chaine")
+        ]
+        th.parse_object_declarations(tdo)
+        inits = th.generate_object_initializations()
+        self.assertIn("IDENT = array([''] * (50), dtype=object)", inits)
+        self.assertIn("M = array([[''] * (3)] * (3), dtype=object)", inits)
+
+        # Test _lire_valeur does not truncate chaine de caractere
+        orig_stdin = sys.stdin
+        try:
+            sys.stdin = io.StringIO("12345678\n")
+            val = _lire_valeur("", "Chaine de caractere")
+            self.assertEqual(val, "12345678")
+        finally:
+            sys.stdin = orig_stdin
+
 
 if __name__ == '__main__':
     unittest.main()

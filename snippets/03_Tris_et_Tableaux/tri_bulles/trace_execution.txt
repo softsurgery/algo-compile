@@ -1,0 +1,8 @@
+Tableau initial : [64, 34, 25, 12, 22, 11, 90]
+Passe 1 : [34, 25, 12, 22, 11, 64, 90] (permute = Vrai)
+Passe 2 : [25, 12, 22, 11, 34, 64, 90] (permute = Vrai)
+Passe 3 : [12, 22, 11, 25, 34, 64, 90] (permute = Vrai)
+Passe 4 : [12, 11, 22, 25, 34, 64, 90] (permute = Vrai)
+Passe 5 : [11, 12, 22, 25, 34, 64, 90] (permute = Vrai)
+Passe 6 : [11, 12, 22, 25, 34, 64, 90] (permute = Faux -> FIN)
+Tableau trié : [11, 12, 22, 25, 34, 64, 90]

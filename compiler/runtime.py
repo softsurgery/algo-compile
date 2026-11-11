@@ -1,14 +1,13 @@
 """
-Runtime library for the Tunisian Algorithm Convention (2024/2025).
-Provides all standard predefined functions and helpers specified in:
-- Convention Algorithmique 2024
-- Implémentation 2024-2025
+Runtime library for the Algorithmic Language.
+Provides standard predefined functions and helpers.
 """
 
 import math
 import random
 import pickle
 import sys
+import os
 
 # Numpy array
 try:
@@ -136,7 +135,11 @@ def _lire_valeur(prompt="", var_type=None):
     val = input(prompt)
     if var_type is not None:
         t = var_type.lower()
-        if 'entier' in t or 'int' in t:
+        if 'chaine' in t or 'chaîne' in t or 'str' in t:
+            return val
+        elif 'caractere' in t or 'caractère' in t or 'char' in t:
+            return val[0] if len(val) > 0 else ''
+        elif 'entier' in t or 'int' in t:
             try:
                 return int(val.strip())
             except ValueError:
@@ -149,8 +152,6 @@ def _lire_valeur(prompt="", var_type=None):
         elif 'bool' in t:
             v = val.strip().lower()
             return v in ('vrai', 'true', '1', 't', 'o', 'oui')
-        elif 'caractere' in t or 'caractère' in t or 'char' in t:
-            return val[0] if len(val) > 0 else ''
         else:
             return val
     # Smart auto-detection if no explicit type
@@ -168,13 +169,90 @@ def _lire_valeur(prompt="", var_type=None):
         return False
     return val
 
-# File helpers
+# File helpers according to conventions
 def _fin_fichier(f):
-    """Vérifie si le fichier est à la fin."""
+    """Vérifie si le fichier est à la fin (supporte fichiers texte et données)."""
     try:
         pos = f.tell()
-        line = f.readline()
-        f.seek(pos)
-        return len(line) == 0
+        mode = getattr(f, 'mode', '')
+        if 'b' in mode:
+            chunk = f.read(1)
+            f.seek(pos)
+            return len(chunk) == 0
+        else:
+            line = f.readline()
+            f.seek(pos)
+            return len(line) == 0
     except Exception:
         return True
+
+Fin_fichier = _fin_fichier
+FinFichier = _fin_fichier
+fin_fichier = _fin_fichier
+
+def _resolve_file_path(path):
+    """
+    Résout le chemin d'un fichier selon les conventions algorithmiques :
+    - Si le chemin est absolu (ex: '/chemin/...' ou 'C:\\...'), il est utilisé directement.
+    - Si le chemin est relatif (ex: 'data.txt'), il est résolu dans le dossier de l'algorithme
+      en cours d'exécution (via ALGO_DIR, sys._algo_dir, ou le dossier du script __main__).
+    """
+    if not path or not isinstance(path, str):
+        return path
+    if os.path.isabs(path):
+        return path
+
+    # 1. Variable d'environnement ALGO_DIR
+    algo_dir = os.environ.get("ALGO_DIR")
+    if algo_dir and os.path.isdir(algo_dir):
+        return os.path.normpath(os.path.join(algo_dir, path))
+
+    # 2. Attribut global sys._algo_dir
+    algo_dir = getattr(sys, "_algo_dir", None)
+    if algo_dir and os.path.isdir(algo_dir):
+        return os.path.normpath(os.path.join(algo_dir, path))
+
+    # 3. Dossier du fichier exécutable principal __main__
+    main_mod = sys.modules.get("__main__")
+    if main_mod and getattr(main_mod, "__file__", None):
+        main_file = os.path.abspath(main_mod.__file__)
+        main_dir = os.path.dirname(main_file)
+        if os.path.isdir(main_dir):
+            return os.path.normpath(os.path.join(main_dir, path))
+
+    # 4. Repli sur le répertoire de travail actuel
+    return os.path.abspath(path)
+
+def Ouvrir(path, *args, **kwargs):
+    """
+    Ouvre un fichier selon les conventions algorithmiques.
+    Le fichier est situé dans le dossier de l'algorithme en cours d'exécution,
+    sauf si un chemin absolu est expressément fourni.
+    Syntaxe conventionnelle : Ouvrir("Chemin\\Nom_physique", Nom_logique, "Mode")
+    Ou en appel fonctionnel : f = Ouvrir("Chemin", "Mode")
+    """
+    resolved_path = _resolve_file_path(path)
+    if len(args) == 1 and isinstance(args[0], str):
+        # Ouvrir(path, mode)
+        return open(resolved_path, args[0], **kwargs)
+    elif len(args) >= 2:
+        # Ouvrir(path, f, mode)
+        return open(resolved_path, args[1], **kwargs)
+    return open(resolved_path, **kwargs)
+
+ouvrir = Ouvrir
+
+def Fermer(f):
+    """Ferme un fichier logique ouvert."""
+    if hasattr(f, 'close'):
+        f.close()
+
+fermer = Fermer
+
+def Lire_ligne(f):
+    """Lit une ligne depuis un fichier texte sans le saut de ligne final (\r ou \n)."""
+    if hasattr(f, 'readline'):
+        return f.readline().rstrip('\r\n')
+    return ""
+
+lire_ligne = Lire_ligne

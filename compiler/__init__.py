@@ -1,9 +1,15 @@
 """
-Tunisian Algorithmic Convention Compiler Package (2024/2025).
+Algorithmic Compiler Package.
 """
 
 from compiler.transpiler import AlgoTranspiler
-from compiler.errors import CompileError
+from compiler.errors import (
+    CompileError,
+    MissingEndError,
+    MissingTypeError,
+    InvalidStructureError,
+)
+from compiler.validator import AlgoValidator
 from compiler.types import TypeHandler
 from compiler.parser import SectionExtractor
 from compiler.expressions import ExpressionTranslator
@@ -13,7 +19,11 @@ from compiler.utils import normalize_accents, split_arguments
 
 __all__ = [
     "AlgoTranspiler",
+    "AlgoValidator",
     "CompileError",
+    "MissingEndError",
+    "MissingTypeError",
+    "InvalidStructureError",
     "TypeHandler",
     "SectionExtractor",
     "ExpressionTranslator",

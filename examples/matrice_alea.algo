@@ -22,7 +22,8 @@ DEBUT
   
   Ecrire_nl("Somme totale de la matrice = ", total)
 FIN
-Déclaration des objets
-Objet              Type / Nature
-M                  Tableau de 3 lignes * 3 colonnes Entier
-i, j, lignes, colonnes, total Entier
+
+Tableau de déclaration des objets globaux
+Objet                           Type / Nature
+M                               Tableau de 3 lignes * 3 colonnes Entier
+i, j, lignes, colonnes, total   Entier

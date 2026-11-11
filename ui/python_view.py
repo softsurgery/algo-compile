@@ -122,7 +122,7 @@ class PythonView(QWidget):
         header = QHBoxLayout()
         header.setContentsMargins(4, 2, 4, 2)
 
-        title = QLabel("Code Python (Implémentation 2024-2025)")
+        title = QLabel("Code Python généré")
         title.setFont(QFont("SansSerif", 9, QFont.Bold))
         header.addWidget(title)
         header.addStretch()

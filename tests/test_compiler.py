@@ -1,5 +1,10 @@
 import unittest
 from compiler.transpiler import AlgoTranspiler
+from compiler.errors import (
+    CompileError,
+    MissingEndError,
+    MissingTypeError,
+)
 
 class TestAlgoTranspiler(unittest.TestCase):
     def setUp(self):
@@ -15,6 +20,9 @@ class TestAlgoTranspiler(unittest.TestCase):
           Fin Pour
           Ecrire_nl("Somme = ", s)
         FIN
+        Tableau de déclaration des objets globaux
+        Objet  Type / Nature
+        s, i   Entier
         """
         py = self.transpiler.compile(algo)
         ns = {'__name__': '__main__'}
@@ -29,6 +37,9 @@ class TestAlgoTranspiler(unittest.TestCase):
             x <- x * 2
           Jusqu'à x >= 16
         FIN
+        Tableau de déclaration des objets globaux
+        Objet  Type / Nature
+        x      Entier
         """
         py = self.transpiler.compile(algo)
         ns = {'__name__': '__main__'}
@@ -46,6 +57,9 @@ class TestAlgoTranspiler(unittest.TestCase):
             Sinon j <- 0
           Fin Selon
         FIN
+        Tableau de déclaration des objets globaux
+        Objet  Type / Nature
+        mois, j Entier
         """
         py = self.transpiler.compile(algo)
         ns = {'__name__': '__main__'}
@@ -65,6 +79,11 @@ class TestAlgoTranspiler(unittest.TestCase):
           num <- Estnum("1234")
           val <- Valeur("42")
         FIN
+        Tableau de déclaration des objets globaux
+        Objet  Type / Nature
+        a, l, num, val : Entier
+        b, c : Réel
+        ch, sub, maj : Chaîne
         """
         py = self.transpiler.compile(algo)
         ns = {'__name__': '__main__'}
@@ -78,7 +97,7 @@ class TestAlgoTranspiler(unittest.TestCase):
           T[1] <- 200
           T[2] <- T[0] + T[1]
         FIN
-        Déclaration des objets
+        Tableau de déclaration des objets globaux
         Objet  Type / Nature
         T      Tableau de 10 Entier
         """
@@ -95,14 +114,18 @@ class TestAlgoTranspiler(unittest.TestCase):
           n <- 10
           jusqu'a(2 <= n <= 30)
         Fin
+        Tableau de déclaration des objets locaux
+        Objet  Type / Nature
+        /      /
 
         ALGORITHME SommeDiviseurs
         DEBUT
           saisir(n)
           ecrire(n)
         FIN
-        Déclaration des objets
+        Tableau de déclaration des objets globaux
         Objet  Type / Nature
+        saisir Procédure
         n      Entier
         """
         py = self.transpiler.compile(algo)
@@ -123,6 +146,186 @@ class TestAlgoTranspiler(unittest.TestCase):
         self.assertIn("def playRounds(T, n, p):", py)
         self.assertIn("def determineRanking(T, n):", py)
         self.assertIn("T = array([_creer_Player() for _ in range(30)], dtype=object)", py)
+
+    def test_string_array_preserves_full_strings(self):
+        algo = """
+        Procedure remplir(@T: Tableau de 5 Chaine)
+        Debut
+          T[0] <- "Hello World"
+          T[1] <- "12345678"
+        Fin
+        Tableau de déclaration des objets locaux
+        Objet  Type / Nature
+        /      /
+
+        ALGORITHME TestStringArray
+        DEBUT
+          remplir(T)
+        FIN
+        Tableau de déclaration des objets globaux
+        Objet  Type / Nature
+        remplir Procédure
+        T      Tableau de 5 Chaine
+        """
+        py = self.transpiler.compile(algo)
+        self.assertIn("T = array([''] * (5), dtype=object)", py)
+        ns = {'__name__': '__main__'}
+        exec(py, ns)
+
+    def test_missing_end_blocks(self):
+        # Missing Fin Pour
+        with self.assertRaises(CompileError) as cm:
+            self.transpiler.compile("ALGORITHME T\nDEBUT\nPour i de 1 à 10 Faire\nx <- i\nFIN\nTableau de déclaration des objets globaux\nx, i : Entier")
+        self.assertIn("Fin Pour", str(cm.exception))
+
+        # Missing Fin Tant que
+        with self.assertRaises(CompileError) as cm:
+            self.transpiler.compile("ALGORITHME T\nDEBUT\nTant que x < 10 Faire\nx <- x + 1\nFIN\nTableau de déclaration des objets globaux\nx : Entier")
+        self.assertIn("Fin Tant que", str(cm.exception))
+
+        # Missing Fin Si
+        with self.assertRaises(CompileError) as cm:
+            self.transpiler.compile("ALGORITHME T\nDEBUT\nSi x > 0 Alors\nx <- 0\nFIN\nTableau de déclaration des objets globaux\nx : Entier")
+        self.assertIn("Fin Si", str(cm.exception))
+
+        # Missing Jusqu'à
+        with self.assertRaises(CompileError) as cm:
+            self.transpiler.compile("ALGORITHME T\nDEBUT\nRépéter\nx <- x + 1\nFIN\nTableau de déclaration des objets globaux\nx : Entier")
+        self.assertIn("Jusqu'à", str(cm.exception))
+
+        # Missing Fin Selon
+        with self.assertRaises(CompileError) as cm:
+            self.transpiler.compile("ALGORITHME T\nDEBUT\nSelon x\n1 : x <- 2\nFIN\nTableau de déclaration des objets globaux\nx : Entier")
+        self.assertIn("Fin Selon", str(cm.exception))
+
+        # Missing FIN in subprogram
+        with self.assertRaises(CompileError) as cm:
+            self.transpiler.compile("Procedure p()\nDEBUT\nx <- 1\nTableau de déclaration des objets locaux\n/\nALGORITHME T\nDEBUT\np()\nFIN\nTableau de déclaration des objets globaux\np: Procédure\nx : Entier")
+        self.assertIn("FIN", str(cm.exception))
+
+        # Missing FIN in ALGORITHME
+        with self.assertRaises(CompileError) as cm:
+            self.transpiler.compile("ALGORITHME T\nDEBUT\nx <- 1\nTableau de déclaration des objets globaux\nx : Entier")
+        self.assertIn("FIN", str(cm.exception))
+
+        # Missing Fin Enregistrement
+        with self.assertRaises(CompileError) as cm:
+            self.transpiler.compile("ALGORITHME T\nDEBUT\nFIN\nTableau de déclaration des objets globaux\n/\nDéclaration des types\nRec = Enregistrement\na: Entier")
+        self.assertIn("Fin Enregistrement", str(cm.exception))
+
+    def test_mandatory_end_enforcement(self):
+        # Missing FIN without DEBUT
+        with self.assertRaises(MissingEndError):
+            self.transpiler.compile("ALGORITHME MonAlgo\nx <- 1\nTableau de déclaration des objets globaux\nx : Entier")
+
+        # Missing FIN with DEBUT
+        with self.assertRaises(MissingEndError):
+            self.transpiler.compile("ALGORITHME MonAlgo\nDEBUT\nx <- 1\nTableau de déclaration des objets globaux\nx : Entier")
+
+        # English END is accepted
+        py = self.transpiler.compile("ALGORITHME MonAlgo\nDEBUT\nx <- 1\nEND\nTableau de déclaration des objets globaux\nx : Entier")
+        self.assertIn("x = 1", py)
+
+    def test_mandatory_types_enforcement(self):
+        # Undeclared variable in main
+        with self.assertRaises(MissingTypeError) as cm:
+            self.transpiler.compile("ALGORITHME MonAlgo\nDEBUT\nx <- 1\nFIN\nTableau de déclaration des objets globaux\n/")
+        self.assertIn("non déclaré", str(cm.exception))
+
+        # Missing TDOG under main algorithm
+        with self.assertRaises(MissingTypeError) as cm:
+            self.transpiler.compile("ALGORITHME MonAlgo\nDEBUT\nx <- 1\nFIN")
+        self.assertIn("TDOG", str(cm.exception))
+
+        # Missing TDOL after subprogram
+        algo_no_tdol = """
+        Procedure test(n: Entier)
+        DEBUT
+          ecrire(n)
+        FIN
+        ALGORITHME MonAlgo
+        DEBUT
+          test(5)
+        FIN
+        Tableau de déclaration des objets globaux
+        test : Procédure
+        """
+        with self.assertRaises(MissingTypeError) as cm:
+            self.transpiler.compile(algo_no_tdol)
+        self.assertIn("TDOL", str(cm.exception))
+
+        # Undeclared variable in subprogram
+        algo_sub = """
+        Procedure test(n: Entier)
+        DEBUT
+          y <- n + 1
+        FIN
+        Tableau de déclaration des objets locaux
+        /
+        ALGORITHME MonAlgo
+        DEBUT
+          test(5)
+        FIN
+        Tableau de déclaration des objets globaux
+        test : Procédure
+        """
+        with self.assertRaises(MissingTypeError) as cm:
+            self.transpiler.compile(algo_sub)
+        self.assertIn("non déclaré", str(cm.exception))
+
+        # Subprogram parameter missing type
+        algo_param = """
+        Procedure test(n)
+        DEBUT
+          ecrire(n)
+        FIN
+        Tableau de déclaration des objets locaux
+        /
+        ALGORITHME MonAlgo
+        DEBUT
+          test(5)
+        FIN
+        Tableau de déclaration des objets globaux
+        test : Procédure
+        """
+        with self.assertRaises(MissingTypeError) as cm:
+            self.transpiler.compile(algo_param)
+        self.assertIn("Type manquant pour le paramètre", str(cm.exception))
+
+        # Function missing return type
+        algo_fn = """
+        Fonction carre(x: Entier)
+        DEBUT
+          retourner x * x
+        FIN
+        Tableau de déclaration des objets locaux
+        /
+        ALGORITHME MonAlgo
+        DEBUT
+          y <- carre(5)
+        FIN
+        Tableau de déclaration des objets globaux
+        carre : Fonction
+        y : Entier
+        """
+        with self.assertRaises(MissingTypeError) as cm:
+            self.transpiler.compile(algo_fn)
+        self.assertIn("Type de retour obligatoire", str(cm.exception))
+
+        # TDO item missing type
+        algo_tdo = """
+        ALGORITHME MonAlgo
+        DEBUT
+          x <- 1
+        FIN
+        Tableau de déclaration des objets globaux
+        Objet Type
+        x
+        """
+        with self.assertRaises(MissingTypeError) as cm:
+            self.transpiler.compile(algo_tdo)
+        self.assertIn("Type manquant", str(cm.exception))
+
 
 if __name__ == '__main__':
     unittest.main()

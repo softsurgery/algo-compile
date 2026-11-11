@@ -105,6 +105,52 @@ class TestUIMenusAndDialogs(unittest.TestCase):
         # Check console banner
         self.assertIn("Algoo", self.win.console.output_text.toPlainText())
 
+    def test_app_logo_icon_and_about_dialog(self):
+        from ui.icons import get_app_icon, get_logo_pixmap, get_logo_path
+        from ui.about_dialog import AboutDialog
+        from PIL import Image
+        import numpy as np
+
+        # Verify logo path resolution
+        logo_path = get_logo_path()
+        self.assertTrue(logo_path.endswith("logo.png"))
+
+        # Verify logo has transparent background (no background box)
+        img = Image.open(logo_path)
+        arr = np.array(img)
+        self.assertEqual(arr.shape[2], 4, "Logo must be RGBA")
+        self.assertEqual(arr[0, 0, 3], 0, "Top-left corner must be transparent")
+        self.assertEqual(arr[100, 100, 3], 0, "Outer margin must be transparent")
+
+        # Verify application icon is valid (for OS icon bar / dock)
+        app_icon = get_app_icon()
+        self.assertFalse(app_icon.isNull(), "get_app_icon() must return a valid QIcon")
+
+        # Verify MainWindow window header does not display the logo
+        win_icon_size = self.win.windowIcon().actualSize(self.win.size())
+        self.assertEqual(win_icon_size.width(), 1, "MainWindow must use transparent 1x1 icon to avoid showing in header")
+
+        # Verify logo pixmap
+        pix = get_logo_pixmap(96)
+        self.assertFalse(pix.isNull(), "Logo pixmap must not be null")
+        self.assertLessEqual(pix.width(), 96)
+        self.assertLessEqual(pix.height(), 96)
+
+        # Verify About dialog in light mode
+        dlg_light = AboutDialog(self.win, is_dark=False)
+        self.assertFalse(dlg_light.windowIcon().isNull())
+        self.assertFalse(dlg_light.logo_label.pixmap().isNull())
+        self.assertIn("softsurgery", dlg_light.details_label.text())
+        self.assertIn("github.com/softsurgery/algoo", dlg_light.details_label.text())
+        self.assertIn("background-color: #ffffff;", dlg_light.styleSheet())
+        dlg_light.btn_close.click()
+
+        # Verify About dialog in dark mode
+        dlg_dark = AboutDialog(self.win, is_dark=True)
+        self.assertFalse(dlg_dark.logo_label.pixmap().isNull())
+        self.assertIn("background-color: #1e1e2e;", dlg_dark.styleSheet())
+        dlg_dark.btn_close.click()
+
     def test_window_bar_dark_mode_palette_and_themes(self):
         from ui.theme_utils import (
             create_dark_palette,
@@ -173,6 +219,28 @@ class TestUIMenusAndDialogs(unittest.TestCase):
         p.end()
         colors_dark = {img_dark.pixelColor(vsb.width() // 2, y).name() for y in range(img_dark.height())}
         self.assertIn("#45475a", colors_dark, "Dark mode scrollbar should contain #45475a handle")
+
+    def test_tab_border_radius_and_close_button(self):
+        from ui.styles import LIGHT_THEME, DARK_THEME
+
+        # Verify border-radius is reduced to 3px on tabs and pane
+        self.assertIn("border-top-left-radius: 3px;", LIGHT_THEME)
+        self.assertIn("border-top-right-radius: 3px;", LIGHT_THEME)
+        self.assertIn("border-top-left-radius: 3px;", DARK_THEME)
+        self.assertIn("border-top-right-radius: 3px;", DARK_THEME)
+
+        # Verify close button has image rules configured in both themes
+        self.assertIn("QTabBar::close-button", LIGHT_THEME)
+        self.assertIn("QTabBar::close-button", DARK_THEME)
+        self.assertIn("image: url(", LIGHT_THEME)
+        self.assertIn("image: url(", DARK_THEME)
+
+        # Verify close button hover in dark theme does NOT turn white (#fee2e2)
+        close_dark_hover_start = DARK_THEME.find("QTabBar::close-button:hover")
+        self.assertNotEqual(close_dark_hover_start, -1)
+        close_dark_hover_block = DARK_THEME[close_dark_hover_start:close_dark_hover_start + 200]
+        self.assertNotIn("#fee2e2", close_dark_hover_block, "Dark mode close button hover must not be white/fee2e2")
+        self.assertIn("#313244", close_dark_hover_block, "Dark mode close button hover should use #313244")
 
 
 if __name__ == '__main__':

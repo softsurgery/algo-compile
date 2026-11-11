@@ -1,65 +1,45 @@
 """
-Dialog for browsing and inserting algorithmic code examples and templates.
-Accessible from Tools -> Insert Code...
+Dialog for browsing, managing, and inserting algorithmic code snippets and collections.
+Features:
+- Tree view following folder structure on disk.
+- Multi-tab preview for Code, Markdown documentation, Pictures, and Companion files.
+- Capability to attach/join files (MD, Pictures, data files) to snippets.
+- Preserves full backward-compatibility with tests expecting list_widget and preview_editor styles and methods.
 """
 
 import os
 from PyQt5.QtWidgets import (
-    QDialog, QVBoxLayout, QHBoxLayout, QSplitter, QListWidget,
-    QListWidgetItem, QLabel, QPushButton, QLineEdit, QWidget,
-    QFrame
+    QDialog, QVBoxLayout, QHBoxLayout, QLabel, QPushButton, QListWidget,
+    QListWidgetItem, QWidget, QShortcut
 )
-from PyQt5.QtGui import QFont, QIcon
+from PyQt5.QtGui import QFont, QIcon, QPixmap, QKeySequence
 from PyQt5.QtCore import Qt
 
 from ui.editor import AlgoCodeEditor
 from ui.icons import create_icon
 from ui.styles import LIGHT_THEME, DARK_THEME
-
-
-KNOWN_EXAMPLES_META = {
-    "somme_diviseurs.algo": {
-        "title": "Somme des Diviseurs",
-        "category": "Boucle Pour & Procédure",
-        "desc": "Calcul de la somme des diviseurs d'un entier avec boucle Pour et procédure avec passage par variable (@n)."
-    },
-    "palindrome.algo": {
-        "title": "Vérification de Palindrome",
-        "category": "Chaînes & Boucle Répéter",
-        "desc": "Algorithme vérifiant si un mot est un palindrome avec boucle Répéter...Jusqu'à."
-    },
-    "gestion_eleves.algo": {
-        "title": "Mention des Élèves",
-        "category": "Enregistrement & Selon",
-        "desc": "Structure de données Enregistrement (Record) et aiguillage conditionnel Selon (match/case) avec intervalles."
-    },
-    "tri_bulles.algo": {
-        "title": "Tri à Bulles",
-        "category": "Tableau & Algorithme de Tri",
-        "desc": "Tri classique d'un tableau d'entiers avec permutation et boucle Tant que / Pour."
-    },
-    "matrice_alea.algo": {
-        "title": "Matrice Aléatoire",
-        "category": "Tableau 2D & Aléa",
-        "desc": "Remplissage et affichage d'une matrice à 2 dimensions avec la fonction Aléa."
-    },
-    "players_ranking.algo": {
-        "title": "Classement des Joueurs",
-        "category": "Tableau d'Enregistrements",
-        "desc": "Gestion complète d'un tournoi avec tableau d'enregistrements (Player), saisie, rounds et classement."
-    }
-}
+from ui.snippets_view import SnippetsWidget
+from ui.snippets_manager import scan_snippets_tree, get_all_snippets_flat, SnippetItem, KNOWN_EXAMPLES_META
 
 
 class InsertCodeDialog(QDialog):
-    """Modern modal dialog to browse, preview, and insert algorithmic code."""
+    """Modern modal dialog with Tree View for code snippets, collections, and attachments."""
 
-    def __init__(self, parent=None, is_dark=False):
+    def __init__(self, parent=None, is_dark: bool = False):
         super().__init__(parent)
         self.is_dark = is_dark
-        self.setWindowTitle("Outils — Insérer du code (Insert Code)")
-        self.resize(850, 560)
-        self.setMinimumSize(680, 420)
+        self.setWindowTitle("Outils — Bibliothèque de Snippets & Collections (Insert Code)")
+        # Remove app icon in the top left
+        transparent_pixmap = QPixmap(1, 1)
+        transparent_pixmap.fill(Qt.transparent)
+        self.setWindowIcon(QIcon(transparent_pixmap))
+
+        # Enable maximize, minimize and fullscreen buttons
+        self.setWindowFlags(self.windowFlags() | Qt.WindowMinMaxButtonsHint)
+
+        self.resize(1180, 750)
+        self.setMinimumSize(950, 580)
+        self._is_fullscreen = False
 
         # Apply global theme to dialog window
         self.setStyleSheet(DARK_THEME if self.is_dark else LIGHT_THEME)
@@ -68,153 +48,55 @@ class InsertCodeDialog(QDialog):
         self.selected_title = ""
         self.action_mode = None  # 'insert' or 'new_tab'
 
-        self._examples_data = []
-        self._load_examples()
         self._setup_ui()
-        self._populate_list()
+        self._apply_compat_styles()
+        self._sync_compatibility_list()
 
-    def _load_examples(self):
-        """Scans examples directory and loads all .algo files."""
-        examples_dir = os.path.join(os.path.dirname(os.path.dirname(__file__)), "examples")
-        if not os.path.exists(examples_dir):
-            return
-
-        for fname in sorted(os.listdir(examples_dir)):
-            if fname.endswith(".algo"):
-                filepath = os.path.join(examples_dir, fname)
-                try:
-                    with open(filepath, "r", encoding="utf-8") as f:
-                        code = f.read()
-                except UnicodeDecodeError:
-                    with open(filepath, "r", encoding="latin-1") as f:
-                        code = f.read()
-
-                meta = KNOWN_EXAMPLES_META.get(fname, {
-                    "title": fname.replace(".algo", "").replace("_", " ").title(),
-                    "category": "Algorithme",
-                    "desc": f"Exemple officiel {fname}"
-                })
-
-                self._examples_data.append({
-                    "filename": fname,
-                    "filepath": filepath,
-                    "title": meta["title"],
-                    "category": meta["category"],
-                    "desc": meta["desc"],
-                    "code": code,
-                    "lines_count": len(code.splitlines())
-                })
+        # Keyboard shortcut for full screen
+        QShortcut(QKeySequence(Qt.Key_F11), self, self.toggle_fullscreen)
 
     def _setup_ui(self):
         main_layout = QVBoxLayout(self)
-        main_layout.setContentsMargins(14, 14, 14, 14)
-        main_layout.setSpacing(10)
+        main_layout.setContentsMargins(12, 12, 12, 12)
+        main_layout.setSpacing(8)
 
         # Header description
-        header_lbl = QLabel("Sélectionnez un algorithme ou modèle pour l'insérer dans votre projet :")
+        header_lbl = QLabel("Parcourez vos collections d'algorithmes, consultez les documents Markdown joints et insérez le code :")
         header_lbl.setFont(QFont("SansSerif", 10, QFont.Bold))
         header_lbl.setStyleSheet("color: #a6adc8;" if self.is_dark else "color: #475569;")
         main_layout.addWidget(header_lbl)
 
-        # Main splitter (List on left, Preview on right)
-        splitter = QSplitter(Qt.Horizontal)
+        # Main Snippets Tree Widget
+        self.snippets_widget = SnippetsWidget(self, is_dark=self.is_dark)
+        self.snippets_widget.set_bottom_actions_visible(False)
+        self.snippets_widget.insert_requested.connect(self._on_snippet_insert_requested)
+        self.snippets_widget.new_tab_requested.connect(self._on_snippet_new_tab_requested)
+        main_layout.addWidget(self.snippets_widget, 1)
 
-        # Left panel: Search + List
-        left_widget = QWidget()
-        left_layout = QVBoxLayout(left_widget)
-        left_layout.setContentsMargins(0, 0, 0, 0)
-        left_layout.setSpacing(8)
+        # Direct references for backward-compatibility
+        self.tree_widget = self.snippets_widget.tree_widget
+        self.search_input = self.snippets_widget.search_input
+        self.preview_editor = self.snippets_widget.preview_editor
+        self.lbl_count = self.snippets_widget.lbl_count
 
-        self.search_input = QLineEdit()
-        self.search_input.setPlaceholderText("Rechercher un algorithme (ex: tri, matrice, selon)...")
-        if self.is_dark:
-            self.search_input.setStyleSheet(
-                "QLineEdit { background-color: #181825; color: #cdd6f4; border: 1px solid #313244; border-radius: 6px; padding: 6px 10px; }"
-                "QLineEdit:focus { border: 1px solid #89b4fa; }"
-            )
-        else:
-            self.search_input.setStyleSheet(
-                "QLineEdit { background-color: #ffffff; color: #1e293b; border: 1px solid #cbd5e1; border-radius: 6px; padding: 6px 10px; }"
-                "QLineEdit:focus { border: 1px solid #3b82f6; }"
-            )
-        self.search_input.textChanged.connect(self._filter_list)
-        left_layout.addWidget(self.search_input)
-
+        # Synchronized list_widget for tests and compatibility
         self.list_widget = QListWidget()
-        if self.is_dark:
-            self.list_widget.setStyleSheet(
-                "QListWidget { background-color: #181825; color: #cdd6f4; border: 1px solid #313244; border-radius: 6px; outline: none; }"
-                "QListWidget::item { padding: 8px 10px; border-radius: 4px; color: #cdd6f4; }"
-                "QListWidget::item:hover { background-color: #313244; }"
-                "QListWidget::item:selected { background-color: #45475a; color: #ffffff; font-weight: bold; }"
-            )
-        else:
-            self.list_widget.setStyleSheet(
-                "QListWidget { background-color: #ffffff; color: #1e293b; border: 1px solid #e2e8f0; border-radius: 6px; outline: none; }"
-                "QListWidget::item { padding: 8px 10px; border-radius: 4px; color: #1e293b; }"
-                "QListWidget::item:hover { background-color: #f1f5f9; }"
-                "QListWidget::item:selected { background-color: #e2e8f0; color: #0f172a; font-weight: bold; }"
-            )
-        self.list_widget.currentRowChanged.connect(self._on_item_selected)
-        self.list_widget.itemDoubleClicked.connect(self._on_double_clicked)
-        left_layout.addWidget(self.list_widget, 1)
+        self.list_widget.setVisible(False)
+        self.list_widget.currentRowChanged.connect(self._on_compat_list_row_changed)
+        main_layout.addWidget(self.list_widget)
 
-        splitter.addWidget(left_widget)
-
-        # Right panel: Metadata + Code Preview
-        right_widget = QWidget()
-        right_layout = QVBoxLayout(right_widget)
-        right_layout.setContentsMargins(0, 0, 0, 0)
-        right_layout.setSpacing(6)
-
-        # Info card
-        info_frame = QFrame()
-        info_frame.setFrameShape(QFrame.StyledPanel)
-        if self.is_dark:
-            info_frame.setStyleSheet("background-color: #181825; border: 1px solid #313244; border-radius: 6px; padding: 4px;")
-        else:
-            info_frame.setStyleSheet("background-color: #ffffff; border: 1px solid #e2e8f0; border-radius: 6px; padding: 4px;")
-
-        info_layout = QVBoxLayout(info_frame)
-        info_layout.setContentsMargins(10, 8, 10, 8)
-        info_layout.setSpacing(3)
-
-        self.lbl_title = QLabel("Titre de l'algorithme")
-        self.lbl_title.setFont(QFont("SansSerif", 11, QFont.Bold))
-        self.lbl_title.setStyleSheet("color: #cdd6f4; font-weight: bold;" if self.is_dark else "color: #1e293b; font-weight: bold;")
-        info_layout.addWidget(self.lbl_title)
-
-        self.lbl_desc = QLabel("Description de l'algorithme")
-        self.lbl_desc.setWordWrap(True)
-        self.lbl_desc.setStyleSheet("color: #9399b2; font-size: 11px;" if self.is_dark else "color: #64748b; font-size: 11px;")
-        info_layout.addWidget(self.lbl_desc)
-
-        right_layout.addWidget(info_frame)
-
-        # Code preview editor
-        self.preview_editor = AlgoCodeEditor(is_dark=self.is_dark)
-        self.preview_editor.setReadOnly(True)
-        self.preview_editor.set_dark_mode(self.is_dark)
-        if self.is_dark:
-            self.preview_editor.setStyleSheet("QPlainTextEdit { background-color: #11111b; color: #cdd6f4; border: 1px solid #313244; border-radius: 6px; }")
-        else:
-            self.preview_editor.setStyleSheet("QPlainTextEdit { background-color: #ffffff; color: #1e293b; border: 1px solid #e2e8f0; border-radius: 6px; }")
-        right_layout.addWidget(self.preview_editor, 1)
-
-        splitter.addWidget(right_widget)
-        splitter.setStretchFactor(0, 4)
-        splitter.setStretchFactor(1, 6)
-        main_layout.addWidget(splitter, 1)
+        # Connect search input to also filter compatibility list
+        self.search_input.textChanged.connect(self._sync_compatibility_list)
 
         # Bottom Buttons
         bottom_layout = QHBoxLayout()
         bottom_layout.setSpacing(8)
 
-        self.lbl_count = QLabel("")
-        self.lbl_count.setStyleSheet("color: #6c7086; font-size: 11px;" if self.is_dark else "color: #94a3b8; font-size: 11px;")
-        bottom_layout.addWidget(self.lbl_count)
+        self.lbl_status = QLabel("")
+        self.lbl_status.setStyleSheet("color: #6c7086; font-size: 11px;" if self.is_dark else "color: #94a3b8; font-size: 11px;")
+        bottom_layout.addWidget(self.lbl_status)
 
-        bottom_layout.addStretch()
+        icon_color = "#cdd6f4" if self.is_dark else "#475569"
 
         if self.is_dark:
             btn_sec_style = (
@@ -229,14 +111,31 @@ class InsertCodeDialog(QDialog):
                 "QPushButton:pressed { background-color: #e2e8f0; }"
             )
 
+        self.btn_copy = QPushButton("Copier")
+        self.btn_copy.setStyleSheet(btn_sec_style)
+        self.btn_copy.setIcon(create_icon("copy", icon_color, 14))
+        self.btn_copy.clicked.connect(self.snippets_widget._copy_code)
+        bottom_layout.addWidget(self.btn_copy)
+
+        self.btn_fullscreen = QPushButton("Plein écran")
+        self.btn_fullscreen.setStyleSheet(btn_sec_style)
+        self.btn_fullscreen.setIcon(create_icon("fullscreen", icon_color, 14))
+        self.btn_fullscreen.setToolTip("Basculer la boîte de dialogue en plein écran (F11)")
+        self.btn_fullscreen.clicked.connect(self.toggle_fullscreen)
+        bottom_layout.addWidget(self.btn_fullscreen)
+
+        bottom_layout.addStretch()
+
         self.btn_cancel = QPushButton("Annuler")
         self.btn_cancel.setFixedWidth(90)
         self.btn_cancel.setStyleSheet(btn_sec_style)
+        self.btn_cancel.setIcon(create_icon("close", icon_color, 14))
         self.btn_cancel.clicked.connect(self.reject)
         bottom_layout.addWidget(self.btn_cancel)
 
         self.btn_new_tab = QPushButton("Ouvrir dans un nouvel onglet")
         self.btn_new_tab.setStyleSheet(btn_sec_style)
+        self.btn_new_tab.setIcon(create_icon("new", icon_color, 14))
         self.btn_new_tab.clicked.connect(self._on_open_new_tab)
         bottom_layout.addWidget(self.btn_new_tab)
 
@@ -247,71 +146,175 @@ class InsertCodeDialog(QDialog):
             "QPushButton:hover { background-color: #1d4ed8; }"
             "QPushButton:pressed { background-color: #1e40af; }"
         )
+        self.btn_insert.setIcon(create_icon("step", "#ffffff", 14))
         self.btn_insert.clicked.connect(self._on_insert_clicked)
         bottom_layout.addWidget(self.btn_insert)
 
         main_layout.addLayout(bottom_layout)
 
-    def _populate_list(self):
-        """Fills the list widget with examples."""
-        self.list_widget.clear()
-        query = self.search_input.text().strip().lower()
+    def _apply_compat_styles(self):
+        icon_color = "#cdd6f4" if self.is_dark else "#475569"
+        if hasattr(self, "btn_copy"):
+            self.btn_copy.setIcon(create_icon("copy", icon_color, 14))
+        if hasattr(self, "btn_fullscreen"):
+            self.btn_fullscreen.setIcon(create_icon("fullscreen", icon_color, 14))
+        if hasattr(self, "btn_cancel"):
+            self.btn_cancel.setIcon(create_icon("close", icon_color, 14))
+        if hasattr(self, "btn_new_tab"):
+            self.btn_new_tab.setIcon(create_icon("new", icon_color, 14))
+        if hasattr(self, "btn_insert"):
+            self.btn_insert.setIcon(create_icon("step", "#ffffff", 14))
 
-        matched_count = 0
-        for item in self._examples_data:
+        if self.is_dark:
+            self.search_input.setStyleSheet(
+                "QLineEdit { background-color: #181825; color: #cdd6f4; border: 1px solid #313244; border-radius: 6px; padding: 6px 10px; }"
+                "QLineEdit:focus { border: 1px solid #89b4fa; }"
+            )
+            self.list_widget.setStyleSheet(
+                "QListWidget { background-color: #181825; color: #cdd6f4; border: 1px solid #313244; border-radius: 6px; outline: none; }"
+                "QListWidget::item { padding: 8px 10px; border-radius: 4px; color: #cdd6f4; }"
+                "QListWidget::item:hover { background-color: #313244; }"
+                "QListWidget::item:selected { background-color: #45475a; color: #ffffff; font-weight: bold; }"
+            )
+            self.preview_editor.setStyleSheet(
+                "QPlainTextEdit { background-color: #11111b; color: #cdd6f4; border: 1px solid #313244; border-radius: 6px; }"
+            )
+        else:
+            self.search_input.setStyleSheet(
+                "QLineEdit { background-color: #ffffff; color: #1e293b; border: 1px solid #cbd5e1; border-radius: 6px; padding: 6px 10px; }"
+                "QLineEdit:focus { border: 1px solid #3b82f6; }"
+            )
+            self.list_widget.setStyleSheet(
+                "QListWidget { background-color: #ffffff; color: #1e293b; border: 1px solid #e2e8f0; border-radius: 6px; outline: none; }"
+                "QListWidget::item { padding: 8px 10px; border-radius: 4px; color: #1e293b; }"
+                "QListWidget::item:hover { background-color: #f1f5f9; }"
+                "QListWidget::item:selected { background-color: #e2e8f0; color: #0f172a; font-weight: bold; }"
+            )
+            self.preview_editor.setStyleSheet(
+                "QPlainTextEdit { background-color: #ffffff; color: #1e293b; border: 1px solid #e2e8f0; border-radius: 6px; }"
+            )
+
+    def _sync_compatibility_list(self):
+        """Populates and filters self.list_widget for backward compatibility."""
+        self.list_widget.blockSignals(True)
+        self.list_widget.clear()
+
+        query = self.search_input.text().strip().lower()
+        all_snippets = get_all_snippets_flat()
+
+        matched = []
+        for s in all_snippets:
             if query:
-                searchable = f"{item['title']} {item['category']} {item['desc']} {item['filename']} {item['code']}".lower()
+                searchable = f"{s.title} {s.category} {s.desc} {s.filename} {s.code}".lower()
                 if query not in searchable:
                     continue
+            item = QListWidgetItem()
+            item.setText(f"{s.title}\n  • {s.category}")
+            item.setData(Qt.UserRole, {
+                "title": s.title,
+                "category": s.category,
+                "filename": s.filename,
+                "filepath": s.code_file,
+                "code": s.code,
+                "desc": s.desc,
+                "lines_count": s.lines_count,
+                "snippet_obj": s
+            })
+            self.list_widget.addItem(item)
+            matched.append(s)
 
-            list_item = QListWidgetItem()
-            list_item.setText(f"{item['title']}\n  • {item['category']}")
-            list_item.setIcon(create_icon("open", "#3b82f6" if not self.is_dark else "#89b4fa"))
-            list_item.setData(Qt.UserRole, item)
-            self.list_widget.addItem(list_item)
-            matched_count += 1
-
-        self.lbl_count.setText(f"{matched_count} algorithme(s) disponible(s)")
+        self.list_widget.blockSignals(False)
 
         if self.list_widget.count() > 0:
             self.list_widget.setCurrentRow(0)
+            first = matched[0]
+            self.selected_code = first.code
+            self.selected_title = first.title
+            self.preview_editor.setPlainText(first.code)
+            self.snippets_widget._on_snippet_selected(first)
+        else:
+            self.selected_code = ""
+            self.selected_title = ""
 
-    def _filter_list(self):
-        self._populate_list()
-
-    def _on_item_selected(self, row: int):
-        if row < 0:
+    def _on_compat_list_row_changed(self, row: int):
+        if row < 0 or row >= self.list_widget.count():
             return
         item = self.list_widget.item(row)
         if not item:
             return
         data = item.data(Qt.UserRole)
-        if not data:
-            return
+        if data:
+            self.selected_code = data["code"]
+            self.selected_title = data["title"]
+            self.preview_editor.setPlainText(self.selected_code)
+            if "snippet_obj" in data:
+                self.snippets_widget._on_snippet_selected(data["snippet_obj"])
 
-        self.lbl_title.setText(f"{data['title']}  ({data['filename']} - {data['lines_count']} lignes)")
-        self.lbl_desc.setText(f"Catégorie: {data['category']} | {data['desc']}")
-        self.preview_editor.setPlainText(data['code'])
+    def _on_snippet_insert_requested(self, code: str, title: str):
+        self.selected_code = code
+        self.selected_title = title
+        self.action_mode = 'insert'
+        self.accept()
 
-    def _on_double_clicked(self, item: QListWidgetItem):
-        self._on_insert_clicked()
+    def _on_snippet_new_tab_requested(self, code: str, title: str):
+        self.selected_code = code
+        self.selected_title = title
+        self.action_mode = 'new_tab'
+        self.accept()
 
     def _on_insert_clicked(self):
         row = self.list_widget.currentRow()
         if row >= 0:
             item = self.list_widget.item(row)
             data = item.data(Qt.UserRole)
-            self.selected_code = data['code']
-            self.selected_title = data['title']
-            self.action_mode = 'insert'
-            self.accept()
+            self.selected_code = data["code"]
+            self.selected_title = data["title"]
+        elif self.snippets_widget.current_snippet:
+            self.selected_code = self.snippets_widget.current_snippet.code
+            self.selected_title = self.snippets_widget.current_snippet.title
+        elif self.list_widget.count() > 0:
+            item = self.list_widget.item(0)
+            data = item.data(Qt.UserRole)
+            self.selected_code = data["code"]
+            self.selected_title = data["title"]
+
+        self.action_mode = 'insert'
+        self.accept()
 
     def _on_open_new_tab(self):
         row = self.list_widget.currentRow()
         if row >= 0:
             item = self.list_widget.item(row)
             data = item.data(Qt.UserRole)
-            self.selected_code = data['code']
-            self.selected_title = data['filename']
-            self.action_mode = 'new_tab'
-            self.accept()
+            self.selected_code = data["code"]
+            self.selected_title = data["filename"]
+        elif self.snippets_widget.current_snippet:
+            self.selected_code = self.snippets_widget.current_snippet.code
+            self.selected_title = self.snippets_widget.current_snippet.filename
+        elif self.list_widget.count() > 0:
+            item = self.list_widget.item(0)
+            data = item.data(Qt.UserRole)
+            self.selected_code = data["code"]
+            self.selected_title = data["filename"]
+
+        self.action_mode = 'new_tab'
+        self.accept()
+
+    def toggle_fullscreen(self):
+        """Toggles dialog between full screen and normal window."""
+        if self.isFullScreen():
+            self.showNormal()
+            self._is_fullscreen = False
+            if hasattr(self, "btn_fullscreen"):
+                self.btn_fullscreen.setText("Plein écran")
+        else:
+            self.showFullScreen()
+            self._is_fullscreen = True
+            if hasattr(self, "btn_fullscreen"):
+                self.btn_fullscreen.setText("Quitter plein écran")
+
+    def keyPressEvent(self, event):
+        if event.key() == Qt.Key_Escape and self.isFullScreen():
+            self.toggle_fullscreen()
+            return
+        super().keyPressEvent(event)

@@ -1,10 +1,10 @@
 """
-Statement and Control Flow Translator for the Tunisian Algorithmic Convention.
-Complies with 'Convention Algorithmique 2024.pdf' and 'Implémention 2024-2025.pdf'.
+Statement and Control Flow Translator.
 """
 
 import re
 from compiler.utils import split_arguments
+from compiler.errors import  MissingEndError
 
 class StatementTranslator:
     """Translates algorithmic statements and structured control blocks into Python 3."""
@@ -13,10 +13,45 @@ class StatementTranslator:
         self.expr_trans = expression_translator
         self.type_handler = type_handler
         self.subprogram_meta = subprogram_meta
+        self.local_objects = {}
 
     @property
     def declared_objects(self):
-        return self.type_handler.declared_objects
+        combined = dict(self.type_handler.declared_objects)
+        if hasattr(self, 'local_objects') and self.local_objects:
+            combined.update(self.local_objects)
+        return combined
+
+    def _get_var_type(self, var_name: str) -> str:
+        """Looks up the declared or local type of var_name case-insensitively and resolves aliases."""
+        if not var_name:
+            return ""
+        target = var_name.strip().lower()
+        found_type = None
+        # Check local objects first
+        if hasattr(self, 'local_objects') and self.local_objects:
+            for k, v in self.local_objects.items():
+                if k.lower() == target:
+                    found_type = v
+                    break
+        # Check declared objects
+        if not found_type and hasattr(self, 'declared_objects') and self.declared_objects:
+            for k, v in self.declared_objects.items():
+                if k.lower() == target:
+                    found_type = v
+                    break
+        if found_type:
+            if hasattr(self, 'type_handler') and hasattr(self.type_handler, 'resolve_type'):
+                found_type = self.type_handler.resolve_type(found_type)
+            return found_type
+        return ""
+
+    def _is_file_var(self, var_name: str) -> tuple[bool, bool]:
+        """Returns (is_file, is_text) for a variable name."""
+        t_obj = self._get_var_type(var_name).lower()
+        if 'fichier' in t_obj:
+            return True, ('texte' in t_obj)
+        return False, False
 
     def translate_statements(self, line_tuples: list, indent_level: int = 1) -> list:
         """Translates a sequence of algorithmic lines to Python statements."""
@@ -51,7 +86,7 @@ class StatementTranslator:
                 result.append(f"{base_indent}if {cond}:")
                 
                 # Collect then block, elifs, and else
-                block_res, next_i = self.parse_si_block(line_tuples, i + 1, indent_level)
+                block_res, next_i = self.parse_si_block(line_tuples, i + 1, indent_level, si_line_no=line_no)
                 result.extend(block_res)
                 i = next_i
                 continue
@@ -61,7 +96,7 @@ class StatementTranslator:
             if m_selon:
                 selector = self.expr_trans.translate_expression(m_selon.group(1))
                 result.append(f"{base_indent}match {selector}:")
-                selon_res, next_i = self.parse_selon_block(line_tuples, i + 1, indent_level, selector)
+                selon_res, next_i = self.parse_selon_block(line_tuples, i + 1, indent_level, selector, selon_line_no=line_no)
                 result.extend(selon_res)
                 i = next_i
                 continue
@@ -86,7 +121,10 @@ class StatementTranslator:
                 result.append(f"{base_indent}for {counter} in {range_expr}:")
                 
                 # Collect loop body until Fin Pour
-                body_lines, next_i = self.collect_block_until(line_tuples, i + 1, [r'^(?:fin\s*pour|finpour)$'])
+                body_lines, next_i = self.collect_block_until(
+                    line_tuples, i + 1, [r'^(?:fin[\s_]*pour|finpour)$'],
+                    block_name="Pour", start_line_no=line_no
+                )
                 translated_body = self.translate_statements(body_lines, indent_level + 1)
                 if not translated_body:
                     translated_body = [f"{base_indent}    pass"]
@@ -99,7 +137,10 @@ class StatementTranslator:
             if m_tq:
                 cond = self.expr_trans.translate_expression(m_tq.group(1))
                 result.append(f"{base_indent}while {cond}:")
-                body_lines, next_i = self.collect_block_until(line_tuples, i + 1, [r'^(?:fin\s*tan.*|fintan.*)$'])
+                body_lines, next_i = self.collect_block_until(
+                    line_tuples, i + 1, [r'^(?:fin[\s_]*tan.*|fintan.*)$'],
+                    block_name="Tant que", start_line_no=line_no
+                )
                 translated_body = self.translate_statements(body_lines, indent_level + 1)
                 if not translated_body:
                     translated_body = [f"{base_indent}    pass"]
@@ -110,7 +151,7 @@ class StatementTranslator:
             # 5. Répéter ... Jusqu'à <Condition>
             if s.lower() in ('répéter', 'repeter'):
                 result.append(f"{base_indent}while True:")
-                body_lines, until_cond, next_i = self.collect_repeter_block(line_tuples, i + 1)
+                body_lines, until_cond, next_i = self.collect_repeter_block(line_tuples, i + 1, start_line_no=line_no)
                 translated_body = self.translate_statements(body_lines, indent_level + 1)
                 if not translated_body:
                     translated_body = [f"{base_indent}    pass"]
@@ -138,7 +179,7 @@ class StatementTranslator:
 
         return result
 
-    def parse_si_block(self, line_tuples: list, start_idx: int, indent_level: int):
+    def parse_si_block(self, line_tuples: list, start_idx: int, indent_level: int, si_line_no: int = None):
         """Parses if branches and returns translated lines and next index."""
         result = []
         base_indent = "    " * indent_level
@@ -157,7 +198,7 @@ class StatementTranslator:
                 continue
 
             if nesting > 0:
-                if re.match(r'^(?:fin\s*si|finsi)$', s, re.IGNORECASE):
+                if re.match(r'^(?:fin[\s_]*si|finsi)$', s, re.IGNORECASE):
                     nesting -= 1
                 branch_body.append((line_no, line))
                 idx += 1
@@ -182,7 +223,7 @@ class StatementTranslator:
                 idx += 1
                 continue
 
-            if re.match(r'^(?:fin\s*si|finsi)$', s, re.IGNORECASE):
+            if re.match(r'^(?:fin[\s_]*si|finsi)$', s, re.IGNORECASE):
                 sub = self.translate_statements(branch_body, indent_level + 1)
                 result.extend(sub if sub else [f"{base_indent}    pass"])
                 idx += 1
@@ -191,11 +232,10 @@ class StatementTranslator:
             branch_body.append((line_no, line))
             idx += 1
 
-        sub = self.translate_statements(branch_body, indent_level + 1)
-        result.extend(sub if sub else [f"{base_indent}    pass"])
-        return result, idx
+        line_info = f" à la ligne {si_line_no}" if si_line_no is not None else ""
+        raise MissingEndError(f"Bloc 'Si' ouvert{line_info} non fermé : 'Fin Si' manquant", line_num=si_line_no)
 
-    def parse_selon_block(self, line_tuples: list, start_idx: int, indent_level: int, selector: str):
+    def parse_selon_block(self, line_tuples: list, start_idx: int, indent_level: int, selector: str, selon_line_no: int = None):
         """Parses Selon choices into match/case."""
         result = []
         base_indent = "    " * indent_level
@@ -205,7 +245,7 @@ class StatementTranslator:
             line_no, line = line_tuples[idx]
             s = line.strip()
 
-            if re.match(r'^(?:fin\s*selon|finselon)$', s, re.IGNORECASE):
+            if re.match(r'^(?:fin[\s_]*selon|finselon)$', s, re.IGNORECASE):
                 idx += 1
                 return result, idx
 
@@ -250,9 +290,10 @@ class StatementTranslator:
 
             idx += 1
 
-        return result, idx
+        line_info = f" à la ligne {selon_line_no}" if selon_line_no is not None else ""
+        raise MissingEndError(f"Bloc 'Selon' ouvert{line_info} non fermé : 'Fin Selon' manquant", line_num=selon_line_no)
 
-    def collect_block_until(self, line_tuples: list, start_idx: int, end_patterns: list):
+    def collect_block_until(self, line_tuples: list, start_idx: int, end_patterns: list, block_name: str = "Bloc", start_line_no: int = None):
         """Collects lines until a matching closing pattern is found at depth 0."""
         body = []
         nesting = 0
@@ -278,16 +319,18 @@ class StatementTranslator:
                 else:
                     return body, idx + 1
 
-            if re.match(r'^(?:fin\s*si|finsi|fin\s*pour|finpour|fin\s*tant\s*que|fintantque|fintanqtue|fin\s*selon|jusqu[\'’]?(?:à|a))', s, re.IGNORECASE):
+            if re.match(r'^(?:fin[\s_]*si|finsi|fin[\s_]*pour|finpour|fin[\s_]*tant[\s_]*que|fintantque|fintanqtue|fin[\s_]*selon|jusqu[\'’]?(?:à|a))', s, re.IGNORECASE):
                 if nesting > 0:
                     nesting -= 1
 
             body.append((line_no, line))
             idx += 1
 
-        return body, idx
+        line_info = f" à la ligne {start_line_no}" if start_line_no is not None else ""
+        end_desc = f"'Fin {block_name}'" if block_name else "délimiteur de fin"
+        raise MissingEndError(f"Bloc '{block_name}' ouvert{line_info} non fermé : {end_desc} manquant", line_num=start_line_no)
 
-    def collect_repeter_block(self, line_tuples: list, start_idx: int):
+    def collect_repeter_block(self, line_tuples: list, start_idx: int, start_line_no: int = None):
         """Collects lines for Répéter until Jusqu'à."""
         body = []
         nesting = 0
@@ -317,7 +360,8 @@ class StatementTranslator:
             body.append((line_no, line))
             idx += 1
 
-        return body, None, idx
+        line_info = f" à la ligne {start_line_no}" if start_line_no is not None else ""
+        raise MissingEndError(f"Bloc 'Répéter' ouvert{line_info} non fermé : 'Jusqu\'à' manquant", line_num=start_line_no)
 
     def translate_single_statement(self, s: str, line_no: int = 0) -> str:
         """Translates an assignment, Lire, Ecrire, or subprogram call."""
@@ -332,18 +376,30 @@ class StatementTranslator:
             args_str = m_ecrire.group(1).strip()
             args = split_arguments(args_str)
             
-            # File logical name check: Ecrire(f, obj)
-            if len(args) >= 2 and args[0].isidentifier() and args[0] in self.declared_objects:
-                t_obj = self.declared_objects[args[0]].lower()
-                if 'fichier' in t_obj:
+            # File logical name check: Ecrire(f, obj...) or Ecrire_nl(f, obj...)
+            if len(args) >= 2 and args[0].isidentifier():
+                is_file, is_text = self._is_file_var(args[0])
+                if is_file:
                     f_name = args[0]
-                    content = self.expr_trans.translate_expression(args[1])
-                    if 'texte' in t_obj:
-                        if is_nl:
-                            return f"{f_name}.write(str({content}) + '\\n')"
-                        return f"{f_name}.write(str({content}))"
+                    if is_text:
+                        if len(args) == 2:
+                            content = self.expr_trans.translate_expression(args[1])
+                            if is_nl:
+                                return f"{f_name}.write(str({content}) + '\\n')"
+                            return f"{f_name}.write(str({content}))"
+                        else:
+                            py_items = [f"str({self.expr_trans.translate_expression(a)})" for a in args[1:]]
+                            content = " + ".join(py_items)
+                            if is_nl:
+                                return f"{f_name}.write({content} + '\\n')"
+                            return f"{f_name}.write({content})"
                     else:
-                        return f"dump({content}, {f_name})"
+                        # Binary data file: pickle dump
+                        dumps = []
+                        for a in args[1:]:
+                            content = self.expr_trans.translate_expression(a)
+                            dumps.append(f"dump({content}, {f_name})")
+                        return "; ".join(dumps)
 
             # Console output
             py_args = [self.expr_trans.translate_expression(arg) for arg in args]
@@ -360,27 +416,54 @@ class StatementTranslator:
             args_str = m_lire.group(1).strip()
             args = split_arguments(args_str)
 
-            # File read: Lire(f, obj) or Lire_ligne(f, ch)
-            if len(args) == 2 and args[0].isidentifier() and args[0] in self.declared_objects:
-                t_obj = self.declared_objects[args[0]].lower()
-                if 'fichier' in t_obj:
+            # File read: Lire(f, obj...) or Lire_ligne(f, ch...)
+            if len(args) >= 2 and args[0].isidentifier():
+                is_file, is_text = self._is_file_var(args[0])
+                if is_file or is_line:
                     f_name = args[0]
-                    target_var = self.expr_trans.translate_target(args[1])
-                    if 'texte' in t_obj:
-                        if is_line:
-                            return f"{target_var} = {f_name}.readline()"
-                        return f"{target_var} = {f_name}.read()"
+                    if is_text or is_line:
+                        reads = []
+                        for a in args[1:]:
+                            target_var = self.expr_trans.translate_target(a)
+                            if is_line:
+                                reads.append(f"{target_var} = {f_name}.readline().rstrip('\\r\\n')")
+                            else:
+                                reads.append(f"{target_var} = {f_name}.read()")
+                        return "; ".join(reads)
                     else:
-                        return f"{target_var} = load({f_name})"
+                        # Binary data file: pickle load
+                        reads = []
+                        for a in args[1:]:
+                            target_var = self.expr_trans.translate_target(a)
+                            reads.append(f"{target_var} = load({f_name})")
+                        return "; ".join(reads)
 
             # Interactive input from console: Lire(a, b, ...)
             assignments = []
             for arg in args:
                 target_var = self.expr_trans.translate_target(arg.strip())
                 clean_id = re.sub(r'\[.*\]', '', arg.strip())
-                vtype = self.declared_objects.get(clean_id, None)
+                clean_id = clean_id.split('.')[0].strip()
+                vtype = self._get_var_type(clean_id)
                 if vtype:
-                    assignments.append(f"{target_var} = _lire_valeur('', {vtype!r})")
+                    target_type = vtype
+                    # If reading an array element (e.g. IDENT[i]), get the element type
+                    if '[' in arg:
+                        if vtype in self.type_handler.custom_types:
+                            c_def = self.type_handler.custom_types[vtype]
+                            if c_def.get('kind') in ('tableau_1d', 'tableau_2d'):
+                                target_type = c_def.get('elem_type', vtype)
+                        else:
+                            m_arr = re.match(r'tableau\s+de\s+(?:.+?\s*lignes?\s*\*\s*.+?\s*colonnes?\s+|.+?\s+)(.+)', vtype, re.IGNORECASE)
+                            if m_arr:
+                                target_type = m_arr.group(1).strip()
+                    # If reading a record field (e.g. E.nom or T[i].nom)
+                    if '.' in arg:
+                        field_name = arg.split('.')[-1].strip()
+                        rec_type = target_type
+                        if rec_type in self.type_handler.custom_types and self.type_handler.custom_types[rec_type].get('kind') == 'enregistrement':
+                            target_type = self.type_handler.custom_types[rec_type].get('fields', {}).get(field_name, target_type)
+                    assignments.append(f"{target_var} = _lire_valeur('', {target_type!r})")
                 else:
                     assignments.append(f"{target_var} = _lire_valeur('')")
             return "; ".join(assignments)
@@ -390,10 +473,23 @@ class StatementTranslator:
         if m_open:
             args = split_arguments(m_open.group(1))
             if len(args) >= 3:
+                arg0 = args[0].strip()
+                arg1 = args[1].strip()
+                arg2 = args[2].strip()
+                all_objs_lower = {k.lower(): v for k, v in {**self.declared_objects, **self.local_objects}.items()}
+                if arg0.lower() in all_objs_lower and arg1.lower() not in all_objs_lower:
+                    f_name = arg0
+                    path = self.expr_trans.translate_expression(arg1)
+                    mode = self.expr_trans.translate_expression(arg2)
+                else:
+                    path = self.expr_trans.translate_expression(arg0)
+                    f_name = arg1
+                    mode = self.expr_trans.translate_expression(arg2)
+                return f"{f_name} = Ouvrir({path}, {mode})"
+            elif len(args) == 2:
                 path = self.expr_trans.translate_expression(args[0])
-                f_name = args[1].strip()
-                mode = self.expr_trans.translate_expression(args[2])
-                return f"{f_name} = open({path}, {mode})"
+                mode = self.expr_trans.translate_expression(args[1])
+                return f"Ouvrir({path}, {mode})"
 
         # 4. File close: Fermer(f)
         m_close = re.match(r'^fermer\s*\((.+?)\)$', s, re.IGNORECASE)

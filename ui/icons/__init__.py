@@ -1,0 +1,80 @@
+"""
+Modular vector icons generator using QPainter and QPixmap.
+Each icon is implemented in its own dedicated module.
+"""
+
+from PyQt5.QtGui import QIcon
+from . import (
+    base,
+    new,
+    open,
+    save,
+    run,
+    stop,
+    step,
+    python,
+    copy,
+    clear,
+    zoom_in,
+    zoom_out,
+    theme,
+    help,
+    close,
+    folder,
+    doc,
+    refresh,
+    logo,
+    image,
+    attach,
+    pdf,
+    fullscreen,
+    prev,
+    next,
+)
+
+ICONS = {
+    "new": new.get_icon,
+    "open": open.get_icon,
+    "save": save.get_icon,
+    "run": run.get_icon,
+    "stop": stop.get_icon,
+    "step": step.get_icon,
+    "python": python.get_icon,
+    "copy": copy.get_icon,
+    "clear": clear.get_icon,
+    "zoom_in": zoom_in.get_icon,
+    "zoom_out": zoom_out.get_icon,
+    "theme": theme.get_icon,
+    "help": help.get_icon,
+    "close": close.get_icon,
+    "folder": folder.get_icon,
+    "doc": doc.get_icon,
+    "refresh": refresh.get_icon,
+    "logo": logo.get_icon,
+    "image": image.get_icon,
+    "attach": attach.get_icon,
+    "pdf": pdf.get_icon,
+    "fullscreen": fullscreen.get_icon,
+    "prev": prev.get_icon,
+    "next": next.get_icon,
+    "left": prev.get_icon,
+    "right": next.get_icon,
+}
+
+get_app_icon = logo.get_icon
+get_logo_pixmap = logo.get_pixmap
+get_logo_path = logo.get_logo_path
+
+def create_icon(name: str, color_hex: str = "#2c3e50", size: int = 24) -> QIcon:
+    """Generates a QIcon with the specified name and color."""
+    generator = ICONS.get(name)
+    if generator:
+        return generator(color_hex, size)
+    
+    # Fallback default dot
+    def _draw_default(p, s, margin, color):
+        p.setPen(color)
+        p.setBrush(color)
+        p.drawEllipse(int(s / 2), int(s / 2), 3, 3)
+
+    return base.make_icon(_draw_default, color_hex, size)

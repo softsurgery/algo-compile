@@ -1,6 +1,5 @@
 """
-Algorithmic Expression and Target Translator for the Tunisian Algorithmic Convention.
-Complies with 'Convention Algorithmique 2024.pdf' and 'Implémention 2024-2025.pdf'.
+Algorithmic Expression and Target Translator.
 """
 
 import re
@@ -28,6 +27,10 @@ class ExpressionTranslator:
             'effacer': 'Effacer',
             'majus': 'Majus',
             'fin_fichier': '_fin_fichier',
+            'finfichier': '_fin_fichier',
+            'ouvrir': 'Ouvrir',
+            'lire_ligne': 'Lire_ligne',
+            'lireligne': 'Lire_ligne',
         }
 
     def translate_target(self, target_str: str) -> str:

@@ -15,6 +15,11 @@ DEBUT
   Retourner test
 FIN
 
+Tableau de déclaration des objets locaux
+Objet          Type / Nature
+test           Booléen
+i, j           Entier
+
 ALGORITHME TestPalindrome
 DEBUT
   Ecrire("Donner un mot : ")
@@ -28,6 +33,8 @@ DEBUT
     Ecrire_nl("'", mot, "' N'est PAS un palindrome.")
   FinSi
 FIN
-Déclaration des objets
-Objet          Type / Nature
-mot, mot_maj   Chaîne
+
+Tableau de déclaration des objets globaux
+Objet              Type / Nature
+EstPalindrome      Fonction
+mot, mot_maj       Chaîne
