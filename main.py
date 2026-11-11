@@ -15,6 +15,7 @@ if BASE_DIR not in sys.path:
 from PyQt5.QtWidgets import QApplication
 from PyQt5.QtCore import Qt, QSettings
 from PyQt5.QtGui import QFont
+from ui.icons import get_app_icon
 from ui.theme_utils import (
     detect_system_dark_mode,
     create_dark_palette,
@@ -32,6 +33,8 @@ def main():
     app.setApplicationName("Algoo")
     app.setApplicationDisplayName("Algoo")
     app.setOrganizationName("softsurgery")
+    app.setDesktopFileName("algoo.desktop")
+    app.setWindowIcon(get_app_icon())
 
     # Determine theme preference from SQLite database, with fallback to QSettings / system
     db = get_database()

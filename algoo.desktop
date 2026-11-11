@@ -1,0 +1,11 @@
+[Desktop Entry]
+Version=1.0
+Type=Application
+Name=Algoo
+GenericName=IDE Algorithmique
+Comment=Environnement de développement moderne et pédagogique pour l'Algorithmique
+Exec=/usr/bin/python3 "/home/cardinal/Documents/Commit Labs/algo-compile/main.py" %F
+Icon=/home/cardinal/Documents/Commit Labs/algo-compile/ui/assets/logo.png
+Terminal=false
+Categories=Development;IDE;Education;
+StartupWMClass=Algoo

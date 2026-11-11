@@ -11,7 +11,7 @@ from PyQt5.QtWidgets import (
     QTabWidget, QToolBar, QAction, QFileDialog, QMessageBox,
     QStatusBar, QLabel, QMenu, QToolButton, QApplication, QDialog
 )
-from PyQt5.QtGui import QIcon, QFont, QKeySequence, QDesktopServices
+from PyQt5.QtGui import QIcon, QFont, QKeySequence, QDesktopServices, QPixmap
 from PyQt5.QtCore import Qt, QFileInfo, QUrl, QSettings
 
 from compiler.transpiler import AlgoTranspiler, CompileError
@@ -22,12 +22,13 @@ from ui.tdo_view import TDOView
 from ui.tdnt_view import TDNTView
 from ui.assistant_view import AssistantView
 from ui.symbols_bar import SymbolsBar
-from ui.icons import create_icon
+from ui.icons import create_icon, get_app_icon
 from ui.styles import (
     LIGHT_THEME, DARK_THEME,
     detect_system_dark_mode, apply_os_window_theme
 )
 from ui.insert_code_dialog import InsertCodeDialog
+from ui.about_dialog import AboutDialog
 from database import get_database, DatabaseManager
 from typing import Optional
 
@@ -36,6 +37,10 @@ class MainWindow(QMainWindow):
     def __init__(self, db: Optional[DatabaseManager] = None):
         super().__init__()
         self.setWindowTitle("Algoo - IDE Algorithmique")
+        # Do not display icon in window header at top left
+        empty_icon_pixmap = QPixmap(1, 1)
+        empty_icon_pixmap.fill(Qt.transparent)
+        self.setWindowIcon(QIcon(empty_icon_pixmap))
         self.resize(1200, 800)
 
         # Database initialization & theme preference
@@ -937,12 +942,5 @@ class MainWindow(QMainWindow):
             editor.set_error_line(line_num)
 
     def _show_about_dialog(self):
-        QMessageBox.about(
-            self,
-            "À propos d'Algoo",
-            "<h3>Algoo</h3>"
-            "<p>Environnement de développement moderne et pédagogique pour l'Algorithmique scolaire et universitaire.</p>"
-            "<p><b>Développeur :</b> softsurgery</p>"
-            "<p><b>Code source & GitHub :</b> <a href='https://github.com/softsurgery/algoo'>https://github.com/softsurgery/algoo</a></p>"
-            "<p>Développé avec <b>PyQt5</b> et <b>NumPy</b> sous Linux.</p>"
-        )
+        dlg = AboutDialog(self, is_dark=self.is_dark_mode)
+        dlg.exec_()
