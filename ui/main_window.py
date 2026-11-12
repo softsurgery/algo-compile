@@ -27,9 +27,8 @@ from ui.styles import (
     LIGHT_THEME, DARK_THEME,
     detect_system_dark_mode, apply_os_window_theme
 )
-from ui.insert_code_dialog import InsertCodeDialog
+from ui.dialogs import InsertCodeDialog, AboutDialog, PreferencesDialog
 from ui.snippets_view import SnippetsWidget
-from ui.about_dialog import AboutDialog
 from database import get_database, DatabaseManager
 from typing import Optional
 
@@ -576,7 +575,7 @@ class MainWindow(QMainWindow):
 
     def show_preferences_dialog(self):
         """Opens the Preferences Dialog (Theme mode, colors, font, editor settings)."""
-        from ui.preferences_dialog import PreferencesDialog
+        from ui.dialogs import PreferencesDialog
         dlg = PreferencesDialog(self, is_dark=self.is_dark_mode, db=self.db)
         dlg.settings_applied.connect(self._apply_all_preferences)
         if dlg.exec_() == QDialog.Accepted:
