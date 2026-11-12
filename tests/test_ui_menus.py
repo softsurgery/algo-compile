@@ -195,9 +195,13 @@ class TestUIMenusAndDialogs(unittest.TestCase):
         # 4. Toggle theme back to light
         self.win.toggle_theme()
         self.assertFalse(self.win.is_dark_mode)
-        self.assertEqual(app.palette().color(QPalette.Active, QPalette.Window).name(), "#f7f9fa")
-        self.assertEqual(self.win.palette().color(QPalette.Active, QPalette.Window).name(), "#f7f9fa")
         self.assertIn("#64748b", self.win.symbols_bar.lbl_sym.styleSheet())
+
+        # 5. Window manager follows OS theme
+        apply_os_window_theme(self.win, False)
+        self.assertEqual(app.palette().color(QPalette.Active, QPalette.Window).name(), "#f7f9fa")
+        apply_os_window_theme(self.win, True)
+        self.assertEqual(app.palette().color(QPalette.Active, QPalette.Window).name(), "#181825")
 
     def test_scrollbar_theme_colors(self):
         from ui.styles import LIGHT_THEME, DARK_THEME

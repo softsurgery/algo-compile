@@ -36,21 +36,18 @@ class ThemePage(QWidget):
 
         self.rb_system = QRadioButton("Système (Automatique)")
         self.rb_system.setToolTip("Suit automatiquement le thème clair/sombre de votre système d'exploitation")
-        self.rb_system.setStyleSheet("font-size: 11pt; padding: 4px 6px;")
         self.rb_system.setIconSize(QSize(24, 24))
         self.btn_group_mode.addButton(self.rb_system, 0)
         box_layout.addWidget(self.rb_system)
 
         self.rb_light = QRadioButton("Mode Clair (Light)")
         self.rb_light.setToolTip("Active en permanence le thème clair épuré")
-        self.rb_light.setStyleSheet("font-size: 11pt; padding: 4px 6px;")
         self.rb_light.setIconSize(QSize(24, 24))
         self.btn_group_mode.addButton(self.rb_light, 1)
         box_layout.addWidget(self.rb_light)
 
         self.rb_dark = QRadioButton("Mode Sombre (Dark)")
         self.rb_dark.setToolTip("Active en permanence le thème sombre moderne")
-        self.rb_dark.setStyleSheet("font-size: 11pt; padding: 4px 6px;")
         self.rb_dark.setIconSize(QSize(24, 24))
         self.btn_group_mode.addButton(self.rb_dark, 2)
         box_layout.addWidget(self.rb_dark)
@@ -64,6 +61,10 @@ class ThemePage(QWidget):
         layout.addWidget(self.lbl_sys_info)
 
         layout.addStretch()
+
+    def update_system_info(self, is_dark: bool):
+        sys_detected = "Sombre (Dark)" if is_dark else "Clair (Light)"
+        self.lbl_sys_info.setText(f"ℹ️  Thème système actuellement détecté : <b>{sys_detected}</b>")
 
     def update_icons(self, is_dark: bool):
         icon_color = "#cdd6f4" if is_dark else "#475569"

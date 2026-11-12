@@ -60,9 +60,6 @@ class SettingsMixin:
         mode = self.get_setting("theme_mode", None)
         if mode in ("system", "dark", "light"):
             return mode
-        legacy = self.get_setting("theme", None)
-        if legacy in ("dark", "light"):
-            return legacy
         return default
 
     def set_theme_mode(self, mode: str) -> None:
@@ -87,7 +84,10 @@ class SettingsMixin:
 
     def set_dark_mode(self, is_dark: bool) -> None:
         """Convenience method to set dark mode boolean."""
-        self.set_theme("dark" if is_dark else "light")
+        self.set_setting("theme", "dark" if is_dark else "light")
+        # Preserve 'system' theme_mode if currently configured as system
+        if self.get_theme_mode(None) != "system":
+            self.set_setting("theme_mode", "dark" if is_dark else "light")
 
     def get_global_theme(self, default: str = "catppuccin") -> str:
         """Returns global theme variant name ('catppuccin', 'slate', 'nord', etc.)."""

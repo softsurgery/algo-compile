@@ -25,7 +25,8 @@ from ui.symbols_bar import SymbolsBar
 from ui.icons import create_icon, get_app_icon
 from ui.styles import (
     LIGHT_THEME, DARK_THEME,
-    detect_system_dark_mode, apply_os_window_theme
+    detect_system_dark_mode, apply_os_window_theme,
+    get_system_theme_watcher
 )
 from ui.dialogs import InsertCodeDialog, AboutDialog, PreferencesDialog
 from ui.snippets_view import SnippetsWidget
@@ -47,7 +48,7 @@ class MainWindow(QMainWindow):
         self.db = db or get_database()
         self.settings = QSettings("softsurgery", "Algoo")
 
-        theme_mode = self.db.get_theme_mode() if hasattr(self.db, "get_theme_mode") else "system"
+        theme_mode = self.db.get_theme_mode(None) if hasattr(self.db, "get_theme_mode") else None
         if theme_mode == "system":
             self.is_dark_mode = detect_system_dark_mode()
         elif theme_mode == "dark":
@@ -62,9 +63,12 @@ class MainWindow(QMainWindow):
                 self.is_dark_mode = self.settings.value("dark_mode", type=bool)
             else:
                 self.is_dark_mode = detect_system_dark_mode()
+            if hasattr(self.db, "set_dark_mode"):
+                self.db.set_dark_mode(self.is_dark_mode)
 
-        if hasattr(self.db, "set_dark_mode"):
-            self.db.set_dark_mode(self.is_dark_mode)
+        # Connect live system theme watcher for immediate automatic detection
+        self.theme_watcher = get_system_theme_watcher()
+        self.theme_watcher.theme_changed.connect(self._on_system_theme_changed)
 
         self.transpiler = AlgoTranspiler()
 
@@ -547,29 +551,33 @@ class MainWindow(QMainWindow):
                     editor.set_dark_mode(self.is_dark_mode)
                     editor.apply_settings(editor_settings, syntax_colors)
 
-        # On Wayland (e.g. GNOME Wayland), client-side decorations (Bradient/QtWayland)
-        # determine their colors upon window handle instantiation. Recreating the native
-        # window handle on runtime toggle immediately applies the new palette to the title bar.
-        if recreate_native and self.isVisible():
-            app = QApplication.instance()
-            if app and app.platformName().startswith("wayland"):
-                save_geom = self.saveGeometry()
-                state = self.windowState()
-                self.destroy()
-                self.create()
-                self.restoreGeometry(save_geom)
-                self.setWindowState(state)
-                self.show()
+        # Refresh window visual appearance immediately without destroying or reopening the native window
+        self.update()
+
+    def _on_system_theme_changed(self, is_dark: bool):
+        """Immediately applies theme when the operating system switches between dark/light mode."""
+        # The window manager strictly follows the OS
+        apply_os_window_theme(self, is_dark)
+
+        theme_mode = self.db.get_theme_mode("system") if hasattr(self, "db") and hasattr(self.db, "get_theme_mode") else "system"
+        if theme_mode == "system":
+            if self.is_dark_mode != is_dark:
+                self.is_dark_mode = is_dark
+                self.apply_theme(recreate_native=False)
+                mode_str = "sombre" if self.is_dark_mode else "clair"
+                if hasattr(self, "lbl_status") and self.lbl_status:
+                    self.lbl_status.setText(f"Thème système {mode_str} détecté et appliqué")
 
     def toggle_theme(self):
         self.is_dark_mode = not self.is_dark_mode
         if hasattr(self, "db") and self.db:
-            self.db.set_dark_mode(self.is_dark_mode)
             if hasattr(self.db, "set_theme_mode"):
                 self.db.set_theme_mode("dark" if self.is_dark_mode else "light")
+            if hasattr(self.db, "set_dark_mode"):
+                self.db.set_dark_mode(self.is_dark_mode)
         if hasattr(self, "settings"):
             self.settings.setValue("dark_mode", self.is_dark_mode)
-        self.apply_theme(recreate_native=True)
+        self.apply_theme(recreate_native=False)
         mode_str = "sombre" if self.is_dark_mode else "clair"
         self.lbl_status.setText(f"Thème {mode_str} activé")
 
@@ -591,13 +599,11 @@ class MainWindow(QMainWindow):
         else:
             effective_dark = False
 
-        if self.is_dark_mode != effective_dark:
-            self.is_dark_mode = effective_dark
-            if hasattr(self, "db") and self.db:
+        self.is_dark_mode = effective_dark
+        if hasattr(self, "db") and self.db:
+            if hasattr(self.db, "set_dark_mode"):
                 self.db.set_dark_mode(self.is_dark_mode)
-            self.apply_theme(recreate_native=True)
-        else:
-            self.apply_theme(recreate_native=False)
+        self.apply_theme(recreate_native=False)
 
     # -------------------------------------------------------------------------
     # Editor & Tabs Management

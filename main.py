@@ -19,7 +19,8 @@ from ui.icons import get_app_icon
 from ui.theme_utils import (
     detect_system_dark_mode,
     create_dark_palette,
-    create_light_palette
+    create_light_palette,
+    get_system_theme_watcher
 )
 from ui.main_window import MainWindow
 from database import get_database
@@ -36,18 +37,24 @@ def main():
     app.setDesktopFileName("algoo.desktop")
     app.setWindowIcon(get_app_icon())
 
-    # Determine theme preference from SQLite database, with fallback to QSettings / system
+    # Initialize live system theme watcher
+    get_system_theme_watcher()
+
+    # Determine theme preference from SQLite database, with fallback to system
     db = get_database()
-    saved_dark_mode = db.is_dark_mode()
-    if saved_dark_mode is not None:
-        is_dark = saved_dark_mode
+    theme_mode = db.get_theme_mode(None)
+    if theme_mode is None:
+        db.set_theme_mode("system")
+        is_dark = detect_system_dark_mode()
+    elif theme_mode == "system":
+        is_dark = detect_system_dark_mode()
+    elif theme_mode == "dark":
+        is_dark = True
+    elif theme_mode == "light":
+        is_dark = False
     else:
-        settings = QSettings("softsurgery", "Algoo")
-        if settings.contains("dark_mode"):
-            is_dark = settings.value("dark_mode", type=bool)
-        else:
-            is_dark = detect_system_dark_mode()
-        db.set_dark_mode(is_dark)
+        saved_dark = db.is_dark_mode()
+        is_dark = saved_dark if saved_dark is not None else detect_system_dark_mode()
 
     app.setPalette(create_dark_palette() if is_dark else create_light_palette())
 

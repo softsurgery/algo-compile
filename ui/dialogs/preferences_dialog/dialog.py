@@ -18,7 +18,7 @@ from PyQt5.QtCore import Qt, pyqtSignal
 
 from database import get_database, DatabaseManager
 from ui.editor_themes import SYNTAX_PRESETS
-from ui.theme_utils import detect_system_dark_mode
+from ui.theme_utils import detect_system_dark_mode, get_system_theme_watcher
 from ui.dialogs.preferences_dialog.navigation import (
     NoFocusDelegate, PreferencesNavigationTree
 )
@@ -58,6 +58,10 @@ class PreferencesDialog(QDialog):
         self._setup_ui()
         self._load_values()
         self.set_dark_mode(self.is_dark)
+
+        # Connect live system theme watcher for immediate detection in dialog
+        self.theme_watcher = get_system_theme_watcher()
+        self.theme_watcher.theme_changed.connect(self._on_system_theme_changed)
 
     def _setup_ui(self):
         main_layout = QVBoxLayout(self)
@@ -150,6 +154,9 @@ class PreferencesDialog(QDialog):
         self.rb_preview_dark.toggled.connect(self._update_chips_and_preview)
         self.rb_preview_light.toggled.connect(self._update_chips_and_preview)
 
+        # Wire live theme mode selection
+        self.btn_group_mode.buttonClicked.connect(self._on_theme_mode_radio_clicked)
+
         # Select first page by default
         self.tree.setCurrentItem(self.item_theme)
 
@@ -187,6 +194,23 @@ class PreferencesDialog(QDialog):
             self.rb_preview_light.setChecked(True)
 
         self._on_syntax_preset_changed()
+
+    def _on_theme_mode_radio_clicked(self, _=None):
+        """Immediately applies selected theme mode live across the dialog components and window bar."""
+        chosen_mode = self.page_theme.get_selected_mode()
+        if chosen_mode == "system":
+            effective_dark = detect_system_dark_mode()
+        elif chosen_mode == "dark":
+            effective_dark = True
+        else:
+            effective_dark = False
+
+        self.set_dark_mode(effective_dark)
+        if hasattr(self, "rb_preview_dark") and hasattr(self, "rb_preview_light"):
+            if effective_dark:
+                self.rb_preview_dark.setChecked(True)
+            else:
+                self.rb_preview_light.setChecked(True)
 
     def _on_syntax_preset_changed(self, _=None):
         preset_name = self.combo_syntax_preset.currentText()
@@ -256,3 +280,17 @@ class PreferencesDialog(QDialog):
     def set_dark_mode(self, is_dark: bool):
         self.is_dark = is_dark
         apply_preferences_styles(self, is_dark)
+
+    def _on_system_theme_changed(self, is_dark: bool):
+        """Reflects system theme transition live in the Preferences dialog and window manager."""
+        from ui.theme_utils import apply_os_window_theme
+        apply_os_window_theme(self, is_dark)
+        if hasattr(self, "page_theme"):
+            self.page_theme.update_system_info(is_dark)
+            if self.page_theme.get_selected_mode() == "system":
+                self.set_dark_mode(is_dark)
+                if hasattr(self, "rb_preview_dark") and hasattr(self, "rb_preview_light"):
+                    if is_dark:
+                        self.rb_preview_dark.setChecked(True)
+                    else:
+                        self.rb_preview_light.setChecked(True)
