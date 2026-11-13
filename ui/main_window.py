@@ -555,6 +555,9 @@ class MainWindow(QMainWindow):
 
     def _on_system_theme_changed(self, is_dark: bool):
         """Immediately applies theme when the operating system switches between dark/light mode."""
+        if hasattr(self, "db") and self.db is not None and getattr(self.db, "_conn", True) is None:
+            return
+
         # The window manager strictly follows the OS
         apply_os_window_theme(self, is_dark)
 
@@ -957,6 +960,11 @@ class MainWindow(QMainWindow):
                         return
 
         self._sync_tabs_to_db()
+        if hasattr(self, "theme_watcher") and self.theme_watcher is not None:
+            try:
+                self.theme_watcher.theme_changed.disconnect(self._on_system_theme_changed)
+            except (TypeError, RuntimeError):
+                pass
         event.accept()
         super().closeEvent(event)
 

@@ -13,6 +13,8 @@ class SettingsMixin:
     def get_setting(self, key: str, default: Optional[str] = None) -> Optional[str]:
         """Retrieves a setting value by key."""
         with self._lock:
+            if self._conn is None:
+                return default
             cur = self._conn.cursor()
             cur.execute("SELECT value FROM settings WHERE key = ?", (key,))
             row = cur.fetchone()
