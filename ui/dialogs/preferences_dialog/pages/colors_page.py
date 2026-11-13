@@ -4,11 +4,12 @@ Syntax highlighting colors and live code preview page for PreferencesDialog.
 
 from typing import Dict, Any, List, Tuple
 from PyQt5.QtWidgets import (
-    QWidget, QVBoxLayout, QHBoxLayout, QLabel, QComboBox,
-    QRadioButton, QButtonGroup, QFrame, QScrollArea
+    QWidget, QVBoxLayout, QHBoxLayout, QLabel,
+    QButtonGroup, QFrame, QScrollArea
 )
 from PyQt5.QtGui import QFont, QColor
 from PyQt5.QtCore import Qt, QSize
+from ui.components import AppRadioButton, AppSelect
 from ui.editor import AlgoCodeEditor
 from ui.editor_themes import SYNTAX_PRESETS
 from ui.dialogs.preferences_dialog.header import create_section_header
@@ -70,8 +71,7 @@ class ColorsPage(QScrollArea):
         lbl_preset.setFont(QFont("SansSerif", 10, QFont.Bold))
         top_row.addWidget(lbl_preset)
 
-        self.combo_syntax_preset = QComboBox()
-        self.combo_syntax_preset.addItems(list(SYNTAX_PRESETS.keys()))
+        self.combo_syntax_preset = AppSelect(items=list(SYNTAX_PRESETS.keys()))
         top_row.addWidget(self.combo_syntax_preset, 1)
 
         card_layout.addLayout(top_row)
@@ -115,10 +115,8 @@ class ColorsPage(QScrollArea):
         preview_bar.addWidget(lbl_preview)
 
         self.btn_preview_group = QButtonGroup(self)
-        self.rb_preview_dark = QRadioButton("🌙 Mode Sombre")
-        self.rb_preview_dark.setIconSize(QSize(18, 18))
-        self.rb_preview_light = QRadioButton("☀️ Mode Clair")
-        self.rb_preview_light.setIconSize(QSize(18, 18))
+        self.rb_preview_dark = AppRadioButton("Mode Sombre", icon_size=18)
+        self.rb_preview_light = AppRadioButton("Mode Clair", icon_size=18)
         self.btn_preview_group.addButton(self.rb_preview_dark, 0)
         self.btn_preview_group.addButton(self.rb_preview_light, 1)
 

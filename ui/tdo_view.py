@@ -6,11 +6,12 @@ TDOL (Local Objects and Parameters).
 
 from PyQt5.QtWidgets import (
     QWidget, QVBoxLayout, QHBoxLayout, QTableWidget,
-    QTableWidgetItem, QHeaderView, QLabel, QComboBox,
+    QTableWidgetItem, QHeaderView, QLabel,
     QScrollArea, QFrame, QAbstractScrollArea
 )
 from PyQt5.QtGui import QFont, QColor
 from PyQt5.QtCore import Qt
+from ui.components import AppSelect
 
 
 class TDOTableCard(QWidget):
@@ -173,11 +174,14 @@ class TDOView(QWidget):
         header.addStretch()
 
         # Selector dropdown to focus on a specific table or view all
-        self.table_selector = QComboBox()
-        self.table_selector.setFixedHeight(24)
-        self.table_selector.setMinimumWidth(180)
-        self.table_selector.addItem("Tous les tableaux")
-        self.table_selector.currentIndexChanged.connect(self._on_selector_changed)
+        self.table_selector = AppSelect(
+            items=["Tous les tableaux"],
+            fixed_height=24,
+            min_width=180,
+            compact=True,
+            is_dark=self.is_dark,
+            on_changed=self._on_selector_changed,
+        )
         header.addWidget(self.table_selector)
 
         main_layout.addLayout(header)
@@ -203,19 +207,12 @@ class TDOView(QWidget):
                 "QScrollArea { background-color: #11111b; border: none; }"
                 "QWidget { background-color: #11111b; }"
             )
-            self.table_selector.setStyleSheet(
-                "QComboBox { background-color: #181825; color: #cdd6f4; border: 1px solid #313244; border-radius: 4px; padding: 2px 6px; font-size: 11px; }"
-                "QComboBox QAbstractItemView { background-color: #181825; color: #cdd6f4; selection-background-color: #313244; border: 1px solid #313244; }"
-            )
         else:
             self.scroll_area.setStyleSheet(
                 "QScrollArea { background-color: #f7f9fa; border: none; }"
                 "QWidget { background-color: #f7f9fa; }"
             )
-            self.table_selector.setStyleSheet(
-                "QComboBox { background-color: #ffffff; color: #1e293b; border: 1px solid #cbd5e1; border-radius: 4px; padding: 2px 6px; font-size: 11px; }"
-                "QComboBox QAbstractItemView { background-color: #ffffff; color: #1e293b; selection-background-color: #edf2f7; border: 1px solid #cbd5e1; }"
-            )
+        self.table_selector.set_dark_mode(is_dark)
 
         for card in self._table_cards:
             card.set_dark_mode(is_dark)

@@ -5,10 +5,11 @@ Displays variable names, algorithmic types, scopes (Global and Subprograms), and
 
 from PyQt5.QtWidgets import (
     QWidget, QVBoxLayout, QHBoxLayout, QTableWidget,
-    QTableWidgetItem, QHeaderView, QLabel, QComboBox, QPushButton
+    QTableWidgetItem, QHeaderView, QLabel, QPushButton
 )
 from PyQt5.QtGui import QFont, QColor
 from PyQt5.QtCore import Qt
+from ui.components import AppSelect
 
 
 class VariablesView(QWidget):
@@ -33,11 +34,14 @@ class VariablesView(QWidget):
         header.addStretch()
 
         # Scope filter dropdown
-        self.scope_filter = QComboBox()
-        self.scope_filter.setFixedHeight(24)
-        self.scope_filter.setMinimumWidth(150)
-        self.scope_filter.addItem("Toutes les portées")
-        self.scope_filter.currentIndexChanged.connect(self._on_scope_filter_changed)
+        self.scope_filter = AppSelect(
+            items=["Toutes les portées"],
+            fixed_height=24,
+            min_width=150,
+            compact=True,
+            is_dark=self.is_dark,
+            on_changed=self._on_scope_filter_changed,
+        )
         header.addWidget(self.scope_filter)
 
         self.btn_clear = QPushButton("Réinitialiser")
@@ -70,10 +74,6 @@ class VariablesView(QWidget):
                 "QTableWidget { background-color: #11111b; alternate-background-color: #181825; color: #cdd6f4; border: 1px solid #313244; }"
                 "QHeaderView::section { background-color: #181825; color: #89b4fa; padding: 4px; border: 1px solid #313244; }"
             )
-            self.scope_filter.setStyleSheet(
-                "QComboBox { background-color: #181825; color: #cdd6f4; border: 1px solid #313244; border-radius: 4px; padding: 2px 6px; font-size: 11px; }"
-                "QComboBox QAbstractItemView { background-color: #181825; color: #cdd6f4; selection-background-color: #313244; border: 1px solid #313244; }"
-            )
             self.btn_clear.setStyleSheet(
                 "QPushButton { background-color: #181825; color: #cdd6f4; border: 1px solid #313244; border-radius: 4px; padding: 2px 8px; }"
                 "QPushButton:hover { background-color: #313244; }"
@@ -83,14 +83,11 @@ class VariablesView(QWidget):
                 "QTableWidget { background-color: #ffffff; alternate-background-color: #f8fafc; color: #1e293b; border: 1px solid #e2e8f0; }"
                 "QHeaderView::section { background-color: #f1f5f9; color: #0f172a; padding: 4px; border: 1px solid #e2e8f0; }"
             )
-            self.scope_filter.setStyleSheet(
-                "QComboBox { background-color: #ffffff; color: #1e293b; border: 1px solid #cbd5e1; border-radius: 4px; padding: 2px 6px; font-size: 11px; }"
-                "QComboBox QAbstractItemView { background-color: #ffffff; color: #1e293b; selection-background-color: #edf2f7; border: 1px solid #cbd5e1; }"
-            )
             self.btn_clear.setStyleSheet(
                 "QPushButton { background-color: #f1f5f9; color: #1e293b; border: 1px solid #cbd5e1; border-radius: 4px; padding: 2px 8px; }"
                 "QPushButton:hover { background-color: #e2e8f0; }"
             )
+        self.scope_filter.set_dark_mode(is_dark)
 
         self._render_table()
 

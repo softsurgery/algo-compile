@@ -4,9 +4,10 @@ Code Editor settings page for PreferencesDialog (Font, Size, Tabs, Indentation).
 
 from typing import Dict, Any
 from PyQt5.QtWidgets import (
-    QWidget, QVBoxLayout, QLabel, QComboBox, QSpinBox,
-    QCheckBox, QFrame, QGridLayout, QGroupBox
+    QWidget, QVBoxLayout, QLabel, QSpinBox,
+    QFrame, QGridLayout, QGroupBox
 )
+from ui.components import AppCheckBox, AppSelect
 from ui.dialogs.preferences_dialog.header import create_section_header
 
 
@@ -36,15 +37,16 @@ class EditorPage(QWidget):
         grid.setVerticalSpacing(14)
 
         grid.addWidget(QLabel("Police de caractères :"), 0, 0)
-        self.combo_font_family = QComboBox()
-        self.combo_font_family.addItems([
-            "JetBrains Mono",
-            "Consolas",
-            "Fira Code",
-            "Source Code Pro",
-            "Courier New",
-            "Monospace"
-        ])
+        self.combo_font_family = AppSelect(
+            items=[
+                "JetBrains Mono",
+                "Consolas",
+                "Fira Code",
+                "Source Code Pro",
+                "Courier New",
+                "Monospace",
+            ]
+        )
         grid.addWidget(self.combo_font_family, 0, 1)
 
         grid.addWidget(QLabel("Taille de police (pt) :"), 1, 0)
@@ -68,16 +70,22 @@ class EditorPage(QWidget):
         box_layout.setContentsMargins(16, 18, 16, 16)
         box_layout.setSpacing(12)
 
-        self.chk_line_numbers = QCheckBox("Afficher les numéros de ligne dans la marge gauche")
-        self.chk_line_numbers.setChecked(True)
+        self.chk_line_numbers = AppCheckBox(
+            "Afficher les numéros de ligne dans la marge gauche",
+            checked=True,
+        )
         box_layout.addWidget(self.chk_line_numbers)
 
-        self.chk_highlight_line = QCheckBox("Surligner la ligne courante active du curseur")
-        self.chk_highlight_line.setChecked(True)
+        self.chk_highlight_line = AppCheckBox(
+            "Surligner la ligne courante active du curseur",
+            checked=True,
+        )
         box_layout.addWidget(self.chk_highlight_line)
 
-        self.chk_auto_indent = QCheckBox("Indentation automatique après une structure (Si, Pour, TantQue...)")
-        self.chk_auto_indent.setChecked(True)
+        self.chk_auto_indent = AppCheckBox(
+            "Indentation automatique après une structure (Si, Pour, TantQue...)",
+            checked=True,
+        )
         box_layout.addWidget(self.chk_auto_indent)
 
         layout.addWidget(box)

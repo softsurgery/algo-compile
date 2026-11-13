@@ -2,8 +2,9 @@
 Theme selection page for PreferencesDialog (System, Light, Dark).
 """
 
-from PyQt5.QtWidgets import QWidget, QVBoxLayout, QGroupBox, QRadioButton, QButtonGroup, QLabel
+from PyQt5.QtWidgets import QWidget, QVBoxLayout, QGroupBox, QButtonGroup, QLabel
 from PyQt5.QtCore import QSize
+from ui.components import AppRadioButton
 from ui.dialogs.preferences_dialog.header import create_section_header
 from ui.theme_utils import detect_system_dark_mode
 from ui.icons import create_icon
@@ -34,21 +35,27 @@ class ThemePage(QWidget):
 
         self.btn_group_mode = QButtonGroup(self)
 
-        self.rb_system = QRadioButton("Système (Automatique)")
-        self.rb_system.setToolTip("Suit automatiquement le thème clair/sombre de votre système d'exploitation")
-        self.rb_system.setIconSize(QSize(24, 24))
+        self.rb_system = AppRadioButton(
+            "Système (Automatique)",
+            tooltip="Suit automatiquement le thème clair/sombre de votre système d'exploitation",
+            icon_size=24,
+        )
         self.btn_group_mode.addButton(self.rb_system, 0)
         box_layout.addWidget(self.rb_system)
 
-        self.rb_light = QRadioButton("Mode Clair (Light)")
-        self.rb_light.setToolTip("Active en permanence le thème clair épuré")
-        self.rb_light.setIconSize(QSize(24, 24))
+        self.rb_light = AppRadioButton(
+            "Mode Clair (Light)",
+            tooltip="Active en permanence le thème clair épuré",
+            icon_size=24,
+        )
         self.btn_group_mode.addButton(self.rb_light, 1)
         box_layout.addWidget(self.rb_light)
 
-        self.rb_dark = QRadioButton("Mode Sombre (Dark)")
-        self.rb_dark.setToolTip("Active en permanence le thème sombre moderne")
-        self.rb_dark.setIconSize(QSize(24, 24))
+        self.rb_dark = AppRadioButton(
+            "Mode Sombre (Dark)",
+            tooltip="Active en permanence le thème sombre moderne",
+            icon_size=24,
+        )
         self.btn_group_mode.addButton(self.rb_dark, 2)
         box_layout.addWidget(self.rb_dark)
 

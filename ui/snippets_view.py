@@ -14,11 +14,13 @@ from PyQt5.QtWidgets import (
     QWidget, QVBoxLayout, QHBoxLayout, QSplitter, QTreeWidget, QTreeWidgetItem,
     QLabel, QPushButton, QLineEdit, QTabWidget, QScrollArea, QTableWidget,
     QTableWidgetItem, QHeaderView, QMenu, QAction, QFileDialog, QMessageBox,
-    QInputDialog, QFrame, QTextBrowser, QComboBox, QPlainTextEdit, QApplication,
+    QInputDialog, QFrame, QTextBrowser, QPlainTextEdit, QApplication,
     QStackedWidget
 )
 from PyQt5.QtGui import QFont, QIcon, QPixmap, QDesktopServices, QColor
 from PyQt5.QtCore import Qt, pyqtSignal, QUrl, QSize
+
+from ui.components import AppSelect
 
 from ui.editor import AlgoCodeEditor
 from ui.icons import create_icon
@@ -275,8 +277,7 @@ class SnippetImageViewer(QWidget):
         tb_layout.setContentsMargins(4, 4, 4, 4)
         tb_layout.setSpacing(6)
 
-        self.cb_images = QComboBox()
-        self.cb_images.currentIndexChanged.connect(self._on_image_selected)
+        self.cb_images = AppSelect(on_changed=self._on_image_selected)
         tb_layout.addWidget(self.cb_images, 1)
 
         self.btn_zoom_out = QPushButton("−")
