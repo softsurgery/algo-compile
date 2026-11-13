@@ -137,11 +137,10 @@ class TestSubprogramsVariablesAndTDNT(unittest.TestCase):
 
     def test_tdnt_view_widget(self):
         view = TDNTView(is_dark=False)
-        self.assertEqual(view.table.columnCount(), 4)
+        self.assertEqual(view.table.columnCount(), 3)
         self.assertEqual(view.table.horizontalHeaderItem(0).text(), "Nouveau Type")
         self.assertEqual(view.table.horizontalHeaderItem(1).text(), "Nature")
         self.assertEqual(view.table.horizontalHeaderItem(2).text(), "Définition / Structure")
-        self.assertEqual(view.table.horizontalHeaderItem(3).text(), "Équivalent Python")
 
         custom_types = {
             'Etud': {'kind': 'enregistrement', 'fields': {'nom': 'chaine', 'note': 'reel'}},

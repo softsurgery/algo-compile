@@ -1,7 +1,6 @@
 """
 Tableau de Déclaration des Nouveaux Types (T.D.N.T.) Inspector.
-Displays user-defined algorithmic types (Enregistrements, Tableaux 1D/2D, Alias)
-and their Python data structure equivalents.
+Displays user-defined algorithmic types (Enregistrements, Tableaux 1D/2D, Alias).
 """
 
 from PyQt5.QtWidgets import (
@@ -43,12 +42,11 @@ class TDNTView(QWidget):
         layout.addLayout(header)
 
         # Table
-        self.table = QTableWidget(0, 4)
-        self.table.setHorizontalHeaderLabels(["Nouveau Type", "Nature", "Définition / Structure", "Équivalent Python"])
+        self.table = QTableWidget(0, 3)
+        self.table.setHorizontalHeaderLabels(["Nouveau Type", "Nature", "Définition / Structure"])
         self.table.horizontalHeader().setSectionResizeMode(0, QHeaderView.ResizeToContents)
         self.table.horizontalHeader().setSectionResizeMode(1, QHeaderView.ResizeToContents)
-        self.table.horizontalHeader().setSectionResizeMode(2, QHeaderView.ResizeToContents)
-        self.table.horizontalHeader().setSectionResizeMode(3, QHeaderView.Stretch)
+        self.table.horizontalHeader().setSectionResizeMode(2, QHeaderView.Stretch)
         self.table.verticalHeader().setVisible(False)
         self.table.setAlternatingRowColors(True)
 
@@ -100,7 +98,7 @@ class TDNTView(QWidget):
             item_name.setFont(QFont("JetBrains Mono", 10, QFont.Bold))
             item_name.setForeground(QColor("#2563eb" if not self.is_dark else "#89b4fa"))
 
-            # 2. Nature & 3. Definition & 4. Python equivalent
+            # 2. Nature & 3. Definition
             kind = t_def.get('kind', '').lower()
             if kind == 'enregistrement':
                 nature_str = "Enregistrement"
@@ -108,18 +106,14 @@ class TDNTView(QWidget):
                 if fields:
                     fields_repr = " ; ".join(f"{f} : {t}" for f, t in fields.items())
                     def_str = f"Enregistrement ({fields_repr})"
-                    py_fields = ", ".join(f"{f}=..." for f in fields.keys())
-                    py_str = f"_creer_{name}() -> dict({py_fields})"
                 else:
                     def_str = "Enregistrement (aucun champ)"
-                    py_str = f"_creer_{name}() -> dict()"
 
             elif kind == 'tableau_1d':
                 nature_str = "Tableau (1D)"
                 size = t_def.get('size', '?')
                 elem_t = t_def.get('elem_type', 'Entier')
                 def_str = f"Tableau de {size} {elem_t}"
-                py_str = f"array([...]*{size})"
 
             elif kind == 'tableau_2d':
                 nature_str = "Tableau (2D / Matrice)"
@@ -127,27 +121,14 @@ class TDNTView(QWidget):
                 cols = t_def.get('cols', '?')
                 elem_t = t_def.get('elem_type', 'Entier')
                 def_str = f"Tableau de {rows} lig * {cols} col {elem_t}"
-                py_str = f"array([[...]*{cols}]*{rows})"
 
             elif kind == 'alias':
                 nature_str = "Alias (Synonyme)"
                 target = t_def.get('target_type', '')
                 def_str = f"{target}"
-                t_low = target.lower()
-                if 'entier' in t_low:
-                    py_str = "int"
-                elif 'réel' in t_low or 'reel' in t_low:
-                    py_str = "float"
-                elif 'bool' in t_low:
-                    py_str = "bool"
-                elif 'chaine' in t_low or 'chaîne' in t_low or 'caractere' in t_low or 'caractère' in t_low:
-                    py_str = "str"
-                else:
-                    py_str = f"Alias de {target}"
             else:
                 nature_str = kind.capitalize() or "Type personnalisé"
                 def_str = str(t_def)
-                py_str = "Objet Python dynamique"
 
             item_nature = QTableWidgetItem(nature_str)
             item_nature.setForeground(QColor("#7c3aed" if not self.is_dark else "#cba6f7"))
@@ -155,13 +136,9 @@ class TDNTView(QWidget):
             item_def = QTableWidgetItem(def_str)
             item_def.setForeground(QColor("#d97706" if not self.is_dark else "#fab387"))
 
-            item_py = QTableWidgetItem(py_str)
-            item_py.setForeground(QColor("#059669" if not self.is_dark else "#a6e3a1"))
-
             self.table.setItem(row, 0, item_name)
             self.table.setItem(row, 1, item_nature)
             self.table.setItem(row, 2, item_def)
-            self.table.setItem(row, 3, item_py)
             row += 1
 
         count = len(custom_types_data)
