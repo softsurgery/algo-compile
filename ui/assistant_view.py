@@ -9,20 +9,19 @@ import os
 import re
 import html
 from PyQt5.QtWidgets import (
-    QWidget, QVBoxLayout, QHBoxLayout, QTextBrowser,
+    QWidget, QVBoxLayout, QHBoxLayout,
     QTreeWidgetItem, QLineEdit, QPushButton,
     QLabel, QSplitter, QToolButton,
 )
 from PyQt5.QtCore import Qt, QSize
-from PyQt5.QtGui import QFont, QPalette, QColor, QIcon
-from ui.components import AppTreeView
+from PyQt5.QtGui import QFont, QIcon
+from ui.components import (
+    AppMarkdownReader,
+    AppTreeView,
+    highlight_algo_syntax,
+    highlight_python_syntax,
+)
 from ui.icons import create_icon
-
-try:
-    import markdown
-    HAS_MARKDOWN = True
-except ImportError:
-    HAS_MARKDOWN = False
 
 _DEFAULT_DOCS_DIR = os.path.abspath(os.path.join(os.path.dirname(__file__), "..", "docs"))
 
@@ -88,192 +87,7 @@ def _extract_doc_title(file_path: str) -> str:
     return base.replace("_", " ").strip()
 
 
-def highlight_algo_syntax(code_text: str, is_dark: bool) -> str:
-    """Highlights Algorithmic code with high-contrast, theme-adapted colors."""
-    if is_dark:
-        c_kw = "#89b4fa"      # blue (structure keywords)
-        c_ctrl = "#cba6f7"    # mauve/purple (control keywords)
-        c_type = "#fab387"    # peach/orange (types)
-        c_builtin = "#94e2d5" # teal (builtins and I/O)
-        c_op = "#f38ba8"      # red/pink (operators)
-        c_num = "#fab387"     # peach (numbers)
-        c_str = "#a6e3a1"     # green (strings)
-        c_com = "#6c7086"     # grey (comments)
-        c_bool = "#fab387"    # peach (booleans)
-        c_ident = "#cdd6f4"   # light text
-    else:
-        c_kw = "#0969da"      # dark blue
-        c_ctrl = "#8250df"    # purple
-        c_type = "#953800"    # brown/rust
-        c_builtin = "#0550ae" # navy
-        c_op = "#cf222e"      # red
-        c_num = "#0969da"     # blue
-        c_str = "#0a7029"     # dark green
-        c_com = "#6e7781"     # grey
-        c_bool = "#1a7f37"    # green
-        c_ident = "#0f172a"   # dark text
-
-    tokens = [
-        ("COMMENT", r"#.*"),
-        ("STRING", r"\"(?:[^\"\\]|\\.)*\"|\x27(?:[^\x27\\]|\\.)*\x27"),
-        ("OPERATOR", r"<-|←|:=|≠|<>|<=|>=|≤|≥|∈||\b(?:Div|Mod|Et|Ou|Non|dans)\b"),
-        ("KW_STRUCT", r"\b(?:ALGORITHME|DEBUT|DÉBUT|FIN|Fonction|Procédure|Procedure|Retourner|Tableau\s+de\s+déclaration\s+des\s+objets(?:\s+globaux|\s+locaux)?|Tableau\s+de\s+déclaration\s+des\s+nouveaux\s+types|Déclaration\s+des\s+objets(?:\s+globaux|\s+locaux)?|Déclaration\s+des\s+nouveaux\s+types|TDOG|TDOL|TDNT|TDO|Fin\s+Enregistrement|Enregistrement)\b"),
-        ("KW_CTRL", r"\b(?:Si|Alors|Sinon|Fin\s*Si|FinSi|Selon|Fin\s*Selon|FinSelon|Pour|de|à|a|Pas|Faire|Fin\s*Pour|FinPour|Tant\s*que|Fin\s*Tant\s*que|FinTantQue|Répéter|Repeter|Jusqu[\x27’]à|Jusqu[\x27’]a)\b"),
-        ("TYPE", r"\b(?:Entier|Réel|Reel|Booléen|Booleen|Caractère|Caractere|Chaîne(?:\s+de\s+caractères)?|Chaine(?:\s+de\s+caractères)?|Tableau(?:\s+de)?|Fichier\s+Texte|Fichier\s+de|Fichier)\b"),
-        ("BUILTIN", r"\b(?:Lire_ligne|Lire|Écrire_nl|Ecrire_nl|Écrire|Ecrire|Ouvrir|Fermer|Fin_fichier|Arrondi|RacineCarré|RacineCarre|Aléa|Alea|Ent|Abs|Ord|Chr|Long|Pos|Convch|Estnum|Valeur|Sous_chaine|Effacer|Majus)\b"),
-        ("BOOL", r"\b(?:Vrai|Faux|True|False)\b"),
-        ("NUM", r"\b\d+(?:\.\d+)?\b"),
-        ("IDENT", r"\b[a-zA-Z_][a-zA-Z0-9_]*\b"),
-        ("OTHER", r"[^\s\w]"),
-    ]
-
-    regex = re.compile("|".join(f"(?P<{name}>{pat})" for name, pat in tokens), re.IGNORECASE)
-
-    out = []
-    last_end = 0
-    for m in regex.finditer(code_text):
-        start, end = m.span()
-        if start > last_end:
-            out.append(f'<span style="color:{c_ident};">{html.escape(code_text[last_end:start])}</span>')
-        last_end = end
-        kind = m.lastgroup
-        text = html.escape(m.group())
-
-        if kind == "COMMENT":
-            out.append(f'<span style="color:{c_com}; font-style:italic;">{text}</span>')
-        elif kind == "STRING":
-            out.append(f'<span style="color:{c_str}; font-weight:500;">{text}</span>')
-        elif kind == "OPERATOR":
-            out.append(f'<span style="color:{c_op}; font-weight:bold;">{text}</span>')
-        elif kind == "KW_STRUCT":
-            out.append(f'<span style="color:{c_kw}; font-weight:bold;">{text}</span>')
-        elif kind == "KW_CTRL":
-            out.append(f'<span style="color:{c_ctrl}; font-weight:bold;">{text}</span>')
-        elif kind == "TYPE":
-            out.append(f'<span style="color:{c_type}; font-weight:bold;">{text}</span>')
-        elif kind == "BUILTIN":
-            out.append(f'<span style="color:{c_builtin}; font-weight:bold;">{text}</span>')
-        elif kind == "BOOL":
-            out.append(f'<span style="color:{c_bool}; font-weight:bold;">{text}</span>')
-        elif kind == "NUM":
-            out.append(f'<span style="color:{c_num};">{text}</span>')
-        else:
-            out.append(f'<span style="color:{c_ident};">{text}</span>')
-
-    if last_end < len(code_text):
-        out.append(f'<span style="color:{c_ident};">{html.escape(code_text[last_end:])}</span>')
-
-    return "".join(out)
-
-
-def highlight_python_syntax(code_text: str, is_dark: bool) -> str:
-    """Highlights Python code with high-contrast, theme-adapted colors."""
-    if is_dark:
-        c_kw = "#cba6f7"
-        c_builtin = "#89b4fa"
-        c_str = "#a6e3a1"
-        c_com = "#6c7086"
-        c_num = "#fab387"
-        c_bool = "#fab387"
-        c_op = "#f38ba8"
-        c_ident = "#cdd6f4"
-    else:
-        c_kw = "#8250df"
-        c_builtin = "#0969da"
-        c_str = "#0a7029"
-        c_com = "#6e7781"
-        c_num = "#0969da"
-        c_bool = "#1a7f37"
-        c_op = "#cf222e"
-        c_ident = "#0f172a"
-
-    tokens = [
-        ("COMMENT", r"#.*"),
-        ("STRING", r"\"\"\"[\s\S]*?\"\"\"|\x27\x27\x27[\s\S]*?\x27\x27\x27|\"(?:[^\"\\]|\\.)*\"|\x27(?:[^\x27\\]|\\.)*\x27"),
-        ("KEYWORD", r"\b(?:def|class|return|if|elif|else|for|while|in|break|continue|import|from|as|try|except|finally|with|pass|lambda|yield|raise|global|nonlocal|and|or|not|is|match|case)\b"),
-        ("BUILTIN", r"\b(?:print|input|len|range|open|close|read|readline|write|int|float|str|list|dict|set|tuple|bool|min|max|sum|abs|round|enumerate|zip|isinstance|load|dump|array)\b"),
-        ("BOOL", r"\b(?:True|False|None)\b"),
-        ("NUM", r"\b\d+(?:\.\d+)?\b"),
-        ("OPERATOR", r"==|!=|<=|>=|[+\-*/%=<>]"),
-        ("IDENT", r"\b[a-zA-Z_][a-zA-Z0-9_]*\b"),
-        ("OTHER", r"[^\s\w]"),
-    ]
-    regex = re.compile("|".join(f"(?P<{name}>{pat})" for name, pat in tokens))
-
-    out = []
-    last_end = 0
-    for m in regex.finditer(code_text):
-        start, end = m.span()
-        if start > last_end:
-            out.append(f'<span style="color:{c_ident};">{html.escape(code_text[last_end:start])}</span>')
-        last_end = end
-        kind = m.lastgroup
-        text = html.escape(m.group())
-
-        if kind == "COMMENT":
-            out.append(f'<span style="color:{c_com}; font-style:italic;">{text}</span>')
-        elif kind == "STRING":
-            out.append(f'<span style="color:{c_str}; font-weight:500;">{text}</span>')
-        elif kind == "KEYWORD":
-            out.append(f'<span style="color:{c_kw}; font-weight:bold;">{text}</span>')
-        elif kind == "BUILTIN":
-            out.append(f'<span style="color:{c_builtin}; font-weight:bold;">{text}</span>')
-        elif kind == "BOOL":
-            out.append(f'<span style="color:{c_bool}; font-weight:bold;">{text}</span>')
-        elif kind == "NUM":
-            out.append(f'<span style="color:{c_num};">{text}</span>')
-        elif kind == "OPERATOR":
-            out.append(f'<span style="color:{c_op}; font-weight:bold;">{text}</span>')
-        else:
-            out.append(f'<span style="color:{c_ident};">{text}</span>')
-
-    if last_end < len(code_text):
-        out.append(f'<span style="color:{c_ident};">{html.escape(code_text[last_end:])}</span>')
-
-    return "".join(out)
-
-
-class DocBrowser(QTextBrowser):
-    """
-    Rich text browser for documentation with Ctrl + Mouse Wheel and Ctrl +/- zoom support.
-    """
-
-    def __init__(self, parent=None, assistant_view=None):
-        super().__init__(parent)
-        self.assistant_view = assistant_view
-        self.setOpenExternalLinks(True)
-
-    def wheelEvent(self, event):
-        if event.modifiers() & Qt.ControlModifier:
-            delta = event.angleDelta().y()
-            if delta > 0:
-                if self.assistant_view:
-                    self.assistant_view.zoom_in()
-            elif delta < 0:
-                if self.assistant_view:
-                    self.assistant_view.zoom_out()
-            event.accept()
-        else:
-            super().wheelEvent(event)
-
-    def keyPressEvent(self, event):
-        if event.modifiers() & Qt.ControlModifier:
-            if event.key() in (Qt.Key_Plus, Qt.Key_Equal) or event.text() in ('+', '='):
-                if self.assistant_view:
-                    self.assistant_view.zoom_in()
-                event.accept()
-                return
-            elif event.key() == Qt.Key_Minus or event.text() == '-':
-                if self.assistant_view:
-                    self.assistant_view.zoom_out()
-                event.accept()
-                return
-            elif event.key() == Qt.Key_0 or event.text() == '0':
-                if self.assistant_view:
-                    self.assistant_view.reset_zoom()
-                event.accept()
-                return
-        super().keyPressEvent(event)
+DocBrowser = AppMarkdownReader
 
 
 class AssistantView(QWidget):
@@ -390,8 +204,15 @@ class AssistantView(QWidget):
         reader_layout.addWidget(self.reader_header)
 
         # Document Browser
-        self.browser = DocBrowser(self, assistant_view=self)
-        self.browser.setOpenExternalLinks(True)
+        self.browser = AppMarkdownReader(
+            self,
+            is_dark=self.is_dark,
+            min_zoom=-6,
+            max_zoom=20,
+            border_radius=4,
+            padding=8,
+            on_zoom_changed=self._on_browser_zoom_changed,
+        )
         reader_layout.addWidget(self.browser, 1)
 
         self.splitter.addWidget(reader_container)
@@ -608,22 +429,27 @@ class AssistantView(QWidget):
                     return True
         return False
 
+    def _on_browser_zoom_changed(self, level: int):
+        """Synchronizes zoom_level and re-renders error view when needed."""
+        self.zoom_level = level
+        if self._is_error_view and hasattr(self, '_last_error_args') and self._last_error_args:
+            vbar = self.browser.verticalScrollBar()
+            scroll_pos = vbar.value() if vbar else 0
+            self.show_error_advice(*self._last_error_args)
+            if vbar:
+                vbar.setValue(min(scroll_pos, vbar.maximum()))
+
     def zoom_in(self, delta=1):
         """Zooms in the documentation view (scales text and code blocks)."""
-        if self.zoom_level < 20:
-            self.zoom_level += delta
-            self._re_render_current_view()
+        self.browser.zoom_in(delta)
 
     def zoom_out(self, delta=1):
         """Zooms out the documentation view (scales text and code blocks)."""
-        if self.zoom_level > -6:
-            self.zoom_level -= delta
-            self._re_render_current_view()
+        self.browser.zoom_out(delta)
 
     def reset_zoom(self):
         """Resets documentation zoom to default (0)."""
-        self.zoom_level = 0
-        self._re_render_current_view()
+        self.browser.reset_zoom()
 
     def _re_render_current_view(self):
         """Re-renders the current document or error view preserving scroll position."""
@@ -635,237 +461,18 @@ class AssistantView(QWidget):
             self._render_markdown_content(self._current_content)
         vbar.setValue(scroll_pos)
 
-    def _highlight_fenced_code_blocks(self, md_text: str, pre_font_size: int) -> str:
-        """Extracts and syntax-highlights fenced code blocks (```algo, ```python, etc.)."""
-        c_default = "#cdd6f4" if self.is_dark else "#0f172a"
-        def replacer(m):
-            lang = (m.group(1) or "").strip().lower()
-            code_content = m.group(2)
-            if lang in ("algo", "algorithme", "alg"):
-                highlighted = highlight_algo_syntax(code_content, self.is_dark)
-            elif lang in ("python", "py"):
-                highlighted = highlight_python_syntax(code_content, self.is_dark)
-            else:
-                highlighted = f'<span style="color:{c_default};">{html.escape(code_content)}</span>'
-            
-            return f'\n\n<pre class="code-block language-{lang}" style="font-size: {pre_font_size}px; color: {c_default};"><code style="font-size: {pre_font_size}px; color: {c_default};">{highlighted}</code></pre>\n\n'
-
-        pattern = re.compile(r'^[ \t]*(?:```|~~~)([a-zA-Z0-9_\-]*)[ \t]*\r?\n(.*?)\r?\n[ \t]*(?:```|~~~)[ \t]*$', re.DOTALL | re.MULTILINE)
-        return pattern.sub(replacer, md_text)
-
     def _render_markdown_content(self, md_text: str):
-        """Converts Markdown to styled HTML with high contrast and adapted dark/light themes."""
-        base_font_size = max(9, min(36, 13 + self.zoom_level))
-        pre_font_size = max(8, min(34, 12 + self.zoom_level))
-        code_font_size = max(8, min(34, 11 + self.zoom_level))
-        h1_font_size = max(13, min(42, 17 + self.zoom_level))
-        h2_font_size = max(11, min(38, 14 + self.zoom_level))
-        h3_font_size = max(10, min(36, 13 + self.zoom_level))
-        table_font_size = max(8, min(34, 12 + self.zoom_level))
-
-        if self.is_dark:
-            body_fg = "#cdd6f4"
-            bold_fg = "#ffffff"
-            h1_color = "#89b4fa"
-            h2_color = "#cba6f7"
-            h3_color = "#89dceb"
-            pre_bg = "#181825"
-            pre_fg = "#cdd6f4"
-            pre_border = "#313244"
-            code_bg = "#313244"
-            code_fg = "#f9e2af"
-            code_border = "#45475a"
-            table_border = "#313244"
-            th_bg = "#1e1e2e"
-            th_fg = "#89b4fa"
-            td_bg = "#11111b"
-            td_fg = "#cdd6f4"
-            quote_bg = "#181825"
-            quote_fg = "#bac2de"
-            quote_border = "#89b4fa"
-            hr_color = "#313244"
-            link_color = "#89b4fa"
-        else:
-            body_fg = "#1e293b"
-            bold_fg = "#0f172a"
-            h1_color = "#1d4ed8"
-            h2_color = "#2563eb"
-            h3_color = "#1e40af"
-            pre_bg = "#f8fafc"
-            pre_fg = "#0f172a"
-            pre_border = "#cbd5e1"
-            code_bg = "#f1f5f9"
-            code_fg = "#b45309"
-            code_border = "#e2e8f0"
-            table_border = "#cbd5e1"
-            th_bg = "#f1f5f9"
-            th_fg = "#0f172a"
-            td_bg = "#ffffff"
-            td_fg = "#334155"
-            quote_bg = "#f8fafc"
-            quote_fg = "#334155"
-            quote_border = "#3b82f6"
-            hr_color = "#e2e8f0"
-            link_color = "#2563eb"
-
-        processed_md = self._highlight_fenced_code_blocks(md_text, pre_font_size)
-
-        if HAS_MARKDOWN:
-            html_body = markdown.markdown(processed_md, extensions=["tables", "fenced_code", "nl2br"])
-        else:
-            html_body = f"<pre class='code-block' style='font-size:{pre_font_size}px;'>{processed_md}</pre>"
-
-        styled_html = f"""
-        <!DOCTYPE html>
-        <html>
-        <head>
-        <meta charset="utf-8">
-        <style>
-          body, p, li, td, div {{
-            color: {body_fg};
-            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
-            font-size: {base_font_size}px;
-            line-height: 1.55;
-            margin: 0;
-            padding: 0;
-          }}
-          p {{
-            margin-top: 4px;
-            margin-bottom: 8px;
-          }}
-          b, strong {{
-            color: {bold_fg};
-            font-weight: 700;
-          }}
-          h1 {{
-            color: {h1_color};
-            font-size: {h1_font_size}px;
-            font-weight: 700;
-            margin-top: 4px;
-            margin-bottom: 10px;
-            border-bottom: 1px solid {hr_color};
-            padding-bottom: 4px;
-          }}
-          h2 {{
-            color: {h2_color};
-            font-size: {h2_font_size}px;
-            font-weight: 700;
-            margin-top: 14px;
-            margin-bottom: 6px;
-          }}
-          h3, h4 {{
-            color: {h3_color};
-            font-size: {h3_font_size}px;
-            font-weight: 600;
-            margin-top: 10px;
-            margin-bottom: 4px;
-          }}
-          pre, pre code, pre span {{
-            font-family: "JetBrains Mono", Consolas, "Courier New", monospace;
-            font-size: {pre_font_size}px;
-          }}
-          pre {{
-            background-color: {pre_bg};
-            color: {pre_fg};
-            border: 1px solid {pre_border};
-            border-radius: 6px;
-            padding: 10px 12px;
-            line-height: 1.48;
-            margin-top: 6px;
-            margin-bottom: 12px;
-            overflow-x: auto;
-          }}
-          pre code {{
-            color: inherit;
-            background-color: transparent;
-            border: none;
-            padding: 0;
-          }}
-          code {{
-            background-color: {code_bg};
-            color: {code_fg};
-            border: 1px solid {code_border};
-            border-radius: 3px;
-            padding: 2px 5px;
-            font-family: "JetBrains Mono", Consolas, "Courier New", monospace;
-            font-size: {code_font_size}px;
-          }}
-          table {{
-            border-collapse: collapse;
-            width: 100%;
-            margin-top: 8px;
-            margin-bottom: 12px;
-            font-size: {table_font_size}px;
-          }}
-          th {{
-            background-color: {th_bg};
-            color: {th_fg};
-            border: 1px solid {table_border};
-            padding: 7px 9px;
-            font-weight: 700;
-            text-align: left;
-          }}
-          td {{
-            background-color: {td_bg};
-            color: {td_fg};
-            border: 1px solid {table_border};
-            padding: 6px 9px;
-            text-align: left;
-          }}
-          ul, ol {{
-            margin-top: 4px;
-            margin-bottom: 8px;
-            padding-left: 20px;
-          }}
-          li {{
-            margin-bottom: 3px;
-            color: {body_fg};
-          }}
-          blockquote {{
-            border-left: 4px solid {quote_border};
-            background-color: {quote_bg};
-            color: {quote_fg};
-            padding: 8px 12px;
-            margin: 8px 0;
-            border-radius: 0 4px 4px 0;
-          }}
-          hr {{
-            border: 0;
-            height: 1px;
-            background-color: {hr_color};
-            margin: 12px 0;
-          }}
-          a {{
-            color: {link_color};
-            text-decoration: none;
-          }}
-          a:hover {{
-            text-decoration: underline;
-          }}
-        </style>
-        </head>
-        <body style="padding: 6px;">
-          {html_body}
-        </body>
-        </html>
-        """
-        self.browser.setHtml(styled_html)
+        """Renders Markdown via the reusable AppMarkdownReader component."""
+        self.browser.set_markdown_content(md_text)
 
     def set_dark_mode(self, is_dark: bool):
         """Applies theme to tree, browser, inputs and re-renders current document."""
         self.is_dark = is_dark
-        bg = "#11111b" if is_dark else "#ffffff"
         fg = "#cdd6f4" if is_dark else "#1e293b"
         border = "#313244" if is_dark else "#e2e8f0"
         header_bg = "#181825" if is_dark else "#f8fafc"
         input_bg = "#181825" if is_dark else "#ffffff"
         btn_fg = "#cdd6f4" if is_dark else "#475569"
-
-        # Update QPalette on QTextBrowser so default fallback text is always themed
-        pal = self.browser.palette()
-        pal.setColor(QPalette.Base, QColor(bg))
-        pal.setColor(QPalette.Text, QColor(fg))
-        self.browser.setPalette(pal)
 
         # Search edit
         self.search_edit.setStyleSheet(
@@ -900,13 +507,11 @@ class AssistantView(QWidget):
         self.lbl_icon.setPixmap(create_icon("doc", size=16).pixmap(16, 16))
 
         # Browser
-        self.browser.setStyleSheet(
-            f"QTextBrowser {{ background-color: {bg}; color: {fg}; border: 1px solid {border}; "
-            f"border-radius: 4px; padding: 8px; }}"
-        )
+        self.browser.set_dark_mode(is_dark)
 
-        # Re-render content if currently displayed
-        self._re_render_current_view()
+        # Re-render content if currently displayed (e.g. error view)
+        if self._is_error_view:
+            self._re_render_current_view()
 
     def show_error_advice(self, error_message: str, line_no: int = None):
         """Displays helpful advice and quick links when a compilation or runtime error occurs."""

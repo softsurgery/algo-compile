@@ -3,10 +3,10 @@ Unit tests for reusable prop-driven UI components (AppCheckBox, AppRadioButton, 
 """
 
 import unittest
-from PyQt5.QtWidgets import QApplication, QCheckBox, QRadioButton, QComboBox, QTreeWidget, QTreeWidgetItem
+from PyQt5.QtWidgets import QApplication, QCheckBox, QRadioButton, QComboBox, QTextBrowser, QTreeWidget, QTreeWidgetItem
 from PyQt5.QtCore import QSize
 
-from ui.components import AppCheckBox, AppRadioButton, AppSelect, AppTreeView, NoFocusDelegate
+from ui.components import AppCheckBox, AppMarkdownReader, AppRadioButton, AppSelect, AppTreeView, NoFocusDelegate
 
 
 class TestComponents(unittest.TestCase):
@@ -180,6 +180,42 @@ class TestComponents(unittest.TestCase):
         self.assertIn("#ffffff", tree.styleSheet())
         tree.resize(240, 200)
         self.assertFalse(tree.grab().isNull())
+
+    def test_app_markdown_reader_props_zoom_and_theme(self):
+        zoom_events = []
+        reader = AppMarkdownReader(
+            is_dark=True,
+            zoom_level=1,
+            border_radius=8,
+            padding=12,
+            on_zoom_changed=lambda lvl: zoom_events.append(lvl),
+            object_name="md_reader",
+        )
+        self.assertIsInstance(reader, QTextBrowser)
+        self.assertEqual(reader.zoom_level, 1)
+        self.assertEqual(reader.objectName(), "md_reader")
+        self.assertIn("#11111b", reader.styleSheet())
+        self.assertIn("border-radius: 8px", reader.styleSheet())
+
+        reader.set_markdown_content("# Title\n\n```algo\nALGORITHME Demo\nDEBUT\n  x <- 1\nFIN\n```")
+        html_dark = reader.toHtml()
+        self.assertIn("Title", html_dark)
+        self.assertIn("ALGORITHME", html_dark)
+
+        reader.zoom_in(2)
+        self.assertEqual(reader.zoom_level, 3)
+        self.assertEqual(zoom_events, [3])
+
+        reader.zoom_out(1)
+        self.assertEqual(reader.zoom_level, 2)
+
+        reader.reset_zoom()
+        self.assertEqual(reader.zoom_level, 0)
+
+        reader.set_dark_mode(False)
+        self.assertIn("#ffffff", reader.styleSheet())
+        reader.resize(300, 200)
+        self.assertFalse(reader.grab().isNull())
 
 
 if __name__ == "__main__":
