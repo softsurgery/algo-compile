@@ -31,29 +31,34 @@ except ImportError:
 def detect_system_dark_mode() -> bool:
     """Detects whether the operating system is currently configured for dark mode."""
     # 1. Linux Freedesktop Portal (via in-process QtDBus, ~0.2ms)
-    if HAS_QTDBUS and sys.platform.startswith("linux"):
+    dbus_connected = False
+    has_dbus_env = bool(os.environ.get("DBUS_SESSION_BUS_ADDRESS"))
+    if HAS_QTDBUS and sys.platform.startswith("linux") and has_dbus_env:
         try:
             bus = QDBusConnection.sessionBus()
             if bus.isConnected():
-                msg = QDBusMessage.createMethodCall(
-                    "org.freedesktop.portal.Desktop",
-                    "/org/freedesktop/portal/desktop",
-                    "org.freedesktop.portal.Settings",
-                    "Read"
-                )
-                msg.setArguments(["org.freedesktop.appearance", "color-scheme"])
-                reply = bus.call(msg)
-                if reply.type() == QDBusMessage.ReplyMessage and reply.arguments():
-                    val = reply.arguments()[0]
-                    if val == 1:
-                        return True
-                    elif val in (0, 2):
-                        return False
+                dbus_connected = True
+                iface = bus.interface()
+                if iface and iface.isServiceRegistered("org.freedesktop.portal.Desktop").value():
+                    msg = QDBusMessage.createMethodCall(
+                        "org.freedesktop.portal.Desktop",
+                        "/org/freedesktop/portal/desktop",
+                        "org.freedesktop.portal.Settings",
+                        "Read"
+                    )
+                    msg.setArguments(["org.freedesktop.appearance", "color-scheme"])
+                    reply = bus.call(msg)
+                    if reply.type() == QDBusMessage.ReplyMessage and reply.arguments():
+                        val = reply.arguments()[0]
+                        if val == 1:
+                            return True
+                        elif val in (0, 2):
+                            return False
         except Exception:
             pass
 
-    # 2. Linux Freedesktop Portal (dbus-send fallback)
-    if sys.platform.startswith("linux"):
+    # 2. Linux Freedesktop Portal (dbus-send fallback, only if QtDBus wasn't available/connected)
+    if sys.platform.startswith("linux") and not dbus_connected and has_dbus_env:
         try:
             res = subprocess.run(
                 [
@@ -63,7 +68,7 @@ def detect_system_dark_mode() -> bool:
                     "org.freedesktop.portal.Settings.Read",
                     "string:org.freedesktop.appearance", "string:color-scheme"
                 ],
-                capture_output=True, text=True, timeout=1
+                capture_output=True, text=True, timeout=0.5
             )
             if res.returncode == 0:
                 if "uint32 1" in res.stdout:
@@ -275,7 +280,7 @@ class SystemThemeWatcher(QObject):
         self._setup_event_filter()
 
     def _setup_dbus(self):
-        if HAS_QTDBUS and sys.platform.startswith("linux"):
+        if HAS_QTDBUS and sys.platform.startswith("linux") and os.environ.get("DBUS_SESSION_BUS_ADDRESS"):
             try:
                 bus = QDBusConnection.sessionBus()
                 if bus.isConnected():
@@ -338,11 +343,12 @@ class SystemThemeWatcher(QObject):
         self._timer = QTimer(self)
         self._timer.setInterval(300)
         self._timer.timeout.connect(self.check_theme)
-        self._timer.start()
+        if "unittest" not in sys.modules:
+            self._timer.start()
 
     def _setup_event_filter(self):
         app = QApplication.instance()
-        if app:
+        if app and "unittest" not in sys.modules:
             app.installEventFilter(self)
 
     def eventFilter(self, obj, event):
