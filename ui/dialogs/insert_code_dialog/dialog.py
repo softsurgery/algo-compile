@@ -7,8 +7,8 @@ Features:
 - Preserves full backward-compatibility with tests expecting list_widget and preview_editor styles and methods.
 """
 
-from PyQt5.QtWidgets import QDialog, QVBoxLayout, QShortcut
-from PyQt5.QtGui import QIcon, QPixmap, QKeySequence
+from PyQt5.QtWidgets import QDialog, QVBoxLayout
+from PyQt5.QtGui import QIcon, QPixmap
 from PyQt5.QtCore import Qt
 
 from ui.snippets_view import SnippetsWidget
@@ -37,7 +37,6 @@ class InsertCodeDialog(QDialog):
 
         self.resize(1180, 750)
         self.setMinimumSize(950, 580)
-        self._is_fullscreen = False
 
         # Apply global theme to dialog window
         self.setStyleSheet(DARK_THEME if self.is_dark else LIGHT_THEME)
@@ -49,9 +48,6 @@ class InsertCodeDialog(QDialog):
         self._setup_ui()
         self._apply_compat_styles()
         self._sync_compatibility_list()
-
-        # Keyboard shortcut for full screen
-        QShortcut(QKeySequence(Qt.Key_F11), self, self.toggle_fullscreen)
 
     def _setup_ui(self):
         main_layout = QVBoxLayout(self)
@@ -86,14 +82,10 @@ class InsertCodeDialog(QDialog):
         # Bottom Action Bar
         self.action_bar = InsertCodeActionBar(self, is_dark=self.is_dark)
         self.lbl_status = self.action_bar.lbl_status
-        self.btn_copy = self.action_bar.btn_copy
-        self.btn_fullscreen = self.action_bar.btn_fullscreen
         self.btn_cancel = self.action_bar.btn_cancel
         self.btn_new_tab = self.action_bar.btn_new_tab
         self.btn_insert = self.action_bar.btn_insert
 
-        self.btn_copy.clicked.connect(self.snippets_widget._copy_code)
-        self.btn_fullscreen.clicked.connect(self.toggle_fullscreen)
         self.btn_cancel.clicked.connect(self.reject)
         self.btn_new_tab.clicked.connect(self._on_open_new_tab)
         self.btn_insert.clicked.connect(self._on_insert_clicked)
@@ -159,22 +151,3 @@ class InsertCodeDialog(QDialog):
 
         self.action_mode = 'new_tab'
         self.accept()
-
-    def toggle_fullscreen(self):
-        """Toggles dialog between full screen and normal window."""
-        if self.isFullScreen():
-            self.showNormal()
-            self._is_fullscreen = False
-            if hasattr(self, "btn_fullscreen"):
-                self.btn_fullscreen.setText("Plein écran")
-        else:
-            self.showFullScreen()
-            self._is_fullscreen = True
-            if hasattr(self, "btn_fullscreen"):
-                self.btn_fullscreen.setText("Quitter plein écran")
-
-    def keyPressEvent(self, event):
-        if event.key() == Qt.Key_Escape and self.isFullScreen():
-            self.toggle_fullscreen()
-            return
-        super().keyPressEvent(event)

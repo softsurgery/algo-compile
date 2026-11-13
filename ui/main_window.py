@@ -263,9 +263,12 @@ class MainWindow(QMainWindow):
         menu_file.addAction(act_save_as)
         menu_file.addSeparator()
 
-        # Exemples sub-menu
-        menu_ex = menu_file.addMenu("Exemples d'algorithmes")
-        self._populate_examples_menu(menu_ex)
+        act_insert_code = QAction("Insérer du code...", self)
+        act_insert_code.setIcon(create_icon("open"))
+        act_insert_code.setShortcut(QKeySequence("Ctrl+I"))
+        act_insert_code.setToolTip("Ouvrir la boîte de dialogue pour choisir et insérer un code (Ctrl+I)")
+        act_insert_code.triggered.connect(self.show_insert_code_dialog)
+        menu_file.addAction(act_insert_code)
         menu_file.addSeparator()
 
         act_exit = QAction("Quitter", self)
@@ -360,15 +363,6 @@ class MainWindow(QMainWindow):
         self.act_preferences.triggered.connect(self.show_preferences_dialog)
         menu_view.addAction(self.act_preferences)
 
-        # Tools
-        menu_tools = menubar.addMenu("&Tools")
-        act_insert_code = QAction("Insert Code...", self)
-        act_insert_code.setIcon(create_icon("open"))
-        act_insert_code.setShortcut(QKeySequence("Ctrl+I"))
-        act_insert_code.setToolTip("Ouvrir la boîte de dialogue pour choisir et insérer un code (Ctrl+I)")
-        act_insert_code.triggered.connect(self.show_insert_code_dialog)
-        menu_tools.addAction(act_insert_code)
-
         # Aide
         menu_help = menubar.addMenu("&Aide")
         act_github = QAction("Dépôt GitHub (softsurgery/algoo)", self)
@@ -392,24 +386,6 @@ class MainWindow(QMainWindow):
         self.status_bar.addWidget(self.lbl_status, 1)
         self.status_bar.addPermanentWidget(self.lbl_cursor)
         self.status_bar.addPermanentWidget(self.lbl_backend)
-
-    def _populate_examples_menu(self, menu: QMenu):
-        menu.clear()
-        act_browse = QAction("Choisir dans la liste (Insert Code)...", self)
-        act_browse.setIcon(create_icon("open"))
-        act_browse.triggered.connect(self.show_insert_code_dialog)
-        menu.addAction(act_browse)
-        menu.addSeparator()
-
-        examples_dir = os.path.join(os.path.dirname(os.path.dirname(__file__)), "examples")
-        if os.path.exists(examples_dir):
-            for fname in sorted(os.listdir(examples_dir)):
-                if fname.endswith(".algo"):
-                    label = fname.replace(".algo", "").replace("_", " ").title()
-                    filepath = os.path.join(examples_dir, fname)
-                    act = QAction(label, self)
-                    act.triggered.connect(lambda _, p=filepath: self.load_file(p))
-                    menu.addAction(act)
 
     def show_insert_code_dialog(self):
         """Displays the code selection and insertion dialog."""

@@ -1,5 +1,5 @@
 """
-Bottom action bar for InsertCodeDialog (Copy, Fullscreen, Cancel, New tab, Insert).
+Bottom action bar for InsertCodeDialog (Cancel, New tab, Insert).
 """
 
 from PyQt5.QtWidgets import QWidget, QHBoxLayout, QLabel, QPushButton
@@ -32,17 +32,6 @@ class InsertCodeActionBar(QWidget):
         icon_color = "#cdd6f4" if self.is_dark else "#475569"
         btn_sec_style = get_secondary_button_style(self.is_dark)
 
-        self.btn_copy = QPushButton("Copier")
-        self.btn_copy.setStyleSheet(btn_sec_style)
-        self.btn_copy.setIcon(create_icon("copy", icon_color, 14))
-        layout.addWidget(self.btn_copy)
-
-        self.btn_fullscreen = QPushButton("Plein écran")
-        self.btn_fullscreen.setStyleSheet(btn_sec_style)
-        self.btn_fullscreen.setIcon(create_icon("fullscreen", icon_color, 14))
-        self.btn_fullscreen.setToolTip("Basculer la boîte de dialogue en plein écran (F11)")
-        layout.addWidget(self.btn_fullscreen)
-
         layout.addStretch()
 
         self.btn_cancel = QPushButton("Annuler")
@@ -65,8 +54,6 @@ class InsertCodeActionBar(QWidget):
     def update_icons(self, is_dark: bool):
         self.is_dark = is_dark
         icon_color = "#cdd6f4" if is_dark else "#475569"
-        self.btn_copy.setIcon(create_icon("copy", icon_color, 14))
-        self.btn_fullscreen.setIcon(create_icon("fullscreen", icon_color, 14))
         self.btn_cancel.setIcon(create_icon("close", icon_color, 14))
         self.btn_new_tab.setIcon(create_icon("new", icon_color, 14))
         self.btn_insert.setIcon(create_icon("step", "#ffffff", 14))

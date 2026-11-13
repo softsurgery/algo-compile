@@ -47,14 +47,18 @@ class TestUIMenusAndDialogs(unittest.TestCase):
         self.assertTrue(any("Préférences" in a for a in actions), "Préférences action must be present in Affichage menu")
         self.assertTrue(hasattr(self.win, "act_preferences"))
 
-    def test_tools_menu_and_insert_code_action(self):
+    def test_file_menu_insert_code_and_no_tools_menu(self):
         menubar = self.win.menuBar()
         menus = menubar.findChildren(type(menubar.addMenu("")))
         tools_menu = next((m for m in menus if "Tools" in m.title()), None)
-        self.assertIsNotNone(tools_menu, "Tools menu should exist in menubar")
+        self.assertIsNone(tools_menu, "Tools menu should not exist in menubar")
 
-        actions = [a.text() for a in tools_menu.actions()]
-        self.assertTrue(any("Insert Code" in a for a in actions), "Insert Code action must be present")
+        file_menu = next((m for m in menus if "Fichier" in m.title()), None)
+        self.assertIsNotNone(file_menu, "Fichier menu should exist in menubar")
+
+        actions = [a.text() for a in file_menu.actions()]
+        self.assertTrue(any("Insérer du code" in a for a in actions), "Insérer du code action must be present in Fichier menu")
+        self.assertFalse(any("Exemples d'algorithmes" in a for a in actions), "Exemples d'algorithmes submenu should be removed")
 
     def test_insert_code_dialog_functionality(self):
         dlg = InsertCodeDialog(self.win, is_dark=False)
