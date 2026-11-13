@@ -9,7 +9,7 @@ Une **Fonction** est un sous-programme qui effectue un traitement et **retourne 
 ```algo
 Fonction NomFonction(param1: Type1, param2: Type2) : TypeRetour
 DEBUT
-  // Traitement
+  # Traitement
   Retourner resultat
 FIN
 

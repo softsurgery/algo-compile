@@ -70,17 +70,14 @@ class EditorPage(QWidget):
 
         self.chk_line_numbers = QCheckBox("Afficher les numéros de ligne dans la marge gauche")
         self.chk_line_numbers.setChecked(True)
-        self.chk_line_numbers.setStyleSheet("padding: 2px 0px;")
         box_layout.addWidget(self.chk_line_numbers)
 
         self.chk_highlight_line = QCheckBox("Surligner la ligne courante active du curseur")
         self.chk_highlight_line.setChecked(True)
-        self.chk_highlight_line.setStyleSheet("padding: 2px 0px;")
         box_layout.addWidget(self.chk_highlight_line)
 
         self.chk_auto_indent = QCheckBox("Indentation automatique après une structure (Si, Pour, TantQue...)")
         self.chk_auto_indent.setChecked(True)
-        self.chk_auto_indent.setStyleSheet("padding: 2px 0px;")
         box_layout.addWidget(self.chk_auto_indent)
 
         layout.addWidget(box)

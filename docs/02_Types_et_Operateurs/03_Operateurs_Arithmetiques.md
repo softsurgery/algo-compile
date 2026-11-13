@@ -29,12 +29,12 @@ Les opérateurs arithmétiques permettent d'effectuer des calculs mathématiques
 ## Exemples Typiques
 
 ```algo
-// Tester si un entier n est pair
+# Tester si un entier n est pair
 Si (n Mod 2 = 0) Alors
   Ecrire_nl(n, " est PAIR")
 FinSi
 
-// Extraction des chiffres d'un nombre à deux chiffres
+# Extraction des chiffres d'un nombre à deux chiffres
 dizaine <- n Div 10
 unite <- n Mod 10
 ```

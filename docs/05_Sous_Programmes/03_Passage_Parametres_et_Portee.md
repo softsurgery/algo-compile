@@ -13,7 +13,7 @@ Le mode de passage détermine si les modifications apportées à un paramètre f
 ```algo
 Procédure Modifier(x: Entier)
 DEBUT
-  x <- x + 10 // Ne modifie que la copie locale
+  x <- x + 10 # Ne modifie que la copie locale
 FIN
 ```
 

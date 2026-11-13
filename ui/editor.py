@@ -164,8 +164,8 @@ class AlgoHighlighter(QSyntaxHighlighter):
         for match in string_pattern.finditer(text):
             self.setFormat(match.start(), match.end() - match.start(), self.fmt_string)
 
-        # Comments (// ... or # ...)
-        comment_pattern = re.compile(r'(//.*|#.*)')
+        # Comments (# ...)
+        comment_pattern = re.compile(r'#.*')
         for match in comment_pattern.finditer(text):
             self.setFormat(match.start(), match.end() - match.start(), self.fmt_comment)
 
@@ -360,7 +360,7 @@ class AlgoCodeEditor(QPlainTextEdit):
             block_number += 1
 
     def toggle_comment(self):
-        """Toggles line comment (//) on the current line or across selected lines."""
+        """Toggles line comment (#) on the current line or across selected lines."""
         cursor = self.textCursor()
         orig_block_no = cursor.blockNumber()
         orig_col = cursor.positionInBlock()
@@ -385,14 +385,14 @@ class AlgoCodeEditor(QPlainTextEdit):
                 break
             curr = curr.next()
 
-        # Check if all non-empty lines are already commented with //
+        # Check if all non-empty lines are already commented with #
         all_commented = True
         has_content = False
         for b in blocks:
             txt = b.text().strip()
             if txt:
                 has_content = True
-                if not txt.startswith("//"):
+                if not txt.startswith("#"):
                     all_commented = False
                     break
 
@@ -401,7 +401,7 @@ class AlgoCodeEditor(QPlainTextEdit):
             # Uncomment lines
             for b in blocks:
                 text = b.text()
-                m = re.match(r'^(\s*)//\s?(.*)$', text)
+                m = re.match(r'^(\s*)#\s?(.*)$', text)
                 if m:
                     new_text = m.group(1) + m.group(2)
                     removed_len = len(text) - len(new_text)
@@ -417,7 +417,7 @@ class AlgoCodeEditor(QPlainTextEdit):
                 text = b.text()
                 m = re.match(r'^(\s*)(.*)$', text)
                 if m:
-                    new_text = f"{m.group(1)}// {m.group(2)}"
+                    new_text = f"{m.group(1)}# {m.group(2)}"
                     added_len = len(new_text) - len(text)
                     if b.blockNumber() == orig_block_no:
                         delta_col = added_len

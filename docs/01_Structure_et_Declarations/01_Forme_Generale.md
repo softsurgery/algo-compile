@@ -7,27 +7,27 @@ Un algorithme complet respecte une structure modulaire stricte, composée d'éve
 ## Structure d'un Programme Complet
 
 ```algo
-// 1. Sous-programmes (Procédures et Fonctions)
+# 1. Sous-programmes (Procédures et Fonctions)
 Procedure Exemple(@x: Entier)
 DEBUT
-  // Instructions locales
+  # Instructions locales
 FIN
 Tableau de déclaration des objets locaux
 Objet          Type / Nature
 /              /
 
-// 2. Algorithme Principal
+# 2. Algorithme Principal
 ALGORITHME NomAlgorithme
 DEBUT
-  // Instructions principales
+  # Instructions principales
   Ecrire("Bienvenue dans le programme")
 FIN
 
-// 3. Déclaration des types personnalisés (optionnel)
+# 3. Déclaration des types personnalisés (optionnel)
 Tableau de déclaration des nouveaux types
-// Définitions de types (ex: enregistrements)
+# Définitions de types (ex: enregistrements)
 
-// 4. Déclaration des objets globaux (obligatoire)
+# 4. Déclaration des objets globaux (obligatoire)
 Tableau de déclaration des objets globaux
 Objet          Type / Nature
 x              Entier

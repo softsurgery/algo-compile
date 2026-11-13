@@ -54,7 +54,7 @@ class SectionExtractor:
                 continue
 
             # Strip comments
-            if stripped.startswith(("//", "#", "/*")):
+            if stripped.startswith("#"):
                 i += 1
                 continue
 

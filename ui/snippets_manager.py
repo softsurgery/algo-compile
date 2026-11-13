@@ -528,7 +528,7 @@ def create_snippet_bundle(
     if not algo_code.strip():
         algo_code = f"""ALGORITHME {safe_name.title()}
 DEBUT
-  // Écrivez votre algorithme ici
+  # Écrivez votre algorithme ici
   Ecrire("Bonjour depuis {safe_name.title()} !")
 FIN
 

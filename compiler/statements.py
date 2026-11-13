@@ -68,8 +68,8 @@ class StatementTranslator:
                 continue
 
             # Strip comments
-            if s.startswith(("//", "#")):
-                comment_text = s[2:].strip() if s.startswith("//") else s[1:].strip()
+            if s.startswith("#"):
+                comment_text = s[1:].strip()
                 result.append(f"{base_indent}# {comment_text}")
                 i += 1
                 continue

@@ -8,7 +8,7 @@ La structure `Répéter ... Jusqu'à` exécute le corps de la boucle **au moins 
 
 ```algo
 Répéter
-  // Instructions (exécutées au moins une fois)
+  # Instructions (exécutées au moins une fois)
 Jusqu'à <Condition_d_arret>
 ```
 

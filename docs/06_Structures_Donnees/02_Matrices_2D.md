@@ -31,14 +31,14 @@ Mat            Tableau de 5 x 5 Réel
 ```algo
 ALGORITHME MatriceExemple
 DEBUT
-  // Remplissage avec des nombres aléatoires
+  # Remplissage avec des nombres aléatoires
   Pour i de 0 à 2 Faire
     Pour j de 0 à 3 Faire
       M[i, j] <- Aléa(1, 50)
     Fin Pour
   Fin Pour
 
-  // Affichage sous forme de grille
+  # Affichage sous forme de grille
   Pour i de 0 à 2 Faire
     Pour j de 0 à 3 Faire
       Ecrire(M[i, j], "\t")

@@ -142,7 +142,7 @@ class TestDocsAndAssistantTree(unittest.TestCase):
 ```algo
 ALGORITHME Demo
 DEBUT
-  // Ceci est un commentaire
+  # Ceci est un commentaire
   x <- 42
   Ecrire_nl("Bonjour", x)
 FIN

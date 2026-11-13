@@ -24,7 +24,7 @@ class TestEditorComment(unittest.TestCase):
 
         # Toggle comment -> comments line
         self.editor.toggle_comment()
-        self.assertEqual(self.editor.toPlainText(), "// x <- 10")
+        self.assertEqual(self.editor.toPlainText(), "# x <- 10")
 
         # Toggle comment again -> uncomments line
         self.editor.toggle_comment()
@@ -38,7 +38,7 @@ class TestEditorComment(unittest.TestCase):
 
         # Should place comment after indentation
         self.editor.toggle_comment()
-        self.assertEqual(self.editor.toPlainText(), "    // x <- 10")
+        self.assertEqual(self.editor.toPlainText(), "    # x <- 10")
 
         # Should restore exact original indentation
         self.editor.toggle_comment()
@@ -54,13 +54,13 @@ class TestEditorComment(unittest.TestCase):
         # Comment both lines
         self.editor.toggle_comment()
         lines = self.editor.toPlainText().splitlines()
-        self.assertEqual(lines[0], "// line 1")
-        self.assertEqual(lines[1], "// line 2")
+        self.assertEqual(lines[0], "# line 1")
+        self.assertEqual(lines[1], "# line 2")
         self.assertEqual(lines[2], "line 3")
 
         # Select both commented lines again and toggle -> uncomment
         c.setPosition(0)
-        c.setPosition(19, QTextCursor.KeepAnchor)
+        c.setPosition(17, QTextCursor.KeepAnchor)
         self.editor.setTextCursor(c)
         self.editor.toggle_comment()
         lines_uncommented = self.editor.toPlainText().splitlines()
@@ -77,7 +77,7 @@ class TestEditorComment(unittest.TestCase):
         # Simulate Ctrl + / key event
         event = QKeyEvent(QKeyEvent.KeyPress, Qt.Key_Slash, Qt.ControlModifier, "/")
         self.editor.keyPressEvent(event)
-        self.assertEqual(self.editor.toPlainText(), "// a <- b + c")
+        self.assertEqual(self.editor.toPlainText(), "# a <- b + c")
 
         # Toggle back
         self.editor.keyPressEvent(event)
@@ -86,7 +86,7 @@ class TestEditorComment(unittest.TestCase):
     def test_undo_restores_pre_comment_state(self):
         self.editor.setPlainText("test line")
         self.editor.toggle_comment()
-        self.assertEqual(self.editor.toPlainText(), "// test line")
+        self.assertEqual(self.editor.toPlainText(), "# test line")
 
         self.editor.undo()
         self.assertEqual(self.editor.toPlainText(), "test line")
@@ -112,7 +112,7 @@ class TestEditorComment(unittest.TestCase):
 
         # Trigger action
         comment_act.trigger()
-        self.assertEqual(editor.toPlainText(), "// my_var <- 42")
+        self.assertEqual(editor.toPlainText(), "# my_var <- 42")
 
         # Trigger again to uncomment
         comment_act.trigger()

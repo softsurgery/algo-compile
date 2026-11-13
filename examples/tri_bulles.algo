@@ -3,7 +3,7 @@ DEBUT
   Ecrire("Donner la taille du tableau (max 20) : ")
   Lire(n)
   
-  // Remplissage avec des nombres aléatoires
+  # Remplissage avec des nombres aléatoires
   Pour i de 0 à n - 1 Faire
     T[i] <- Aléa(10, 99)
   Fin Pour
@@ -14,7 +14,7 @@ DEBUT
   Fin Pour
   Ecrire_nl("")
   
-  // Algorithme du tri à bulles
+  # Algorithme du tri à bulles
   Répéter
     permute <- Faux
     Pour i de 0 à n - 2 Faire

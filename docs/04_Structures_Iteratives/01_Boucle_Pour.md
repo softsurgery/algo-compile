@@ -8,7 +8,7 @@ La boucle `Pour` est utilisée lorsque le nombre d'itérations est **connu à l'
 
 ```algo
 Pour compteur de Début à Fin [Pas = valeur_du_pas] Faire
-  // Instructions à répéter
+  # Instructions à répéter
 Fin Pour
 ```
 

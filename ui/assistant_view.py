@@ -32,7 +32,7 @@ FALLBACK_TOPICS = {
 ```algo
 Procedure Exemple(@x: Entier)
 DEBUT
-  // Traitement local
+  # Traitement local
 FIN
 Tableau de déclaration des objets locaux
 Objet          Type / Nature
@@ -114,7 +114,7 @@ def highlight_algo_syntax(code_text: str, is_dark: bool) -> str:
         c_ident = "#0f172a"   # dark text
 
     tokens = [
-        ("COMMENT", r"(?://|#).*"),
+        ("COMMENT", r"#.*"),
         ("STRING", r"\"(?:[^\"\\]|\\.)*\"|\x27(?:[^\x27\\]|\\.)*\x27"),
         ("OPERATOR", r"<-|←|:=|≠|<>|<=|>=|≤|≥|∈||\b(?:Div|Mod|Et|Ou|Non|dans)\b"),
         ("KW_STRUCT", r"\b(?:ALGORITHME|DEBUT|DÉBUT|FIN|Fonction|Procédure|Procedure|Retourner|Tableau\s+de\s+déclaration\s+des\s+objets(?:\s+globaux|\s+locaux)?|Tableau\s+de\s+déclaration\s+des\s+nouveaux\s+types|Déclaration\s+des\s+objets(?:\s+globaux|\s+locaux)?|Déclaration\s+des\s+nouveaux\s+types|TDOG|TDOL|TDNT|TDO|Fin\s+Enregistrement|Enregistrement)\b"),

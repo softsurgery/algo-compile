@@ -9,7 +9,7 @@ Une **Procédure** est un sous-programme autonome qui réalise une tâche préci
 ```algo
 Procédure NomProcedure(param1: Type1, @param2: Type2)
 DEBUT
-  // Traitement
+  # Traitement
 FIN
 
 Tableau de déclaration des objets locaux

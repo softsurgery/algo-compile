@@ -8,8 +8,8 @@ La boucle `Tant que` répète un bloc d'instructions **tant qu'une condition res
 
 ```algo
 Tant que <Condition> Faire
-  // Instructions à répéter
-  // Mise à jour de la condition pour éviter une boucle infinie
+  # Instructions à répéter
+  # Mise à jour de la condition pour éviter une boucle infinie
 Fin Tant que
 ```
 

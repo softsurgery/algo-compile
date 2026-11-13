@@ -15,7 +15,7 @@ from ui.dialogs.preferences_dialog.header import create_section_header
 from ui.icons import create_icon
 
 SAMPLE_ALGO_CODE = """ALGORITHME ExemplePreferences
-// Aperçu en temps réel de votre jeu de couleurs
+# Aperçu en temps réel de votre jeu de couleurs
 DEBUT
     Pour i de 1 à 5 Faire
         Si i Mod 2 = 0 Alors
@@ -37,14 +37,16 @@ class ColorsPage(QScrollArea):
     def __init__(self, parent=None, is_dark: bool = False):
         super().__init__(parent)
         self.is_dark = is_dark
+        self.setObjectName("colors_scroll_area")
         self.setWidgetResizable(True)
         self.setFrameShape(QFrame.NoFrame)
-        self.setStyleSheet("background: transparent;")
+        self.setStyleSheet("QScrollArea#colors_scroll_area { background: transparent; }")
         self._setup_ui()
 
     def _setup_ui(self):
         container = QWidget()
-        container.setStyleSheet("background: transparent;")
+        container.setObjectName("colors_container")
+        container.setStyleSheet("QWidget#colors_container { background: transparent; }")
         layout = QVBoxLayout(container)
         layout.setContentsMargins(18, 14, 18, 14)
         layout.setSpacing(14)

@@ -195,7 +195,7 @@ class AlgoValidator:
 
         for line_no, raw_line in line_tuples:
             s = raw_line.strip()
-            if not s or s.startswith(("//", "#", "/*")):
+            if not s or s.startswith("#"):
                 continue
 
             # Check block openings
@@ -486,7 +486,7 @@ class AlgoValidator:
         calls = []
         for line_no, raw_line in line_tuples:
             s = raw_line.strip()
-            if not s or s.startswith(("//", "#", "/*")):
+            if not s or s.startswith("#"):
                 continue
             if re.match(r'^[\*\-=\/ ]{3,}$', s):
                 continue
@@ -601,7 +601,7 @@ class AlgoValidator:
         variables = []
         for line_no, raw_line in line_tuples:
             s = raw_line.strip()
-            if not s or s.startswith(("//", "#", "/*")):
+            if not s or s.startswith("#"):
                 continue
             # Border lines
             if re.match(r'^[\*\-=\/ ]{3,}$', s):
@@ -631,8 +631,6 @@ class AlgoValidator:
         Extracts variable identifiers from a single statement or expression string.
         """
         # Remove comments from line
-        if "//" in text:
-            text = text.split("//", 1)[0]
         if "#" in text:
             text = text.split("#", 1)[0]
 

@@ -8,7 +8,7 @@ La structure conditionnelle permet d'exécuter un bloc d'instructions uniquement
 
 ```algo
 Si Condition Alors
-  // Traitement exécuté si Condition est Vrai
+  # Traitement exécuté si Condition est Vrai
 FinSi
 ```
 
@@ -25,9 +25,9 @@ FinSi
 
 ```algo
 Si Condition Alors
-  // Traitement 1
+  # Traitement 1
 Sinon
-  // Traitement 2
+  # Traitement 2
 FinSi
 ```
 
