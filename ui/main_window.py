@@ -20,7 +20,7 @@ from PyQt5.QtWidgets import (
     QStatusBar, QLabel, QMenu, QToolButton, QApplication, QDialog
 )
 from PyQt5.QtGui import QIcon, QFont, QKeySequence, QDesktopServices, QPixmap
-from PyQt5.QtCore import Qt, QFileInfo, QUrl, QSettings
+from PyQt5.QtCore import Qt, QFileInfo, QUrl, QSettings, QTimer
 
 from compiler.transpiler import AlgoTranspiler, CompileError
 from ui.editor import AlgoCodeEditor
@@ -38,6 +38,7 @@ from ui.styles import (
 )
 from ui.dialogs import InsertCodeDialog, AboutDialog, PreferencesDialog
 from ui.snippets_view import SnippetsWidget
+from ui.updater import check_for_updates
 from database import get_database, DatabaseManager
 from typing import Optional
 
@@ -89,6 +90,10 @@ class MainWindow(QMainWindow):
 
         # Restore latest opened files or open starter default example
         self._restore_opened_files()
+
+        # Silent background update check on startup
+        if "unittest" not in sys.modules:
+            QTimer.singleShot(3000, lambda: check_for_updates(self, silent=True))
 
     def _setup_ui(self):
         central_widget = QWidget(self)
@@ -369,6 +374,11 @@ class MainWindow(QMainWindow):
         act_github.setToolTip("Ouvrir la page GitHub du projet Algoo")
         act_github.triggered.connect(lambda: QDesktopServices.openUrl(QUrl("https://github.com/softsurgery/algoo")))
         menu_help.addAction(act_github)
+
+        self.act_check_updates = QAction("Vérifier les mises à jour...", self)
+        self.act_check_updates.setToolTip("Vérifier si une nouvelle version d'Algoo est disponible")
+        self.act_check_updates.triggered.connect(lambda: check_for_updates(self, silent=False))
+        menu_help.addAction(self.act_check_updates)
         menu_help.addSeparator()
 
         act_about = QAction("À propos d'Algoo", self)
@@ -951,10 +961,9 @@ class MainWindow(QMainWindow):
         super().closeEvent(event)
 
     def _open_default_example(self):
-        example_path = os.path.join(
-            os.path.dirname(os.path.dirname(__file__)),
-            "examples", "somme_diviseurs.algo"
-        )
+        from ui.platform_utils import get_resource_path
+
+        example_path = get_resource_path("examples", "somme_diviseurs.algo")
         if os.path.exists(example_path):
             self.load_file(example_path)
         else:

@@ -5,8 +5,9 @@ Modern stylesheets for the IDE: Light (Thonny style) and Modern Dark themes.
 import os
 from PyQt5.QtGui import QImageReader
 
-_BASE_DIR = os.path.dirname(os.path.abspath(__file__))
-_ASSETS_DIR = os.path.join(_BASE_DIR, "assets")
+from ui.platform_utils import get_resource_path
+
+_ASSETS_DIR = get_resource_path("ui", "assets")
 
 _EXT = "svg" if b"svg" in QImageReader.supportedImageFormats() else "png"
 _TAB_CLOSE_LIGHT = os.path.join(_ASSETS_DIR, f"tab_close_light.{_EXT}").replace("\\", "/")

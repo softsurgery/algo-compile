@@ -14,6 +14,7 @@ from PyQt5.QtWidgets import (
 )
 from PyQt5.QtGui import QColor, QTextCursor, QFont
 from PyQt5.QtCore import Qt, QProcess, pyqtSignal
+from ui.platform_utils import get_bundle_dir, is_frozen
 
 
 class ConsoleOutputEdit(QTextEdit):
@@ -231,8 +232,8 @@ class AlgoConsole(QWidget):
         if self.is_running():
             self.stop_execution()
 
-        # Save to temporary file in workspace to allow imports of compiler.runtime
-        workspace_dir = os.path.abspath(os.path.dirname(os.path.dirname(__file__)))
+        # Save to temporary file in OS temp directory (works in read-only system installs)
+        workspace_dir = get_bundle_dir()
 
         # Determine the directory of the executing algorithm
         if algo_file_path:
@@ -244,7 +245,7 @@ class AlgoConsole(QWidget):
         algo_header = f"import os, sys\nos.environ['ALGO_DIR'] = {algo_dir!r}\nsys._algo_dir = {algo_dir!r}\n"
         full_code = algo_header + py_code
 
-        temp_fd, temp_path = tempfile.mkstemp(suffix=".py", prefix="_algo_exec_", dir=workspace_dir)
+        temp_fd, temp_path = tempfile.mkstemp(suffix=".py", prefix="_algo_exec_", dir=tempfile.gettempdir())
         with os.fdopen(temp_fd, 'w', encoding='utf-8') as f:
             f.write(full_code)
 
@@ -253,14 +254,15 @@ class AlgoConsole(QWidget):
         self.process = QProcess(self)
         self.process.setWorkingDirectory(algo_dir)
 
-        # Setup environment
+        # Setup environment using platform-native os.pathsep
         env = self.process.processEnvironment()
         python_path = os.environ.get("PYTHONPATH", "")
-        if workspace_dir not in python_path:
-            python_path = f"{workspace_dir}:{python_path}" if python_path else workspace_dir
-        if algo_dir not in python_path:
-            python_path = f"{algo_dir}:{python_path}"
-        env.insert("PYTHONPATH", python_path)
+        parts = [p for p in python_path.split(os.pathsep) if p] if python_path else []
+        if workspace_dir not in parts:
+            parts.insert(0, workspace_dir)
+        if algo_dir not in parts:
+            parts.insert(0, algo_dir)
+        env.insert("PYTHONPATH", os.pathsep.join(parts))
         env.insert("PYTHONUNBUFFERED", "1")
         env.insert("ALGO_DIR", algo_dir)
         self.process.setProcessEnvironment(env)
@@ -276,8 +278,11 @@ class AlgoConsole(QWidget):
         self.btn_stop.setEnabled(True)
         self.execution_started.emit()
 
-        # Start python process
-        self.process.start(sys.executable, ["-u", temp_path])
+        # Start python process (use --run-script when running from frozen PyInstaller binary)
+        if is_frozen():
+            self.process.start(sys.executable, ["--run-script", temp_path])
+        else:
+            self.process.start(sys.executable, ["-u", temp_path])
 
     def _on_stdout_ready(self):
         if not self.process:

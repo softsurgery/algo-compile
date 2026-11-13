@@ -10,8 +10,12 @@ from PyQt5.QtCore import Qt
 
 def get_logo_path() -> str:
     """Finds the absolute path to logo.png."""
+    from ui.platform_utils import get_resource_path
+
     ui_dir = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
     candidates = [
+        get_resource_path("ui", "assets", "logo.png"),
+        get_resource_path("logo.png"),
         os.path.join(ui_dir, "assets", "logo.png"),
         os.path.join(os.path.dirname(ui_dir), "logo.png"),
     ]

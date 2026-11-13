@@ -22,8 +22,9 @@ from ui.components import (
     highlight_python_syntax,
 )
 from ui.icons import create_icon
+from ui.platform_utils import get_resource_path
 
-_DEFAULT_DOCS_DIR = os.path.abspath(os.path.join(os.path.dirname(__file__), "..", "docs"))
+_DEFAULT_DOCS_DIR = get_resource_path("docs")
 
 FALLBACK_TOPICS = {
     "1. Structure Générale, TDOG & TDOL": """

@@ -6,6 +6,7 @@ from PyQt5.QtWidgets import QWidget, QVBoxLayout, QLabel
 from PyQt5.QtGui import QFont
 from PyQt5.QtCore import Qt
 from ui.icons import get_logo_pixmap
+from version import __version__
 
 
 class AboutHeaderWidget(QWidget):
@@ -38,7 +39,7 @@ class AboutHeaderWidget(QWidget):
         layout.addWidget(self.title_label)
 
         # Version & tag
-        self.version_label = QLabel("Version 1.0 — IDE Algorithmique", self)
+        self.version_label = QLabel(f"Version {__version__} — IDE Algorithmique", self)
         self.version_label.setAlignment(Qt.AlignCenter)
         self.version_label.setObjectName("about_version")
         layout.addWidget(self.version_label)
