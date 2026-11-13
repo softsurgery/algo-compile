@@ -208,6 +208,37 @@ class TestAlgoTranspiler(unittest.TestCase):
             self.transpiler.compile("ALGORITHME T\nDEBUT\nx <- 1\nTableau de déclaration des objets globaux\nx : Entier")
         self.assertIn("FIN", str(cm.exception))
 
+    def test_tantque_parenthesized_conditions(self):
+        """Verifies tantque( and tantque ( with spaces in conditions compile and execute."""
+        algo = """
+        ALGORITHME TestTantQueParens
+        DEBUT
+          x <- 0
+          tantque( x < 3 ) faire
+            x <- x + 1
+          Fin Tant que
+          tantque ( x < 5 ) faire
+            x <- x + 1
+          Fin Tant que
+          tantque(x < 6)faire
+            x <- x + 1
+          Fin Tant que
+          Ecrire(x)
+        FIN
+        Tableau de déclaration des objets globaux
+        x : Entier
+        """
+        py = self.transpiler.compile(algo)
+        self.assertIn("while ( x < 3 ):", py)
+        self.assertIn("while ( x < 5 ):", py)
+        self.assertIn("while (x < 6):", py)
+        import io, contextlib
+        buf = io.StringIO()
+        ns = {'__name__': '__main__'}
+        with contextlib.redirect_stdout(buf):
+            exec(py, ns)
+        self.assertEqual(buf.getvalue().strip(), "6")
+
         # Missing Fin Enregistrement
         with self.assertRaises(CompileError) as cm:
             self.transpiler.compile("ALGORITHME T\nDEBUT\nFIN\nTableau de déclaration des objets globaux\n/\nDéclaration des types\nRec = Enregistrement\na: Entier")

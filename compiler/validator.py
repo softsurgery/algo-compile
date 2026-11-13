@@ -205,7 +205,7 @@ class AlgoValidator:
             if re.match(r'^pour\s+[a-zA-Z0-9_\u00C0-\u017F]+\s+de\s+.+?\s+(?:à|a)\s+.+?\s+faire$', s, re.IGNORECASE):
                 stack.append(('Pour', line_no))
                 continue
-            if re.match(r'^(?:tant\s*que|tantque)\s+.+?\s+faire$', s, re.IGNORECASE):
+            if re.match(r'^(?:tant\s*que|tantque)(?:\s+|\s*(?=\()).+?(?:\s+|(?<=\)))faire$', s, re.IGNORECASE):
                 stack.append(('Tant que', line_no))
                 continue
             if re.match(r'^selon\s+.+$', s, re.IGNORECASE):

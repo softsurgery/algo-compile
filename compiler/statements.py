@@ -133,7 +133,7 @@ class StatementTranslator:
                 continue
 
             # 4. Tant que <Condition> Faire ... Fin Tant que
-            m_tq = re.match(r'^tant\s*que\s+(.+?)\s+faire$', s, re.IGNORECASE)
+            m_tq = re.match(r'^tant\s*que(?:\s+|\s*(?=\())(.+?)(?:\s+|(?<=\)))faire$', s, re.IGNORECASE)
             if m_tq:
                 cond = self.expr_trans.translate_expression(m_tq.group(1))
                 result.append(f"{base_indent}while {cond}:")
@@ -303,7 +303,7 @@ class StatementTranslator:
             line_no, line = line_tuples[idx]
             s = line.strip()
 
-            if re.match(r'^(?:pour\s+.+?\s+faire|tant\s*que\s+.+?\s+faire|si\s+.+?\s+alors|selon\s+.+|répéter|repeter)', s, re.IGNORECASE):
+            if re.match(r'^(?:pour\s+.+?\s+faire|tant\s*que(?:\s+|\s*(?=\()).+?(?:\s+|(?<=\)))faire|si\s+.+?\s+alors|selon\s+.+|répéter|repeter)', s, re.IGNORECASE):
                 nesting += 1
                 body.append((line_no, line))
                 idx += 1

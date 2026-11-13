@@ -126,6 +126,20 @@ class TestAlgoValidator(unittest.TestCase):
             self.transpiler.compile(code)
         self.assertIn("Fin Tant que", str(cm.exception))
 
+        # Also check tantque( without space before parenthesis
+        code_no_space = """
+        ALGORITHME TestTantQueNoSpace
+        DEBUT
+          tantque( x < 10 ) faire
+            x <- x + 1
+        FIN
+        Tableau de déclaration des objets globaux
+        x : Entier
+        """
+        with self.assertRaises(MissingEndError) as cm:
+            self.transpiler.compile(code_no_space)
+        self.assertIn("Fin Tant que", str(cm.exception))
+
     def test_unclosed_repeter_block(self):
         code = """
         ALGORITHME TestRepeter
