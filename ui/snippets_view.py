@@ -53,17 +53,56 @@ class SnippetMarkdownBrowser(QTextBrowser):
         if self._current_md:
             self.set_markdown_content(self._current_md)
 
-    def zoom_in(self):
+    def zoom_in(self, delta: int = 1):
         if self.zoom_level < 15:
-            self.zoom_level += 1
-            if self._current_md:
-                self.set_markdown_content(self._current_md)
+            self.zoom_level = min(15, self.zoom_level + delta)
+            self._re_render_preserving_scroll()
 
-    def zoom_out(self):
+    def zoom_out(self, delta: int = 1):
         if self.zoom_level > -4:
-            self.zoom_level -= 1
-            if self._current_md:
-                self.set_markdown_content(self._current_md)
+            self.zoom_level = max(-4, self.zoom_level - delta)
+            self._re_render_preserving_scroll()
+
+    def reset_zoom(self):
+        if self.zoom_level != 0:
+            self.zoom_level = 0
+            self._re_render_preserving_scroll()
+
+    def _re_render_preserving_scroll(self):
+        if not self._current_md:
+            return
+        vbar = self.verticalScrollBar()
+        scroll_pos = vbar.value() if vbar else 0
+        self.set_markdown_content(self._current_md)
+        if vbar:
+            vbar.setValue(min(scroll_pos, vbar.maximum()))
+
+    def wheelEvent(self, event):
+        if event.modifiers() & Qt.ControlModifier:
+            delta = event.angleDelta().y()
+            if delta > 0:
+                self.zoom_in()
+            elif delta < 0:
+                self.zoom_out()
+            event.accept()
+        else:
+            super().wheelEvent(event)
+
+    def keyPressEvent(self, event):
+        if event.modifiers() & Qt.ControlModifier:
+            if event.key() in (Qt.Key_Plus, Qt.Key_Equal) or event.text() in ('+', '='):
+                self.zoom_in()
+                event.accept()
+                return
+            elif event.key() == Qt.Key_Minus or event.text() == '-':
+                self.zoom_out()
+                event.accept()
+                return
+            elif event.key() == Qt.Key_0 or event.text() == '0':
+                self.reset_zoom()
+                event.accept()
+                return
+        super().keyPressEvent(event)
 
     def _apply_style(self):
         bg = "#11111b" if self.is_dark else "#ffffff"
@@ -83,6 +122,11 @@ class SnippetMarkdownBrowser(QTextBrowser):
         pre_font_size = max(8, min(26, 12 + self.zoom_level))
         h1_font_size = max(13, min(34, 17 + self.zoom_level))
         h2_font_size = max(11, min(30, 15 + self.zoom_level))
+        h3_font_size = max(10, min(28, 14 + self.zoom_level))
+
+        default_font = self.font()
+        default_font.setPointSize(max(7, 10 + self.zoom_level))
+        self.document().setDefaultFont(default_font)
 
         if self.is_dark:
             body_fg = "#cdd6f4"
@@ -128,7 +172,7 @@ class SnippetMarkdownBrowser(QTextBrowser):
             else:
                 c_def = "#cdd6f4" if self.is_dark else "#0f172a"
                 highlighted = f'<span style="color:{c_def};">{html.escape(code_content)}</span>'
-            return f'\n\n<pre class="code-block" style="font-size: {pre_font_size}px;"><code>{highlighted}</code></pre>\n\n'
+            return f'\n\n<pre class="code-block" style="font-size: {pre_font_size}px;"><code style="font-size: {pre_font_size}px;">{highlighted}</code></pre>\n\n'
 
         import re
         pattern = re.compile(r'^[ \t]*(?:```|~~~)([a-zA-Z0-9_\-]*)[ \t]*\r?\n(.*?)\r?\n[ \t]*(?:```|~~~)[ \t]*$', re.DOTALL | re.MULTILINE)
@@ -145,7 +189,7 @@ class SnippetMarkdownBrowser(QTextBrowser):
         <head>
         <meta charset="utf-8">
         <style>
-          body {{
+          body, p, li, td, th, div {{
             color: {body_fg};
             font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
             font-size: {base_font_size}px;
@@ -154,6 +198,7 @@ class SnippetMarkdownBrowser(QTextBrowser):
           }}
           h1 {{ color: {h1_color}; font-size: {h1_font_size}px; border-bottom: 1px solid {hr_color}; padding-bottom: 4px; }}
           h2 {{ color: {h2_color}; font-size: {h2_font_size}px; margin-top: 14px; margin-bottom: 6px; }}
+          h3, h4 {{ color: {h2_color}; font-size: {h3_font_size}px; margin-top: 10px; margin-bottom: 4px; }}
           b, strong {{ color: {bold_fg}; font-weight: bold; }}
           code {{
             background-color: {code_bg};
@@ -161,7 +206,11 @@ class SnippetMarkdownBrowser(QTextBrowser):
             padding: 2px 5px;
             border-radius: 4px;
             font-family: "JetBrains Mono", Consolas, monospace;
-            font-size: {pre_font_size - 1}px;
+            font-size: {max(7, pre_font_size - 1)}px;
+          }}
+          pre, pre code, pre span {{
+            font-family: "JetBrains Mono", Consolas, monospace;
+            font-size: {pre_font_size}px;
           }}
           pre.code-block {{
             background-color: {pre_bg};
@@ -176,6 +225,7 @@ class SnippetMarkdownBrowser(QTextBrowser):
             width: 100%;
             margin: 10px 0;
             border: 1px solid {table_border};
+            font-size: {base_font_size}px;
           }}
           th {{
             background-color: {th_bg};
@@ -984,6 +1034,12 @@ class SnippetsWidget(QWidget):
             self.preview_editor.zoom_out()
         if hasattr(self, 'md_browser'):
             self.md_browser.zoom_out()
+
+    def reset_zoom(self):
+        if hasattr(self, 'preview_editor'):
+            self.preview_editor.reset_zoom()
+        if hasattr(self, 'md_browser'):
+            self.md_browser.reset_zoom()
 
     def reload_tree(self):
         """Scans collections and populates the tree view."""

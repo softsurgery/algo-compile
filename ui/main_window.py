@@ -505,6 +505,8 @@ class MainWindow(QMainWindow):
             self.python_view.reset_zoom()
             if hasattr(self, 'assistant_view'):
                 self.assistant_view.reset_zoom()
+            if hasattr(self, 'snippets_view'):
+                self.snippets_view.reset_zoom()
 
     def apply_theme(self, recreate_native: bool = False):
         if self.is_dark_mode:

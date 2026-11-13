@@ -242,6 +242,57 @@ class TestSnippetsAndCollections(unittest.TestCase):
         self.assertGreaterEqual(win.tab_widget.count(), 2)
         win.close()
 
+    def test_snippet_markdown_browser_zoom_scales_all_text(self):
+        from PyQt5.QtGui import QWheelEvent, QKeyEvent
+        from PyQt5.QtCore import Qt, QPoint, QPointF, QEvent
+
+        browser = SnippetMarkdownBrowser(is_dark=False)
+        browser.set_markdown_content(
+            "# Heading 1\n\nParagraph body text\n\n- List item\n\n### Heading 3\n\n```algo\nx <- 1\n```"
+        )
+
+        def get_block_sizes():
+            sizes = {}
+            blk = browser.document().begin()
+            while blk.isValid():
+                it = blk.begin()
+                if not it.atEnd():
+                    f = it.fragment().charFormat().font()
+                    size = f.pixelSize() if f.pixelSize() > 0 else f.pointSizeF()
+                    sizes[blk.text().strip()] = size
+                blk = blk.next()
+            return sizes
+
+        base = get_block_sizes()
+        for _ in range(3):
+            browser.zoom_in()
+        zoomed_in = get_block_sizes()
+
+        for key in ("Heading 1", "Paragraph body text", "List item", "Heading 3", "x <- 1"):
+            self.assertGreater(zoomed_in[key], base[key], f"{key} did not grow on zoom_in")
+
+        # Test Ctrl + Wheel zoom_out and zoom_in
+        wheel_up = QWheelEvent(
+            QPointF(10, 10), QPointF(10, 10), QPoint(0, 0), QPoint(0, 120),
+            Qt.NoButton, Qt.ControlModifier, Qt.NoScrollPhase, False
+        )
+        browser.wheelEvent(wheel_up)
+        self.assertEqual(browser.zoom_level, 4)
+
+        wheel_down = QWheelEvent(
+            QPointF(10, 10), QPointF(10, 10), QPoint(0, 0), QPoint(0, -120),
+            Qt.NoButton, Qt.ControlModifier, Qt.NoScrollPhase, False
+        )
+        browser.wheelEvent(wheel_down)
+        self.assertEqual(browser.zoom_level, 3)
+
+        # Test Ctrl + 0 resets zoom
+        key_reset = QKeyEvent(QEvent.KeyPress, Qt.Key_0, Qt.ControlModifier, "0")
+        browser.keyPressEvent(key_reset)
+        self.assertEqual(browser.zoom_level, 0)
+        self.assertEqual(get_block_sizes(), base)
+        browser.close()
+
 
 if __name__ == "__main__":
     unittest.main()
