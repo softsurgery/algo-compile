@@ -12,6 +12,13 @@ BASE_DIR = os.path.dirname(os.path.abspath(__file__))
 if BASE_DIR not in sys.path:
     sys.path.insert(0, BASE_DIR)
 
+# Use the native OS window manager on Linux desktop sessions (via xcb)
+# for all decorations, title bars, borders, resizing, moving, minimizing,
+# maximizing, and positioning rather than Qt5's client-side Wayland decoration.
+if sys.platform.startswith("linux") and os.environ.get("DISPLAY"):
+    if os.environ.get("QT_QPA_PLATFORM", "") in ("", "wayland", "wayland-egl"):
+        os.environ["QT_QPA_PLATFORM"] = "xcb"
+
 from PyQt5.QtWidgets import QApplication
 from PyQt5.QtCore import Qt, QSettings
 from PyQt5.QtGui import QFont

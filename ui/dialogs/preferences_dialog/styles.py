@@ -8,6 +8,7 @@ from ui.theme_utils import apply_os_window_theme
 
 def apply_preferences_styles(dialog, is_dark: bool):
     """Applies theme, custom tree styling, splitter styling, and card styling to PreferencesDialog."""
+    apply_os_window_theme(dialog, is_dark)
     dialog.setStyleSheet(DARK_THEME if is_dark else LIGHT_THEME)
     apply_os_window_theme(dialog, is_dark)
 

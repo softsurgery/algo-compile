@@ -6,6 +6,14 @@ Built with PyQt5 and modern design standards.
 
 import os
 import sys
+
+# Ensure Linux desktop sessions use the native OS window manager (via xcb)
+# for all decorations, title bars, borders, resizing, moving, minimizing,
+# maximizing, and positioning rather than Qt5's client-side Wayland decoration.
+if sys.platform.startswith("linux") and os.environ.get("DISPLAY"):
+    if os.environ.get("QT_QPA_PLATFORM", "") in ("", "wayland", "wayland-egl"):
+        os.environ["QT_QPA_PLATFORM"] = "xcb"
+
 from PyQt5.QtWidgets import (
     QMainWindow, QWidget, QVBoxLayout, QHBoxLayout, QSplitter,
     QTabWidget, QToolBar, QAction, QFileDialog, QMessageBox,
@@ -37,6 +45,7 @@ from typing import Optional
 class MainWindow(QMainWindow):
     def __init__(self, db: Optional[DatabaseManager] = None):
         super().__init__()
+        self.setWindowFlags(Qt.Window)
         self.setWindowTitle("Algoo - IDE Algorithmique")
         # Do not display icon in window header at top left
         empty_icon_pixmap = QPixmap(1, 1)
@@ -505,12 +514,14 @@ class MainWindow(QMainWindow):
             theme_qss = LIGHT_THEME
             color_hex = "#2c3e50"
 
+        # Apply palette before and after stylesheet so all child widgets polish with the new palette
+        apply_os_window_theme(self, self.is_dark_mode)
+
         app = QApplication.instance()
         if app:
             app.setStyleSheet(theme_qss)
         self.setStyleSheet(theme_qss)
 
-        # Apply dark/light colors to OS window frame and title bar
         apply_os_window_theme(self, self.is_dark_mode)
 
         # Update icons

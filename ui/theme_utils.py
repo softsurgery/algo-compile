@@ -6,9 +6,16 @@ Windows (DWM Immersive Dark Mode), and macOS.
 
 import sys
 import os
-import shutil
 import subprocess
 from typing import Optional
+
+# Ensure Linux desktop sessions use the native OS window manager (via xcb)
+# for all window decorations, title bars, borders, resizing, moving, minimizing,
+# maximizing, and positioning rather than Qt5's client-side Wayland decoration.
+if sys.platform.startswith("linux") and os.environ.get("DISPLAY"):
+    if os.environ.get("QT_QPA_PLATFORM", "") in ("", "wayland", "wayland-egl"):
+        os.environ["QT_QPA_PLATFORM"] = "xcb"
+
 from PyQt5.QtWidgets import QApplication
 from PyQt5.QtGui import QPalette, QColor
 from PyQt5.QtCore import QObject, QTimer, QEvent, pyqtSignal, QFileSystemWatcher
@@ -223,11 +230,9 @@ def create_light_palette() -> QPalette:
 
 def apply_os_window_theme(window, is_dark: Optional[bool] = None):
     """
-    Applies dark or light theme directly to the operating system's window frame / title bar:
-    1. The window manager strictly follows the OS (system dark mode) unless explicitly overridden.
-    2. Sets Qt application & window palettes (used by Wayland client-side decorations like libbradient).
-    3. Sets _GTK_THEME_VARIANT on Linux X11/XWayland so Mutter/GNOME renders dark server-side title bars.
-    4. Sets DWMWA_USE_IMMERSIVE_DARK_MODE on Windows 10/11 DWM title bars.
+    Applies the standard Qt dark or light palette to QApplication and the target window,
+    leaving all window management (decorations, title bars, borders, resizing, moving,
+    minimizing, maximizing, and positioning) to the native OS window manager.
     """
     if is_dark is None:
         is_dark = detect_system_dark_mode()
@@ -238,48 +243,7 @@ def apply_os_window_theme(window, is_dark: Optional[bool] = None):
         app.setPalette(pal)
     if window:
         window.setPalette(pal)
-
-    # 1. Linux X11 / XWayland via xprop
-    if window:
-        try:
-            win_id = int(window.winId())
-            if win_id > 1:
-                variant = "dark" if is_dark else "light"
-                if shutil.which("xprop"):
-                    subprocess.run(
-                        [
-                            "xprop", "-id", str(win_id),
-                            "-f", "_GTK_THEME_VARIANT", "8s",
-                            "-set", "_GTK_THEME_VARIANT", variant
-                        ],
-                        stdout=subprocess.DEVNULL,
-                        stderr=subprocess.DEVNULL,
-                        check=False
-                    )
-        except Exception:
-            pass
-
-    # 2. Windows 10/11 DWM Immersive Dark Mode
-    if window and sys.platform == "win32":
-        try:
-            import ctypes
-            hwnd = int(window.winId())
-            val = ctypes.c_int(1 if is_dark else 0)
-            # DWMWA_USE_IMMERSIVE_DARK_MODE (20 on newer Win10/11, 19 on older Win10)
-            res = ctypes.windll.dwmapi.DwmSetWindowAttribute(
-                hwnd, 20, ctypes.byref(val), ctypes.sizeof(val)
-            )
-            if res != 0:
-                ctypes.windll.dwmapi.DwmSetWindowAttribute(
-                    hwnd, 19, ctypes.byref(val), ctypes.sizeof(val)
-                )
-        except Exception:
-            pass
-
-    if window:
         window.update()
-        if hasattr(window, "windowHandle") and window.windowHandle():
-            window.windowHandle().requestUpdate()
 
 
 class SystemThemeWatcher(QObject):

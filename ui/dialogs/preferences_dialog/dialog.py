@@ -198,6 +198,7 @@ class PreferencesDialog(QDialog):
     def _on_theme_mode_radio_clicked(self, _=None):
         """Immediately applies selected theme mode live across the dialog components and window bar."""
         chosen_mode = self.page_theme.get_selected_mode()
+        self.db.set_theme_mode(chosen_mode)
         if chosen_mode == "system":
             effective_dark = detect_system_dark_mode()
         elif chosen_mode == "dark":
@@ -211,6 +212,7 @@ class PreferencesDialog(QDialog):
                 self.rb_preview_dark.setChecked(True)
             else:
                 self.rb_preview_light.setChecked(True)
+        self.settings_applied.emit()
 
     def _on_syntax_preset_changed(self, _=None):
         preset_name = self.combo_syntax_preset.currentText()
