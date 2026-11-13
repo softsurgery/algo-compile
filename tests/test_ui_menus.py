@@ -125,19 +125,18 @@ class TestUIMenusAndDialogs(unittest.TestCase):
     def test_app_logo_icon_and_about_dialog(self):
         from ui.icons import get_app_icon, get_logo_pixmap, get_logo_path
         from ui.about_dialog import AboutDialog
-        from PIL import Image
-        import numpy as np
+        from PyQt5.QtGui import QImage
 
         # Verify logo path resolution
         logo_path = get_logo_path()
         self.assertTrue(logo_path.endswith("logo.png"))
 
         # Verify logo has transparent background (no background box)
-        img = Image.open(logo_path)
-        arr = np.array(img)
-        self.assertEqual(arr.shape[2], 4, "Logo must be RGBA")
-        self.assertEqual(arr[0, 0, 3], 0, "Top-left corner must be transparent")
-        self.assertEqual(arr[100, 100, 3], 0, "Outer margin must be transparent")
+        img = QImage(logo_path)
+        self.assertFalse(img.isNull(), "Logo image must load")
+        self.assertTrue(img.hasAlphaChannel(), "Logo must have an alpha channel (RGBA)")
+        self.assertEqual(img.pixelColor(0, 0).alpha(), 0, "Top-left corner must be transparent")
+        self.assertEqual(img.pixelColor(100, 100).alpha(), 0, "Outer margin must be transparent")
 
         # Verify application icon is valid (for OS icon bar / dock)
         app_icon = get_app_icon()

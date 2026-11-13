@@ -2,7 +2,7 @@
 Lightweight, high-performance PDF Viewer component for Algoo IDE.
 Features:
 - Renders PDF pages crisply with zoom, fit-width, fit-page, and page navigation.
-- Engine: pypdfium2 with seamless fallback to pdftoppm (poppler-utils).
+- Engine: PyMuPDF (fitz) with fallback to pypdfium2 or pdftoppm (poppler-utils).
 - Dark and light mode themed viewer matching Catppuccin / Slate palette.
 - Pop-out capability into a standalone, full-screenable separate window (PdfReaderWindow).
 """
@@ -22,6 +22,17 @@ from PyQt5.QtCore import Qt, pyqtSignal, QSize, QPoint, QEvent, QTimer
 
 from ui.icons import create_icon
 from ui.styles import DARK_THEME, LIGHT_THEME
+
+# Check for PyMuPDF (pymupdf / fitz)
+try:
+    try:
+        import pymupdf as fitz
+    except ImportError:
+        import fitz
+    HAS_PYMUPDF = True
+except ImportError:
+    fitz = None
+    HAS_PYMUPDF = False
 
 # Check for pypdfium2
 try:
@@ -51,7 +62,7 @@ class LightPdfViewer(QWidget):
         self.zoom_factor: float = 1.0
         self.fit_mode: str = "none"  # "none", "width", "page"
 
-        self._doc = None  # pypdfium2 PdfDocument if available
+        self._doc = None  # fitz.Document or pypdfium2.PdfDocument if available
         self._temp_dir: Optional[str] = None
 
         self._setup_ui()
@@ -212,7 +223,10 @@ class LightPdfViewer(QWidget):
         self._close_document()
 
         try:
-            if HAS_PYPDFIUM2:
+            if HAS_PYMUPDF:
+                self._doc = fitz.open(file_path)
+                self.page_count = len(self._doc)
+            elif HAS_PYPDFIUM2:
                 self._doc = pdfium.PdfDocument(file_path)
                 self.page_count = len(self._doc)
             elif HAS_PDFTOPPM:
@@ -221,7 +235,7 @@ class LightPdfViewer(QWidget):
             else:
                 self.lbl_page.setText(
                     "Aucun moteur de rendu PDF disponible.\n"
-                    "Installez pypdfium2 (pip install pypdfium2) ou poppler-utils (pdftoppm)."
+                    "Installez PyMuPDF (pip install PyMuPDF), pypdfium2 ou poppler-utils (pdftoppm)."
                 )
                 return
 
@@ -267,7 +281,20 @@ class LightPdfViewer(QWidget):
 
         pixmap = None
 
-        if HAS_PYPDFIUM2 and self._doc is not None and not isinstance(self._doc, str):
+        if HAS_PYMUPDF and self._doc is not None and isinstance(self._doc, fitz.Document):
+            try:
+                page = self._doc[page_idx]
+                # Base scale 1.5 for crisp retina quality
+                scale = max(0.2, min(5.0, 1.5 * self.zoom_factor))
+                mat = fitz.Matrix(scale, scale)
+                pix = page.get_pixmap(matrix=mat, alpha=False)
+                qimg = QImage(pix.samples, pix.width, pix.height, pix.stride, QImage.Format_RGB888).copy()
+                pixmap = QPixmap.fromImage(qimg)
+            except Exception as e:
+                self.lbl_page.setText(f"Erreur de rendu page {page_idx + 1} : {e}")
+                return
+
+        elif HAS_PYPDFIUM2 and self._doc is not None and not isinstance(self._doc, str):
             try:
                 page = self._doc[page_idx]
                 # Base scale 1.5 for crisp retina quality
@@ -477,7 +504,7 @@ class LightPdfViewer(QWidget):
             self.detach_requested.emit(self.file_path)
 
     def _close_document(self):
-        if self._doc and HAS_PYPDFIUM2 and not isinstance(self._doc, str):
+        if self._doc and not isinstance(self._doc, str):
             try:
                 self._doc.close()
             except Exception:

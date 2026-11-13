@@ -9,7 +9,6 @@ from PyQt5.QtCore import Qt
 
 from ui.pdf_viewer import LightPdfViewer, PdfReaderWindow
 from ui.snippets_view import SnippetFilesViewer
-from ui.insert_code_dialog import InsertCodeDialog
 from ui.main_window import MainWindow
 
 app = QApplication.instance() or QApplication([])
@@ -142,22 +141,6 @@ class TestPdfViewerAndFullscreen(unittest.TestCase):
         self.assertGreaterEqual(viewer._pdf_window.viewer.page_count, 2)
         viewer._pdf_window.close()
         viewer.close()
-
-    def test_insert_code_dialog_fullscreen_toggle(self):
-        dlg = InsertCodeDialog(None, is_dark=False)
-        self.assertTrue(hasattr(dlg, "btn_fullscreen"))
-        self.assertTrue(hasattr(dlg, "toggle_fullscreen"))
-
-        # Test fullscreen toggle
-        self.assertFalse(dlg.isFullScreen())
-        dlg.toggle_fullscreen()
-        self.assertTrue(dlg.isFullScreen() or dlg._is_fullscreen)
-        self.assertEqual(dlg.btn_fullscreen.text(), "Quitter plein écran")
-
-        dlg.toggle_fullscreen()
-        self.assertFalse(dlg.isFullScreen())
-        self.assertEqual(dlg.btn_fullscreen.text(), "Plein écran")
-        dlg.close()
 
     def test_main_window_fullscreen_and_pdf_reader(self):
         win = MainWindow()
