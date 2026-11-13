@@ -514,10 +514,8 @@ class PdfReaderWindow(QWidget):
         fname = os.path.basename(file_path) if file_path else "Document"
         self.setWindowTitle(f"{fname} — Lecteur PDF Algoo")
 
-        # Enable maximize and minimize buttons
-        self.setWindowFlags(
-            Qt.Window | Qt.WindowMinMaxButtonsHint | Qt.WindowCloseButtonHint
-        )
+        # Use standard Qt window flags for native OS window management
+        self.setWindowFlags(Qt.Window)
 
         self.resize(1000, 750)
         self.setMinimumSize(600, 400)

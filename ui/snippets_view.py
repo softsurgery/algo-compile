@@ -11,7 +11,7 @@ import html
 from typing import Optional, List, Dict
 
 from PyQt5.QtWidgets import (
-    QWidget, QVBoxLayout, QHBoxLayout, QSplitter, QTreeWidget, QTreeWidgetItem,
+    QWidget, QVBoxLayout, QHBoxLayout, QSplitter, QTreeWidgetItem,
     QLabel, QPushButton, QLineEdit, QTabWidget, QScrollArea, QTableWidget,
     QTableWidgetItem, QHeaderView, QMenu, QAction, QFileDialog, QMessageBox,
     QInputDialog, QFrame, QTextBrowser, QPlainTextEdit, QApplication,
@@ -20,7 +20,7 @@ from PyQt5.QtWidgets import (
 from PyQt5.QtGui import QFont, QIcon, QPixmap, QDesktopServices, QColor
 from PyQt5.QtCore import Qt, pyqtSignal, QUrl, QSize
 
-from ui.components import AppSelect
+from ui.components import AppSelect, AppTreeView
 
 from ui.editor import AlgoCodeEditor
 from ui.icons import create_icon
@@ -667,7 +667,7 @@ class SnippetFilesViewer(QWidget):
             self.file_deleted_requested.emit(p)
 
 
-class SnippetTreeWidget(QTreeWidget):
+class SnippetTreeWidget(AppTreeView):
     """Tree Widget displaying collections and snippets matching disk folder hierarchy."""
 
     snippet_selected = pyqtSignal(object)  # SnippetItem
@@ -679,38 +679,23 @@ class SnippetTreeWidget(QTreeWidget):
     delete_snippet_requested = pyqtSignal(object)  # SnippetItem
 
     def __init__(self, parent=None, is_dark: bool = False):
-        super().__init__(parent)
+        super().__init__(
+            parent,
+            headers=["Collections & Extraits"],
+            animated=True,
+            indentation=16,
+            item_padding="5px 6px",
+            is_dark=is_dark,
+            on_selection_changed=self._on_selection_changed,
+            on_item_double_clicked=self._on_double_clicked,
+        )
         self.is_dark = is_dark
-        self.setColumnCount(1)
-        self.setHeaderLabels(["Collections & Extraits"])
-        self.header().setSectionResizeMode(0, QHeaderView.Stretch)
-        self.setAnimated(True)
-        self.setIndentation(16)
         self.setContextMenuPolicy(Qt.CustomContextMenu)
         self.customContextMenuRequested.connect(self._show_context_menu)
-        self.itemSelectionChanged.connect(self._on_selection_changed)
-        self.itemDoubleClicked.connect(self._on_double_clicked)
-        self._apply_style()
 
     def set_dark_mode(self, is_dark: bool):
         self.is_dark = is_dark
-        self._apply_style()
-
-    def _apply_style(self):
-        bg = "#181825" if self.is_dark else "#ffffff"
-        fg = "#cdd6f4" if self.is_dark else "#1e293b"
-        border = "#313244" if self.is_dark else "#e2e8f0"
-        hover = "#313244" if self.is_dark else "#f1f5f9"
-        sel_bg = "#45475a" if self.is_dark else "#e2e8f0"
-        sel_fg = "#ffffff" if self.is_dark else "#0f172a"
-
-        self.setStyleSheet(
-            f"QTreeWidget {{ background-color: {bg}; color: {fg}; border: 1px solid {border}; border-radius: 6px; outline: none; }}"
-            f"QTreeWidget::item {{ padding: 5px 6px; border-radius: 4px; }}"
-            f"QTreeWidget::item:hover {{ background-color: {hover}; }}"
-            f"QTreeWidget::item:selected {{ background-color: {sel_bg}; color: {sel_fg}; font-weight: bold; }}"
-            f"QHeaderView::section {{ background-color: {bg}; color: {fg}; border: none; border-bottom: 1px solid {border}; padding: 4px; font-weight: bold; }}"
-        )
+        super().set_dark_mode(is_dark)
 
     def populate(self, collections: List[CollectionNode]):
         self.clear()
@@ -793,38 +778,19 @@ class SnippetTreeWidget(QTreeWidget):
 
     def filter_tree(self, query: str):
         """Filters nodes matching query, expanding branches containing matches."""
-        query = query.strip().lower()
-
-        def check_item(item: QTreeWidgetItem) -> bool:
+        def _snippet_matcher(item: QTreeWidgetItem, q: str) -> bool:
             data = item.data(0, Qt.UserRole)
-            matches_self = False
+            if not data:
+                return False
+            kind, obj = data
+            if kind == "snippet":
+                searchable = f"{obj.title} {obj.category} {obj.desc} {obj.filename} {obj.code}".lower()
+                return q in searchable
+            if kind == "collection":
+                return q in obj.name.lower()
+            return False
 
-            if data:
-                kind, obj = data
-                if kind == "snippet":
-                    searchable = f"{obj.title} {obj.category} {obj.desc} {obj.filename} {obj.code}".lower()
-                    if query in searchable:
-                        matches_self = True
-                elif kind == "collection":
-                    if query in obj.name.lower():
-                        matches_self = True
-
-            any_child_matches = False
-            for i in range(item.childCount()):
-                child = item.child(i)
-                child_matches = check_item(child)
-                if child_matches:
-                    any_child_matches = True
-
-            visible = (not query) or matches_self or any_child_matches
-            item.setHidden(not visible)
-            if query and any_child_matches:
-                item.setExpanded(True)
-
-            return visible
-
-        for i in range(self.topLevelItemCount()):
-            check_item(self.topLevelItem(i))
+        self.filter_items(query, matcher=_snippet_matcher, expand_matches=True)
 
 
 class SnippetsWidget(QWidget):

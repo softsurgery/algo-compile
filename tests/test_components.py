@@ -3,10 +3,10 @@ Unit tests for reusable prop-driven UI components (AppCheckBox, AppRadioButton, 
 """
 
 import unittest
-from PyQt5.QtWidgets import QApplication, QCheckBox, QRadioButton, QComboBox
+from PyQt5.QtWidgets import QApplication, QCheckBox, QRadioButton, QComboBox, QTreeWidget, QTreeWidgetItem
 from PyQt5.QtCore import QSize
 
-from ui.components import AppCheckBox, AppRadioButton, AppSelect
+from ui.components import AppCheckBox, AppRadioButton, AppSelect, AppTreeView, NoFocusDelegate
 
 
 class TestComponents(unittest.TestCase):
@@ -120,6 +120,66 @@ class TestComponents(unittest.TestCase):
         self.assertIn("#ffffff", sel.styleSheet())
         sel.resize(180, 28)
         self.assertFalse(sel.grab().isNull())
+
+    def test_app_tree_view_props_filtering_and_theme(self):
+        selected_calls = []
+        current_calls = []
+        tree = AppTreeView(
+            headers=["Items"],
+            indentation=16,
+            icon_size=20,
+            min_width=220,
+            is_dark=True,
+            on_selection_changed=lambda: selected_calls.append(True),
+            on_current_item_changed=lambda cur, prev: current_calls.append(cur.text(0) if cur else None),
+            object_name="tree_test",
+        )
+        self.assertIsInstance(tree, QTreeWidget)
+        self.assertIsInstance(tree.itemDelegate(), NoFocusDelegate)
+        self.assertFalse(tree.isHeaderHidden())
+        self.assertEqual(tree.headerItem().text(0), "Items")
+        self.assertEqual(tree.indentation(), 16)
+        self.assertEqual(tree.iconSize(), QSize(20, 20))
+        self.assertEqual(tree.minimumWidth(), 220)
+        self.assertEqual(tree.objectName(), "tree_test")
+        self.assertIn("#181825", tree.styleSheet())
+
+        cat_a = QTreeWidgetItem(tree, ["Algorithms"])
+        child_1 = QTreeWidgetItem(cat_a, ["QuickSort"])
+        child_2 = QTreeWidgetItem(cat_a, ["BinarySearch"])
+        cat_b = QTreeWidgetItem(tree, ["Structures"])
+        child_3 = QTreeWidgetItem(cat_b, ["LinkedList"])
+
+        tree.setCurrentItem(child_1)
+        self.assertEqual(current_calls, ["QuickSort"])
+        self.assertGreaterEqual(len(selected_calls), 1)
+
+        # Default filter: matching child keeps parent visible & expanded, hides non-matching
+        tree.filter_items("binary")
+        self.assertFalse(cat_a.isHidden())
+        self.assertTrue(child_1.isHidden())
+        self.assertFalse(child_2.isHidden())
+        self.assertTrue(cat_b.isHidden())
+        self.assertTrue(cat_a.isExpanded())
+
+        # Parent match with show_children_on_parent_match=True keeps all its children visible
+        tree.filter_items("algorithms", show_children_on_parent_match=True)
+        self.assertFalse(cat_a.isHidden())
+        self.assertFalse(child_1.isHidden())
+        self.assertFalse(child_2.isHidden())
+        self.assertTrue(cat_b.isHidden())
+
+        # Clear filter restores everything
+        tree.filter_items("")
+        self.assertFalse(cat_a.isHidden())
+        self.assertFalse(child_1.isHidden())
+        self.assertFalse(cat_b.isHidden())
+        self.assertFalse(child_3.isHidden())
+
+        tree.set_dark_mode(False)
+        self.assertIn("#ffffff", tree.styleSheet())
+        tree.resize(240, 200)
+        self.assertFalse(tree.grab().isNull())
 
 
 if __name__ == "__main__":

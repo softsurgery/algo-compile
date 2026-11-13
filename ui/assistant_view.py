@@ -10,12 +10,12 @@ import re
 import html
 from PyQt5.QtWidgets import (
     QWidget, QVBoxLayout, QHBoxLayout, QTextBrowser,
-    QTreeWidget, QTreeWidgetItem, QLineEdit, QPushButton,
+    QTreeWidgetItem, QLineEdit, QPushButton,
     QLabel, QSplitter, QToolButton,
-    QStyledItemDelegate, QStyleOptionViewItem, QStyle
 )
 from PyQt5.QtCore import Qt, QSize
 from PyQt5.QtGui import QFont, QPalette, QColor, QIcon
+from ui.components import AppTreeView
 from ui.icons import create_icon
 
 try:
@@ -276,14 +276,6 @@ class DocBrowser(QTextBrowser):
         super().keyPressEvent(event)
 
 
-class NoFocusDelegate(QStyledItemDelegate):
-    """Prevents Qt from drawing dotted or rectangular focus artifacts on tree items."""
-    def paint(self, painter, option, index):
-        opt = QStyleOptionViewItem(option)
-        opt.state &= ~QStyle.State_HasFocus
-        super().paint(painter, opt, index)
-
-
 class AssistantView(QWidget):
     """
     Documentation and contextual help browser with a tree-view for all markdown docs.
@@ -355,15 +347,18 @@ class AssistantView(QWidget):
         tree_layout.setContentsMargins(0, 0, 0, 0)
         tree_layout.setSpacing(2)
 
-        self.tree = QTreeWidget()
-        self.tree.setItemDelegate(NoFocusDelegate(self.tree))
-        self.tree.setFocusPolicy(Qt.NoFocus)
-        self.tree.setHeaderHidden(True)
-        self.tree.setAnimated(True)
-        self.tree.setIndentation(14)
-        self.tree.setIconSize(QSize(18, 18))
-        self.tree.itemSelectionChanged.connect(self._on_tree_selection_changed)
-        self.tree.itemClicked.connect(self._load_item)
+        self.tree = AppTreeView(
+            header_hidden=True,
+            animated=True,
+            indentation=14,
+            icon_size=18,
+            no_focus_rect=True,
+            focus_policy=Qt.NoFocus,
+            border_radius=4,
+            is_dark=self.is_dark,
+            on_selection_changed=self._on_tree_selection_changed,
+            on_item_clicked=self._load_item,
+        )
         tree_layout.addWidget(self.tree)
 
         self.splitter.addWidget(tree_container)
@@ -516,24 +511,7 @@ class AssistantView(QWidget):
 
     def _on_search_changed(self, text: str):
         """Filters the tree view based on search query."""
-        q = text.strip().lower()
-        for i in range(self.tree.topLevelItemCount()):
-            top_item = self.tree.topLevelItem(i)
-            top_text = top_item.text(0).lower()
-            top_match = q in top_text
-
-            child_matched = False
-            for j in range(top_item.childCount()):
-                child = top_item.child(j)
-                c_text = child.text(0).lower()
-                matches = top_match or (q in c_text)
-                child.setHidden(not matches if q else False)
-                if matches:
-                    child_matched = True
-
-            top_item.setHidden(not (top_match or child_matched) if q else False)
-            if q and (top_match or child_matched):
-                top_item.setExpanded(True)
+        self.tree.filter_items(text, show_children_on_parent_match=True)
 
     def _load_item(self, item: QTreeWidgetItem):
         """Loads and displays the document associated with the tree item."""
@@ -910,62 +888,7 @@ class AssistantView(QWidget):
         self.btn_refresh.setIcon(create_icon("refresh", color_hex=btn_fg, size=15))
 
         # Tree widget
-        self.tree.setStyleSheet(
-            f"QTreeWidget {{"
-            f"  background-color: {bg};"
-            f"  color: {fg};"
-            f"  border: 1px solid {border};"
-            f"  border-radius: 4px;"
-            f"  padding: 4px 2px;"
-            f"  outline: none;"
-            f"  show-decoration-selected: 0;"
-            f"}}"
-            f"QTreeWidget::item {{"
-            f"  padding: 4px 6px;"
-            f"  margin: 1px 2px;"
-            f"  border-radius: 4px;"
-            f"  border: none;"
-            f"  outline: none;"
-            f"}}"
-            f"QTreeWidget::item:hover {{"
-            f"  background-color: {'#313244' if is_dark else '#f1f5f9'};"
-            f"  border: none;"
-            f"  outline: none;"
-            f"}}"
-            f"QTreeWidget::item:selected {{"
-            f"  background-color: {'#45475a' if is_dark else '#e2e8f0'};"
-            f"  color: {'#ffffff' if is_dark else '#0f172a'};"
-            f"  font-weight: bold;"
-            f"  border: none;"
-            f"  outline: none;"
-            f"}}"
-            f"QTreeWidget::item:selected:active {{"
-            f"  background-color: {'#45475a' if is_dark else '#e2e8f0'};"
-            f"  color: {'#ffffff' if is_dark else '#0f172a'};"
-            f"  border: none;"
-            f"  outline: none;"
-            f"}}"
-            f"QTreeWidget::item:selected:!active {{"
-            f"  background-color: {'#45475a' if is_dark else '#e2e8f0'};"
-            f"  color: {'#ffffff' if is_dark else '#0f172a'};"
-            f"  border: none;"
-            f"  outline: none;"
-            f"}}"
-            f"QTreeWidget::item:focus {{"
-            f"  border: none;"
-            f"  outline: none;"
-            f"}}"
-            f"QTreeWidget::branch {{"
-            f"  background: transparent;"
-            f"  border: none;"
-            f"  outline: none;"
-            f"}}"
-            f"QTreeWidget::branch:selected {{"
-            f"  background: transparent;"
-            f"  border: none;"
-            f"  outline: none;"
-            f"}}"
-        )
+        self.tree.set_dark_mode(is_dark)
 
         # Reader title bar
         self.reader_header.setStyleSheet(

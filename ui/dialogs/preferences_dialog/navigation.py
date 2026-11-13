@@ -2,36 +2,33 @@
 Navigation tree view and item delegate for PreferencesDialog.
 """
 
-from PyQt5.QtWidgets import QTreeWidget, QTreeWidgetItem, QStyledItemDelegate, QStyleOptionViewItem, QStyle
+from PyQt5.QtWidgets import QTreeWidgetItem
 from PyQt5.QtGui import QFont
 from PyQt5.QtCore import Qt, QSize
+from ui.components import AppTreeView, NoFocusDelegate
 from ui.icons import create_icon
 
 
-class NoFocusDelegate(QStyledItemDelegate):
-    """Prevents Qt from drawing dotted or rectangular focus artifacts on tree items."""
-
-    def paint(self, painter, option, index):
-        opt = QStyleOptionViewItem(option)
-        opt.state &= ~QStyle.State_HasFocus
-        super().paint(painter, opt, index)
-
-
-class PreferencesNavigationTree(QTreeWidget):
+class PreferencesNavigationTree(AppTreeView):
     """Left-hand sidebar tree for navigating Preferences sections."""
 
     def __init__(self, parent=None):
-        super().__init__(parent)
-        self.setItemDelegate(NoFocusDelegate(self))
-        self.setHeaderHidden(True)
-        self.setAnimated(True)
-        self.setIndentation(12)
-        self.setRootIsDecorated(False)
-        self.setIconSize(QSize(22, 22))
-        self.setHorizontalScrollBarPolicy(Qt.ScrollBarAlwaysOff)
-        self.setFocusPolicy(Qt.NoFocus)
-        self.setMinimumWidth(200)
-        self.setMaximumWidth(320)
+        super().__init__(
+            parent,
+            header_hidden=True,
+            animated=True,
+            indentation=12,
+            root_is_decorated=False,
+            icon_size=22,
+            no_focus_rect=True,
+            focus_policy=Qt.NoFocus,
+            horizontal_scrollbar=Qt.ScrollBarAlwaysOff,
+            min_width=200,
+            max_width=320,
+            border_radius=8,
+            item_padding="6px 6px",
+            item_radius=6,
+        )
 
         self._setup_items()
 
