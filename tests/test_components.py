@@ -4,9 +4,19 @@ Unit tests for reusable prop-driven UI components (AppCheckBox, AppRadioButton, 
 
 import unittest
 from PyQt5.QtWidgets import QApplication, QCheckBox, QRadioButton, QComboBox, QTextBrowser, QTreeWidget, QTreeWidgetItem
-from PyQt5.QtCore import QSize
+from PyQt5.QtCore import QRect, QSize, Qt
+from PyQt5.QtGui import QImage, QPainter
+from PyQt5.QtTest import QTest
 
-from ui.components import AppCheckBox, AppMarkdownReader, AppRadioButton, AppSelect, AppTreeView, NoFocusDelegate
+from ui.components import (
+    AppCheckBox,
+    AppMarkdownReader,
+    AppRadioButton,
+    AppRotatingChevron,
+    AppSelect,
+    AppTreeView,
+    NoFocusDelegate,
+)
 
 
 class TestComponents(unittest.TestCase):
@@ -180,6 +190,89 @@ class TestComponents(unittest.TestCase):
         self.assertIn("#ffffff", tree.styleSheet())
         tree.resize(240, 200)
         self.assertFalse(tree.grab().isNull())
+
+    def test_app_tree_view_branch_chevron_and_rotation(self):
+        tree = AppTreeView(indentation=16, is_dark=True)
+        tree.resize(240, 200)
+
+        parent_item = QTreeWidgetItem(tree, ["Category"])
+        QTreeWidgetItem(parent_item, ["Child"])
+        leaf_item = QTreeWidgetItem(tree, ["Leaf"])
+
+        parent_idx = tree.indexFromItem(parent_item)
+        leaf_idx = tree.indexFromItem(leaf_item)
+
+        def _has_painted_pixels(idx):
+            img = QImage(16, 24, QImage.Format_ARGB32_Premultiplied)
+            img.fill(Qt.transparent)
+            painter = QPainter(img)
+            tree.drawBranches(painter, QRect(0, 0, 16, 24), idx)
+            painter.end()
+            for y in range(img.height()):
+                for x in range(img.width()):
+                    if img.pixelColor(x, y).alpha() > 0:
+                        return True
+            return False
+
+        # Expandable item draws a visible chevron; leaf item does not
+        self.assertTrue(_has_painted_pixels(parent_idx))
+        self.assertFalse(_has_painted_pixels(leaf_idx))
+
+        # Initial collapsed angle is 0.0
+        self.assertEqual(tree._branch_angle(parent_idx), 0.0)
+
+        # Expanding starts rotation animation toward 90.0
+        tree.expandItem(parent_item)
+        self.assertEqual(tree._chevron_animator.active_count(), 1)
+        QTest.qWait(200)
+        self.assertEqual(tree._branch_angle(parent_idx), 90.0)
+        self.assertEqual(tree._chevron_animator.active_count(), 0)
+
+        # Collapsing rotates back to 0.0
+        tree.collapseItem(parent_item)
+        self.assertEqual(tree._chevron_animator.active_count(), 1)
+        QTest.qWait(200)
+        self.assertEqual(tree._branch_angle(parent_idx), 0.0)
+        self.assertEqual(tree._chevron_animator.active_count(), 0)
+
+        # Clearing tree stops and removes active animations
+        tree.expandItem(parent_item)
+        self.assertEqual(tree._chevron_animator.active_count(), 1)
+        tree.clear()
+        self.assertEqual(tree._chevron_animator.active_count(), 0)
+
+    def test_app_rotating_chevron_component(self):
+        toggled_states = []
+        chevron = AppRotatingChevron(
+            expanded=False,
+            closed_angle=0.0,
+            open_angle=90.0,
+            duration_ms=80,
+            size=18,
+            clickable=True,
+            is_dark=True,
+            on_toggled=lambda state: toggled_states.append(state),
+            object_name="test_chevron",
+        )
+        self.assertEqual(chevron.objectName(), "test_chevron")
+        self.assertEqual(chevron.sizeHint(), QSize(18, 18))
+        self.assertFalse(chevron.is_expanded())
+        self.assertEqual(chevron.angle, 0.0)
+
+        # Click toggles expanded state and animates to 90.0
+        QTest.mouseClick(chevron, Qt.LeftButton)
+        self.assertTrue(chevron.is_expanded())
+        self.assertEqual(toggled_states, [True])
+        QTest.qWait(120)
+        self.assertEqual(chevron.angle, 90.0)
+
+        # Programmatic collapse without animation snaps immediately
+        chevron.set_expanded(False, animated=False)
+        self.assertFalse(chevron.is_expanded())
+        self.assertEqual(chevron.angle, 0.0)
+
+        chevron.set_dark_mode(False)
+        self.assertFalse(chevron.grab().isNull())
 
     def test_app_markdown_reader_props_zoom_and_theme(self):
         zoom_events = []

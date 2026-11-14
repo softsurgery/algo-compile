@@ -4,7 +4,14 @@ theme support, and recursive item filtering.
 """
 
 from typing import Any, Callable, Optional, Sequence, Tuple, Union
-from PyQt5.QtCore import Qt, QSize
+from PyQt5.QtCore import (
+    QModelIndex,
+    QPersistentModelIndex,
+    QRect,
+    QSize,
+    Qt,
+)
+from PyQt5.QtGui import QCursor, QPainter
 from PyQt5.QtWidgets import (
     QHeaderView,
     QStyle,
@@ -16,6 +23,7 @@ from PyQt5.QtWidgets import (
 )
 
 from ui.components._theme import normalize_icon_size, resolve_is_dark
+from ui.components.chevron import ChevronRotationAnimator, draw_chevron
 
 
 class NoFocusDelegate(QStyledItemDelegate):
@@ -62,6 +70,8 @@ class AppTreeView(QTreeWidget):
         self._item_padding = item_padding
         self._item_margin = item_margin
         self._item_radius = item_radius
+        self._chevron_animator = ChevronRotationAnimator(self)
+        self._chevron_animator.angle_changed.connect(self._on_chevron_angle_changed)
 
         if headers is not None:
             header_list = list(headers)
@@ -104,6 +114,9 @@ class AppTreeView(QTreeWidget):
             self.itemClicked.connect(on_item_clicked)
         if on_item_double_clicked is not None:
             self.itemDoubleClicked.connect(on_item_double_clicked)
+
+        self.expanded.connect(self._on_branch_expanded)
+        self.collapsed.connect(self._on_branch_collapsed)
 
         self._apply_style()
 
@@ -231,3 +244,70 @@ class AppTreeView(QTreeWidget):
 
         for i in range(self.topLevelItemCount()):
             _check(self.topLevelItem(i), False)
+
+    def clear(self) -> None:
+        """Stops active branch animations and clears all tree items."""
+        self._chevron_animator.clear()
+        super().clear()
+
+    def _on_branch_expanded(self, index: QModelIndex) -> None:
+        self._chevron_animator.animate_to(index, expanded=True)
+
+    def _on_branch_collapsed(self, index: QModelIndex) -> None:
+        self._chevron_animator.animate_to(index, expanded=False)
+
+    def _on_chevron_angle_changed(self, p_idx: QPersistentModelIndex) -> None:
+        if p_idx.isValid():
+            row_rect = self.visualRect(QModelIndex(p_idx))
+            if row_rect.isValid():
+                self.viewport().update(QRect(0, row_rect.top(), self.viewport().width(), row_rect.height()))
+                return
+        self.viewport().update()
+
+    def _branch_angle(self, index: QModelIndex) -> float:
+        """Returns the current chevron rotation angle in degrees (0=closed, 90=open)."""
+        return self._chevron_animator.angle_for(index, self.isExpanded(index))
+
+    def drawBranches(self, painter: QPainter, rect: QRect, index: QModelIndex) -> None:
+        """Draws a rotating anti-aliased chevron for expandable items."""
+        super().drawBranches(painter, rect, index)
+
+        if not index.isValid() or rect.width() <= 0 or rect.height() <= 0:
+            return
+        if not self.rootIsDecorated() and not index.parent().isValid():
+            return
+
+        model = self.model()
+        if model is None or not model.hasChildren(index):
+            return
+
+        ind = self.indentation()
+        if ind <= 0:
+            return
+
+        indicator_width = min(ind, rect.width())
+        indicator_rect = QRect(
+            rect.right() - indicator_width + 1,
+            rect.top(),
+            indicator_width,
+            rect.height(),
+        )
+
+        is_dark = resolve_is_dark(self, self._is_dark)
+        sel_model = self.selectionModel()
+        is_selected = sel_model is not None and sel_model.isSelected(index)
+        hovered_idx = (
+            self.indexAt(self.viewport().mapFromGlobal(QCursor.pos()))
+            if self.viewport().underMouse()
+            else QModelIndex()
+        )
+        is_hovered = hovered_idx.isValid() and hovered_idx == index
+
+        draw_chevron(
+            painter,
+            indicator_rect,
+            angle=self._branch_angle(index),
+            is_dark=is_dark,
+            active=is_selected or is_hovered,
+            enabled=self.isEnabled(),
+        )
