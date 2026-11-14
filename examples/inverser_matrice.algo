@@ -1,0 +1,34 @@
+ALGORITHME InverserMatrice
+DEBUT
+  lignes <- 3
+  colonnes <- 4
+
+  Ecrire_nl("--- Matrice initiale (3x4) ---")
+  Pour i de 0 à lignes - 1 Faire
+    Pour j de 0 à colonnes - 1 Faire
+      M[i, j] <- Aléa(10, 99)
+      Ecrire(M[i, j], "  ")
+    Fin Pour
+    Ecrire_nl("")
+  Fin Pour
+
+  # Inversion complète de la matrice (lignes et colonnes)
+  Pour i de 0 à lignes - 1 Faire
+    Pour j de 0 à colonnes - 1 Faire
+      Inv[i, j] <- M[lignes - 1 - i, colonnes - 1 - j]
+    Fin Pour
+  Fin Pour
+
+  Ecrire_nl("--- Matrice inversée ---")
+  Pour i de 0 à lignes - 1 Faire
+    Pour j de 0 à colonnes - 1 Faire
+      Ecrire(Inv[i, j], "  ")
+    Fin Pour
+    Ecrire_nl("")
+  Fin Pour
+FIN
+
+Tableau de déclaration des objets globaux
+Objet                  Type / Nature
+M, Inv                 Tableau de 3 lignes * 4 colonnes Entier
+i, j, lignes, colonnes Entier

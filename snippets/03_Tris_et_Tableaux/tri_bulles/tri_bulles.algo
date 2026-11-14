@@ -1,7 +1,9 @@
 ALGORITHME TriABulles
 DEBUT
-  Ecrire("Donner la taille du tableau (max 20) : ")
-  Lire(n)
+  Répéter
+    Ecrire("Donner la taille du tableau (1 à 20) : ")
+    Lire(n)
+  Jusqu'à (n >= 1) Et (n <= 20)
   
   # Remplissage avec des nombres aléatoires
   Pour i de 0 à n - 1 Faire

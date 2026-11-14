@@ -1,0 +1,51 @@
+Procedure TriInsertion(@T: Tab, n: Entier)
+DEBUT
+  Pour i de 1 à n - 1 Faire
+    cle <- T[i]
+    j <- i - 1
+    Tant que (j >= 0) Et (T[j] > cle) Faire
+      T[j + 1] <- T[j]
+      j <- j - 1
+    Fin Tant que
+    T[j + 1] <- cle
+  Fin Pour
+FIN
+
+Tableau de déclaration des objets locaux
+Objet      Type / Nature
+i, j, cle  Entier
+
+ALGORITHME TriParInsertion
+DEBUT
+  Répéter
+    Ecrire("Donner la taille du tableau (1 à 20) : ")
+    Lire(n)
+  Jusqu'à (n >= 1) Et (n <= 20)
+
+  Pour i de 0 à n - 1 Faire
+    T[i] <- Aléa(10, 99)
+  Fin Pour
+
+  Ecrire_nl("--- Tableau avant le tri (Insertion) ---")
+  Pour i de 0 à n - 1 Faire
+    Ecrire(T[i], "  ")
+  Fin Pour
+  Ecrire_nl("")
+
+  TriInsertion(T, n)
+
+  Ecrire_nl("--- Tableau trié en ordre croissant ---")
+  Pour i de 0 à n - 1 Faire
+    Ecrire(T[i], "  ")
+  Fin Pour
+  Ecrire_nl("")
+FIN
+
+Tableau de déclaration des nouveaux types
+Tab = Tableau de 20 Entier
+
+Tableau de déclaration des objets globaux
+Objet          Type / Nature
+TriInsertion   Procédure
+T              Tab
+n, i           Entier

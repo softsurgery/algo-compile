@@ -149,6 +149,13 @@ class TestSnippetsAndCollections(unittest.TestCase):
         headers = [widget.tree_widget.headerItem().text(i) for i in range(widget.tree_widget.columnCount())]
         self.assertNotIn("Joints", headers)
 
+        # Select a snippet with companion files (e.g. somme_diviseurs) to verify all 3 tabs
+        for col in widget._collections:
+            for snip in col.snippets:
+                if snip.companion_files:
+                    widget._on_snippet_selected(snip)
+                    break
+
         # Check tab count and tab names: strictly 3 tabs (Code, Documentation, Fichiers associés)
         self.assertEqual(widget.tabs.count(), 3)
         tab_names = [widget.tabs.tabText(i) for i in range(widget.tabs.count())]

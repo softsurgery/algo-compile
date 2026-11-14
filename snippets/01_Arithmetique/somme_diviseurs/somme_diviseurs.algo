@@ -1,58 +1,42 @@
-Procedure saisir(@n:entier)
+Procedure Saisir(@n: Entier)
 DEBUT
-  Repeter
-    ecrire("N=")
-    lire(n)
-  Jusqu'à(3<=n<=50)
+  Répéter
+    Ecrire("Donner un entier strictement positif : ")
+    Lire(n)
+  Jusqu'à n > 0
 FIN
 
 Tableau de déclaration des objets locaux
-Objet    Type / Nature
-/        /
+Objet   Type / Nature
+/       /
 
-Fonction verifIdent(id:chaine) : Booléen
+Fonction SommeDiviseurs(n: Entier) : Entier
 DEBUT
-  verif <- Vrai
-  i <- 0
-  Tantque(i<long(id) et verif):
-  	Si (non ('0'<=id[i]<='9')) Alors
-  	  verif <- Faux
-  	Sinon
-  	  i <- i + 1
-  	Finsi 
-  FinTantque
-  Retourner verif
+  s <- 0
+  Ecrire("Diviseurs de ", n, " : ")
+  Pour d de 1 à n Faire
+    Si (n Mod d) = 0 Alors
+      Ecrire(d, "  ")
+      s <- s + d
+    FinSi
+  Fin Pour
+  Ecrire_nl("")
+  Retourner s
 FIN
 
 Tableau de déclaration des objets locaux
-Objet        Type / Nature
-verif        Booléen
-i            Entier
+Objet   Type / Nature
+s, d    Entier
 
-Procedure remplir(@IDENT:Tableau de 50 Chaine, @DATE:Tableau de 50 Chaine, n:entier)
+ALGORITHME CalculSommeDiviseurs
 DEBUT
-  Pour i de 0 à n-1 faire
-    Repeter
-    	ecrire("IDENT[",i,"]=")
-    	lire(IDENT[i])
-   	Jusqu'à(verifIdent(IDENT[i]))
-  Finpour
-FIN
-
-Tableau de déclaration des objets locaux
-Objet        Type / Nature
-verifIdent   Fonction
-i            Entier
-
-ALGORITHME PROB2019
-DEBUT
-	saisir(n)
-	remplir(IDENT,DATE,n)
+  Saisir(n)
+  res <- SommeDiviseurs(n)
+  Ecrire_nl("La somme des diviseurs de ", n, " est : ", res)
 FIN
 
 Tableau de déclaration des objets globaux
-Objet              Type / Nature
-saisir, remplir    Procédure
-n                  entier
-IDENT              Tableau de 50 Chaine
-DATE               Tableau de 50 Chaine
+Objet            Type / Nature
+Saisir           Procédure
+SommeDiviseurs   Fonction
+n, res           Entier

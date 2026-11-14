@@ -1,0 +1,56 @@
+Procedure TriSelection(@T: Tab, n: Entier)
+DEBUT
+  Pour i de 0 à n - 2 Faire
+    min_idx <- i
+    Pour j de i + 1 à n - 1 Faire
+      Si T[j] < T[min_idx] Alors
+        min_idx <- j
+      FinSi
+    Fin Pour
+    Si min_idx ≠ i Alors
+      aux <- T[i]
+      T[i] <- T[min_idx]
+      T[min_idx] <- aux
+    FinSi
+  Fin Pour
+FIN
+
+Tableau de déclaration des objets locaux
+Objet            Type / Nature
+i, j, min_idx    Entier
+aux              Entier
+
+ALGORITHME TriParSelection
+DEBUT
+  Répéter
+    Ecrire("Donner la taille du tableau (1 à 20) : ")
+    Lire(n)
+  Jusqu'à (n >= 1) Et (n <= 20)
+
+  Pour i de 0 à n - 1 Faire
+    T[i] <- Aléa(10, 99)
+  Fin Pour
+
+  Ecrire_nl("--- Tableau avant le tri (Sélection) ---")
+  Pour i de 0 à n - 1 Faire
+    Ecrire(T[i], "  ")
+  Fin Pour
+  Ecrire_nl("")
+
+  TriSelection(T, n)
+
+  Ecrire_nl("--- Tableau trié en ordre croissant ---")
+  Pour i de 0 à n - 1 Faire
+    Ecrire(T[i], "  ")
+  Fin Pour
+  Ecrire_nl("")
+FIN
+
+Tableau de déclaration des nouveaux types
+Tab = Tableau de 20 Entier
+
+Tableau de déclaration des objets globaux
+Objet          Type / Nature
+TriSelection   Procédure
+T              Tab
+n, i           Entier

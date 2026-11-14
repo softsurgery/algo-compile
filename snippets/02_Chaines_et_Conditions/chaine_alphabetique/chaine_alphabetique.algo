@@ -1,0 +1,42 @@
+Fonction EstAlphabetique(ch: Chaîne) : Booléen
+DEBUT
+  Si Long(ch) = 0 Alors
+    Retourner Faux
+  FinSi
+
+  valide <- Vrai
+  i <- 0
+  Tant que (i < Long(ch)) Et valide Faire
+    c <- Majus(ch[i])
+    Si Non (('A' <= c) Et (c <= 'Z')) Alors
+      valide <- Faux
+    Sinon
+      i <- i + 1
+    FinSi
+  Fin Tant que
+  Retourner valide
+FIN
+
+Tableau de déclaration des objets locaux
+Objet    Type / Nature
+valide   Booléen
+i        Entier
+c        Chaîne
+
+ALGORITHME ValiderChaineAlphabetique
+DEBUT
+  Répéter
+    Ecrire("Donner une chaîne alphabétique (lettres uniquement) : ")
+    Lire(texte)
+    Si Non EstAlphabetique(texte) Alors
+      Ecrire_nl("Chaîne invalide ! Utilisez uniquement des lettres A-Z ou a-z.")
+    FinSi
+  Jusqu'à EstAlphabetique(texte)
+
+  Ecrire_nl("Chaîne valide : ", texte)
+FIN
+
+Tableau de déclaration des objets globaux
+Objet             Type / Nature
+EstAlphabetique   Fonction
+texte             Chaîne

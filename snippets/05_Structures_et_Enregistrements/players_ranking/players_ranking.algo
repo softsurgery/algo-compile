@@ -21,7 +21,7 @@ Debut
 	  finpour
 Fin
 
-TDOL-
+TDOL
 ********************************
 Objet              Type
 ********************************
@@ -69,7 +69,7 @@ Debut
                trie <- Faux
             finsi
         finpour
-    fintanqtue
+    FinTantque
                
     pour i de 0 à n-1 faire
         ecrire_nl("Player ", T[i].nom, " ranked at ", i + 1, " with score ", T[i].rt)
@@ -81,7 +81,7 @@ TDOL
 Objet              Type
 ********************************
 i                  entier
-trie               booleén
+trie               Booléen
 p                  Player
 ********************************
 

@@ -1,0 +1,47 @@
+Fonction EstPremier(n: Entier) : Booléen
+DEBUT
+  Si n <= 1 Alors
+    Retourner Faux
+  FinSi
+  Si n = 2 Alors
+    Retourner Vrai
+  FinSi
+  Si (n Mod 2) = 0 Alors
+    Retourner Faux
+  FinSi
+
+  premier <- Vrai
+  d <- 3
+  Tant que (d * d <= n) Et premier Faire
+    Si (n Mod d) = 0 Alors
+      premier <- Faux
+    Sinon
+      d <- d + 2
+    FinSi
+  Fin Tant que
+  Retourner premier
+FIN
+
+Tableau de déclaration des objets locaux
+Objet     Type / Nature
+premier   Booléen
+d         Entier
+
+ALGORITHME DetecterNombrePremier
+DEBUT
+  Répéter
+    Ecrire("Donner un entier positif : ")
+    Lire(n)
+  Jusqu'à n >= 0
+
+  Si EstPremier(n) Alors
+    Ecrire_nl(n, " est un nombre PREMIER.")
+  Sinon
+    Ecrire_nl(n, " n'est PAS un nombre premier.")
+  FinSi
+FIN
+
+Tableau de déclaration des objets globaux
+Objet        Type / Nature
+EstPremier   Fonction
+n            Entier

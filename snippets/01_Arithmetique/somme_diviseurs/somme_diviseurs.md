@@ -1,18 +1,15 @@
-# Somme des Diviseurs & Sous-Programmes
+# Somme des Diviseurs
 
 ## Description
-Cet algorithme permet de vérifier la validité d'un identifiant numérique et de saisir une série d'enregistrements identifiants et dates.
-Il illustre la **décomposition modulaire** avec passage de paramètres par variable (`@n`, `@IDENT`, `@DATE`).
+Cet algorithme lit un entier strictement positif `n` à l'aide d'une procédure avec passage par variable (`@n`), affiche tous ses diviseurs et calcule leur somme via la fonction `SommeDiviseurs(n)`.
 
 ## Concepts Abordés
-- **Procédures** avec passage par adresse / référence (`@`)
-- **Fonctions** avec retour d'un booléen (`Fonction verifIdent(id: chaine) : Booléen`)
-- **Boucle Répéter...Jusqu'à** pour le contrôle de saisie
-- Tableaux de chaînes de caractères de dimension fixe (50 éléments)
+- **Procédure** avec passage par variable (`@n`) et boucle `Répéter ... Jusqu'à`
+- **Fonction** retournant un entier (`Fonction SommeDiviseurs(n: Entier) : Entier`)
+- **Boucle `Pour`** et test de divisibilité avec `Mod`
 
 ## Spécification des modules
 | Module | Type | Paramètres | Rôle |
 |---|---|---|---|
-| `saisir` | Procédure | `@n: entier` | Saisie sécurisée de n dans [3, 50] |
-| `verifIdent` | Fonction | `id: chaine` | Vérifie que l'identifiant est numérique |
-| `remplir` | Procédure | `@IDENT, @DATE, n` | Remplit les tableaux jusqu'à validation |
+| `Saisir` | Procédure | `@n: Entier` | Saisie contrôlée d'un entier `n > 0` |
+| `SommeDiviseurs` | Fonction | `n: Entier` | Affiche les diviseurs de `n` et retourne leur somme |
