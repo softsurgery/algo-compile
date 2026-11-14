@@ -129,6 +129,18 @@ class TestConsoleErrorHandling(unittest.TestCase):
             if old_thread_hook is not None:
                 threading.excepthook = old_thread_hook
 
+    def test_run_algorithm_clears_old_console_traces(self):
+        self.win.console.output_text.append("OLD_EXECUTION_TRACE_12345")
+        self.assertIn("OLD_EXECUTION_TRACE_12345", self.win.console.output_text.toPlainText())
+
+        editor = self.win.current_editor()
+        editor.setPlainText("Algorithme Test\nDebut\n  X <- \nFin")
+        self.win.run_algorithm()
+
+        plain = self.win.console.output_text.toPlainText()
+        self.assertNotIn("OLD_EXECUTION_TRACE_12345", plain)
+        self.assertIn("Erreur de compilation", plain)
+
 
 if __name__ == "__main__":
     unittest.main()

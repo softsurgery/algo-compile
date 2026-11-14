@@ -1042,6 +1042,7 @@ class MainWindow(QMainWindow):
             return
 
         editor.set_error_line(None)
+        self.console.clear_console()
         algo_code = editor.toPlainText()
         algo_file_path = editor.property("file_path")
 

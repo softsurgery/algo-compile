@@ -232,6 +232,8 @@ class AlgoConsole(QWidget):
         if self.is_running():
             self.stop_execution()
 
+        self.clear_console()
+
         # Save to temporary file in OS temp directory (works in read-only system installs)
         workspace_dir = get_bundle_dir()
 
