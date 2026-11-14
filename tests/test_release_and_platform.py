@@ -3,6 +3,7 @@ Unit tests for release versioning, platform-specific path resolution,
 frozen-binary --run-script execution, and the update checker.
 """
 
+import importlib.util
 import io
 import json
 import os
@@ -10,11 +11,21 @@ import subprocess
 import sys
 import tempfile
 import unittest
+from pathlib import Path
 from unittest.mock import patch
 
 from PyQt5.QtWidgets import QApplication
 
 from version import __version__, is_newer_version, parse_version, select_platform_asset
+
+_SYNC_SPEC = importlib.util.spec_from_file_location(
+    "sync_version",
+    Path(__file__).resolve().parent.parent / "packaging" / "sync_version.py",
+)
+_SYNC_MOD = importlib.util.module_from_spec(_SYNC_SPEC)
+_SYNC_SPEC.loader.exec_module(_SYNC_MOD)
+normalize_version = _SYNC_MOD.normalize_version
+sync_version_file = _SYNC_MOD.sync_version_file
 from ui.platform_utils import get_bundle_dir, get_resource_path, get_user_data_dir, is_frozen
 from ui.updater import fetch_latest_release
 from ui.dialogs.about_dialog.header import AboutHeaderWidget
@@ -117,6 +128,20 @@ class TestReleaseAndPlatform(unittest.TestCase):
         header = AboutHeaderWidget()
         self.assertIn(__version__, header.version_label.text())
         header.close()
+
+    def test_sync_version_from_tag(self):
+        self.assertEqual(normalize_version("v1.2.3"), "1.2.3")
+        self.assertEqual(normalize_version("V2.0.1"), "2.0.1")
+        with self.assertRaises(ValueError):
+            normalize_version("not-a-version")
+
+        with tempfile.TemporaryDirectory() as tmpdir:
+            vf = Path(tmpdir) / "version.py"
+            vf.write_text('__version__ = "1.0.0"\nAPP_NAME = "Algoo"\n', encoding="utf-8")
+            synced = sync_version_file("v1.4.2", vf)
+            self.assertEqual(synced, "1.4.2")
+            self.assertIn('__version__ = "1.4.2"', vf.read_text(encoding="utf-8"))
+            self.assertFalse(is_newer_version("v1.4.2", synced))
 
 
 if __name__ == "__main__":

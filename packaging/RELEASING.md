@@ -31,7 +31,7 @@ python -m venv .venv
 The GitHub Actions workflow in `.github/workflows/release.yml` automatically runs the test suite, builds native installers for Linux, Windows, and macOS, generates `SHA256SUMS.txt`, and publishes a GitHub Release.
 
 ### Steps to Cut a Release
-1. **Bump the version** in `version.py`:
+1. **Optionally bump the version** in `version.py` (the GitHub Actions release workflow also automatically syncs `version.py` with the pushed `v*.*.*` tag during CI builds so the release binary, installers, and updater always match the tag):
    ```python
    __version__ = "1.1.0"
    ```
