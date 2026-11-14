@@ -13,6 +13,7 @@ from PyQt5.QtCore import QThread, QUrl, pyqtSignal
 from PyQt5.QtGui import QDesktopServices
 from PyQt5.QtWidgets import QMessageBox
 
+from ui.error_handler import report_error
 from version import (
     APP_NAME,
     GITHUB_RELEASES_API,
@@ -113,10 +114,10 @@ def check_for_updates(parent=None, silent: bool = False) -> Optional[UpdateCheck
 
     def _on_failed(err: str) -> None:
         if not silent:
-            QMessageBox.warning(
-                parent,
+            report_error(
                 "Vérification impossible",
-                f"Impossible de vérifier les mises à jour pour le moment.\n\nDétail : {err}",
+                f"Impossible de vérifier les mises à jour pour le moment : {err}",
+                parent=parent,
             )
 
     worker.update_available.connect(_on_update_available)

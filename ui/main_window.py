@@ -39,6 +39,7 @@ from ui.styles import (
 from ui.dialogs import InsertCodeDialog, AboutDialog, PreferencesDialog
 from ui.snippets_view import SnippetsWidget
 from ui.updater import check_for_updates
+from ui.error_handler import register_console, report_error
 from database import get_database, DatabaseManager
 from typing import Optional
 
@@ -127,6 +128,7 @@ class MainWindow(QMainWindow):
         # Interactive Console
         self.console = AlgoConsole(self, is_dark=self.is_dark_mode)
         self.console.error_line_clicked.connect(self._on_error_line_clicked)
+        register_console(self.console)
         self.v_splitter.addWidget(self.console)
 
         # Set vertical split proportions (65% editor, 35% console)
@@ -695,8 +697,17 @@ class MainWindow(QMainWindow):
             with open(path, "r", encoding="utf-8") as f:
                 content = f.read()
         except UnicodeDecodeError:
-            with open(path, "r", encoding="latin-1") as f:
-                content = f.read()
+            try:
+                with open(path, "r", encoding="latin-1") as f:
+                    content = f.read()
+            except Exception as e:
+                self.lbl_status.setText("Erreur d'ouverture")
+                report_error("Erreur d'ouverture", f"Impossible d'ouvrir {path} : {e}", parent=self)
+                return
+        except Exception as e:
+            self.lbl_status.setText("Erreur d'ouverture")
+            report_error("Erreur d'ouverture", f"Impossible d'ouvrir {path} : {e}", parent=self)
+            return
 
         filename = os.path.basename(path)
         editor = self.new_file(filename, content)
@@ -736,7 +747,8 @@ class MainWindow(QMainWindow):
                 self._populate_recent_files_menu()
             return True
         except Exception as e:
-            QMessageBox.critical(self, "Erreur d'enregistrement", str(e))
+            self.lbl_status.setText("Erreur d'enregistrement")
+            report_error("Erreur d'enregistrement", str(e), parent=self)
             return False
 
     def save_file_as(self) -> bool:
@@ -1020,7 +1032,7 @@ class MainWindow(QMainWindow):
                 editor.set_error_line(line_no)
             self.assistant_view.show_error_advice(str(e), line_no=line_no)
             self.side_tabs.setCurrentWidget(self.assistant_view)
-            QMessageBox.warning(self, "Erreur de compilation", str(e))
+            report_error("Erreur de compilation", str(e), parent=self)
             return ""
 
     def run_algorithm(self):
@@ -1049,7 +1061,7 @@ class MainWindow(QMainWindow):
                 editor.set_error_line(line_no)
             self.assistant_view.show_error_advice(str(e), line_no=line_no)
             self.side_tabs.setCurrentWidget(self.assistant_view)
-            self.console.output_text.append(f"<span style='color: #ef4444; font-weight: bold;'>Erreur de compilation : {e}</span>")
+            report_error("Erreur de compilation", str(e), parent=self)
 
     def stop_execution(self):
         self.console.stop_execution()

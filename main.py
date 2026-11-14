@@ -51,6 +51,7 @@ from ui.theme_utils import (
     get_system_theme_watcher
 )
 from ui.main_window import MainWindow
+from ui.error_handler import install_exception_hooks
 from database import get_database
 
 def main():
@@ -59,6 +60,7 @@ def main():
     QApplication.setAttribute(Qt.AA_UseHighDpiPixmaps, True)
 
     app = QApplication(sys.argv)
+    install_exception_hooks()
     app.setApplicationName(APP_NAME)
     app.setApplicationDisplayName(APP_NAME)
     app.setApplicationVersion(__version__)

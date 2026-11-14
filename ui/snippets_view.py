@@ -23,6 +23,7 @@ from PyQt5.QtCore import Qt, pyqtSignal, QUrl, QSize
 from ui.components import AppMarkdownReader, AppSelect, AppTreeView
 
 from ui.editor import AlgoCodeEditor
+from ui.error_handler import report_error
 from ui.icons import create_icon
 from ui.pdf_viewer import LightPdfViewer, PdfReaderWindow
 from ui.snippets_manager import (
@@ -905,7 +906,7 @@ class SnippetsWidget(QWidget):
                 f"Le fichier « {os.path.basename(dest_file)} » a été joint à l'extrait « {snippet.title} »."
             )
         except Exception as e:
-            QMessageBox.critical(self, "Erreur", f"Impossible de joindre le fichier :\n{e}")
+            report_error("Erreur", f"Impossible de joindre le fichier : {e}", parent=self)
 
     def _on_detach_file(self, file_path: str):
         if not os.path.exists(file_path):
@@ -922,7 +923,7 @@ class SnippetsWidget(QWidget):
                     self.current_snippet.reload()
                     self._on_snippet_selected(self.current_snippet)
             except Exception as e:
-                QMessageBox.critical(self, "Erreur", f"Erreur lors de la suppression : {e}")
+                report_error("Erreur", f"Erreur lors de la suppression : {e}", parent=self)
 
     def _on_new_snippet_dialog(self, collection_dir: str):
         if not collection_dir or not os.path.isdir(collection_dir):
@@ -945,7 +946,7 @@ class SnippetsWidget(QWidget):
                 self, "Snippet créé", f"Le snippet « {name} » a été créé dans la collection."
             )
         except Exception as e:
-            QMessageBox.critical(self, "Erreur", f"Impossible de créer le snippet :\n{e}")
+            report_error("Erreur", f"Impossible de créer le snippet : {e}", parent=self)
 
     def _on_new_collection_dialog(self, parent_dir: str):
         if not parent_dir or not os.path.isdir(parent_dir):
@@ -968,7 +969,7 @@ class SnippetsWidget(QWidget):
                 self, "Collection créée", f"La collection « {col_name} » a été créée."
             )
         except Exception as e:
-            QMessageBox.critical(self, "Erreur", f"Impossible de créer le dossier :\n{e}")
+            report_error("Erreur", f"Impossible de créer le dossier : {e}", parent=self)
 
     def _on_delete_snippet(self, snippet: SnippetItem):
         ans = QMessageBox.warning(
@@ -987,4 +988,4 @@ class SnippetsWidget(QWidget):
                 os.remove(snippet.code_file)
             self.reload_tree()
         except Exception as e:
-            QMessageBox.critical(self, "Erreur", f"Erreur lors de la suppression :\n{e}")
+            report_error("Erreur", f"Erreur lors de la suppression : {e}", parent=self)

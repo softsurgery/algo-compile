@@ -269,6 +269,7 @@ class AlgoConsole(QWidget):
 
         self.process.readyReadStandardOutput.connect(self._on_stdout_ready)
         self.process.readyReadStandardError.connect(self._on_stderr_ready)
+        self.process.errorOccurred.connect(self._on_process_error)
         self.process.finished.connect(self._on_process_finished)
 
         start_color = "#10b981" if not self.is_dark else "#a6e3a1"
@@ -310,6 +311,45 @@ class AlgoConsole(QWidget):
         self.output_text.insertHtml(f"<span style='color: {err_color}; font-weight: bold;'>{escaped}</span>")
         self.output_text.moveCursor(QTextCursor.End)
 
+    def log_error(self, message: str, traceback_text: str = None):
+        """Logs an error message (and optional traceback) to the console output."""
+        err_color = "#dc2626" if not self.is_dark else "#f38ba8"
+        escaped_msg = (
+            str(message)
+            .replace('&', '&amp;')
+            .replace('<', '&lt;')
+            .replace('>', '&gt;')
+            .replace('\n', '<br>')
+        )
+        html = f"<span style='color: {err_color}; font-weight: bold;'>{escaped_msg}</span>"
+        if traceback_text:
+            escaped_tb = (
+                traceback_text.rstrip()
+                .replace('&', '&amp;')
+                .replace('<', '&lt;')
+                .replace('>', '&gt;')
+                .replace('\n', '<br>')
+            )
+            html += f"<br><span style='color: {err_color};'>{escaped_tb}</span>"
+        self.output_text.append(html)
+        self.output_text.moveCursor(QTextCursor.End)
+
+    def _on_process_error(self, error):
+        if error == QProcess.FailedToStart:
+            self.log_error("Erreur d'exécution : impossible de démarrer le processus Python.")
+            self.status_badge.setText(" ● Erreur ")
+            self.status_badge.setStyleSheet("color: #dc2626; font-weight: bold;")
+            self.btn_stop.setEnabled(False)
+            self._cleanup_temp_script()
+
+    def _cleanup_temp_script(self):
+        if self.temp_script_path and os.path.exists(self.temp_script_path):
+            try:
+                os.remove(self.temp_script_path)
+            except OSError:
+                pass
+            self.temp_script_path = None
+
     def _on_process_finished(self, exit_code, exit_status):
         self.status_badge.setText(" ● Prêt ")
         self.status_badge.setStyleSheet("color: #2b8a3e; font-weight: bold;")
@@ -319,13 +359,7 @@ class AlgoConsole(QWidget):
         self.output_text.append(f"<br><span style='color: {info_color}; font-style: italic;'>=== Sortie du programme (code {exit_code}) ===</span><br>")
         self.output_text.moveCursor(QTextCursor.End)
 
-        # Clean temp file
-        if self.temp_script_path and os.path.exists(self.temp_script_path):
-            try:
-                os.remove(self.temp_script_path)
-            except OSError:
-                pass
-            self.temp_script_path = None
+        self._cleanup_temp_script()
 
         self.execution_finished.emit(exit_code)
 

@@ -14,6 +14,8 @@ from PyQt5.QtGui import (
 )
 from PyQt5.QtCore import Qt
 
+from ui.error_handler import report_error
+
 
 class PythonHighlighter(QSyntaxHighlighter):
     """Syntax highlighter for Python code."""
@@ -209,6 +211,9 @@ class PythonView(QWidget):
     def _export_file(self):
         path, _ = QFileDialog.getSaveFileName(self, "Exporter en fichier Python", "algorithme.py", "Python (*.py)")
         if path:
-            with open(path, "w", encoding="utf-8") as f:
-                f.write(self.editor.toPlainText())
-            QMessageBox.information(self, "Exportation réussie", f"Fichier enregistré sous:\n{path}")
+            try:
+                with open(path, "w", encoding="utf-8") as f:
+                    f.write(self.editor.toPlainText())
+                QMessageBox.information(self, "Exportation réussie", f"Fichier enregistré sous:\n{path}")
+            except Exception as e:
+                report_error("Erreur d'exportation", f"Impossible d'exporter le fichier : {e}", parent=self)
